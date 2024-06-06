@@ -47,6 +47,8 @@ def run_testing(training_params, generation_params, fig_num=5):
                 latent_dim, gen_upsamp, dis_conv, dis_lin
                 )
 
+    training_params['chkpt_file_name'] = chkpt_file_name
+
     """Initialize seed"""
     torch.manual_seed(training_seed)
     
