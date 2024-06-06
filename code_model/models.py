@@ -9,6 +9,9 @@ import torch.nn as nn
 """Discriminators"""
 # Detective: fake or no fake -> 1 output [0, 1]
 class Discriminator_v1(nn.Module):
+    """
+    Simple discriminator based on standard convolutional neural network architechture
+    """
     def __init__(self, **training_params):
         super().__init__()
         # Params
@@ -55,6 +58,9 @@ class Discriminator_v1(nn.Module):
         return x
 
 class Discriminator_v2(nn.Module):
+    """
+    Simple discriminator that uses instance norm and leaky ReLU
+    """
     def __init__(self, **training_params):
         super().__init__()
         # Params
@@ -102,6 +108,9 @@ class Discriminator_v2(nn.Module):
 
 """Generators"""
 class Generator_v1(nn.Module):
+    """
+    Simple generator that uses convTranspose to upsample
+    """
     def __init__(self, **training_params):
         super().__init__()
         
@@ -139,6 +148,9 @@ class Generator_v1(nn.Module):
         return x
     
 class Generator_v2(nn.Module):
+    """
+    Simple generator that uses nearest neighbour to upsample
+    """
     def __init__(self, **training_params):
         super().__init__()
         

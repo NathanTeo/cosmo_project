@@ -67,16 +67,19 @@ def run_testing(training_params, generation_params, fig_num=5):
         **training_params
         )
 
-    """Plot"""
+    """Testing"""
     img_row_num = 3
     
+    # Get images
     real_imgs = data[:img_row_num*img_row_num]
     
     z = torch.randn(img_row_num*img_row_num, latent_dim)
     gen_imgs = model(z).detach().squeeze()
-        
+    
+    # Plotting images
     fig = plt.figure(figsize=(6,3))
     subfig = fig.subfigures(1, 2, wspace=0.1)
+    # Plot real images
     axsL = subfig[0].subplots(img_row_num, img_row_num)
     for i in range(img_row_num):
         for j in range(img_row_num):
@@ -86,7 +89,7 @@ def run_testing(training_params, generation_params, fig_num=5):
             axsL[i, j].axis('off')
     subfig[0].subplots_adjust(wspace=.1, hspace=.1)         
     subfig[0].suptitle('Real imgs')
-
+    # Plot generated images
     axsR = subfig[1].subplots(img_row_num, img_row_num)
     for i in range(img_row_num):
         for j in range(img_row_num):
@@ -96,5 +99,5 @@ def run_testing(training_params, generation_params, fig_num=5):
             axsR[i, j].axis('off') 
     subfig[1].subplots_adjust(wspace=.1, hspace=.1) 
     subfig[1].suptitle('Generated imgs')
-
+    # Save
     plt.savefig(f'{save_path}\\{chkpt_file_name}.png')
