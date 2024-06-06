@@ -33,7 +33,7 @@ training_params = {
         'discriminator_linear_size': 32,
         'linear_dropout': 0.2,
         'conv_dropout': 0.2,
-        'root_path': "C:\\Users\\Idiot\\Desktop\\Research\\OFYP\\Project"
+        'root_path': "C:\\Users\\Idiot\\Desktop\\Research\\OFYP\\cosmo_project"
 }
 
 training_restart = False

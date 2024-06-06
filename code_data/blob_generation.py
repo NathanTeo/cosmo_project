@@ -12,7 +12,7 @@ blob_size = 5
 sample_num = 10000
 blob_num = 1
 pad = 0
-root_path = "C:\\Users\\Idiot\\Desktop\\Research\\OFYP\\Project"
+root_path = "C:\\Users\\Idiot\\Desktop\\Research\\OFYP\\cosmo_project"
 save_path = f"{root_path}\\Data\\{blob_num}_blob"
 file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{seed}'
 
