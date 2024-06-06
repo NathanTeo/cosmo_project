@@ -24,7 +24,9 @@ class GAN_utils():
             plt.subplot(2, 3, i+1)
             plt.imshow(sample_imgs.detach()[i, 0, :, :], interpolation='none')
             plt.title(
-                f'disc output: {self.discriminator(sample_imgs)[i].detach().numpy()[0]}'
+                'disc output: {:.4f}'.format(
+                    self.discriminator(sample_imgs)[i].detach().numpy()[0]
+                )
                 )
             plt.xticks([])
             plt.yticks([])
