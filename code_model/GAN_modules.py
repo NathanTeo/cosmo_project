@@ -151,7 +151,7 @@ class CGAN(pl.LightningModule, GAN_utils):
         grid = torchvision.utils.make_grid(sample_imgs)
         self.logger.experiment.add_image(f"val_generated_images_{self.current_epoch}", grid, self.current_epoch)
 
-class CWGAN(GAN_utils):
+class CWGAN(pl.LightningModule, GAN_utils):
     def __init__(self, **training_params):
         super().__init__()
         self.automatic_optimization = False
