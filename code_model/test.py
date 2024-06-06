@@ -8,6 +8,7 @@ import torch
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 
+from code_model.data_modules import *
 from code_model.GAN_modules import *
 
 def run_testing(training_params, generation_params, fig_num=5):
@@ -48,9 +49,17 @@ def run_testing(training_params, generation_params, fig_num=5):
                 )
 
     training_params['chkpt_file_name'] = chkpt_file_name
+    
+    save_path = f'{root_path}\\plots\\{chkpt_file_name}\\images'
+    
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
 
     """Initialize seed"""
     torch.manual_seed(training_seed)
+    
+    """Load data"""
+    data = np.load(f'{root_path}\\{data_folder}\\{data_file_name}')
     
     """Load model"""
     model = gans[gan_version].load_from_checkpoint(
@@ -59,16 +68,33 @@ def run_testing(training_params, generation_params, fig_num=5):
         )
 
     """Plot"""
-    for _ in range(fig_num):
-        z = torch.randn(3*3, latent_dim)
-        gen_imgs = model(z)
+    img_row_num = 3
+    
+    real_imgs = data[:img_row_num*img_row_num]
+    
+    z = torch.randn(img_row_num*img_row_num, latent_dim)
+    gen_imgs = model(z).detach().squeeze()
+        
+    fig = plt.figure(figsize=(6,3))
+    subfig = fig.subfigures(1, 2, wspace=0.1)
+    axsL = subfig[0].subplots(img_row_num, img_row_num)
+    for i in range(img_row_num):
+        for j in range(img_row_num):
+            axsL[i, j].imshow(real_imgs[i+j], interpolation='none')
+            axsL[i, j].set_xticks([])
+            axsL[i, j].set_yticks([])
+            axsL[i, j].axis('off')
+    subfig[0].subplots_adjust(wspace=.1, hspace=.1)         
+    subfig[0].suptitle('Real imgs')
 
-        fig = plt.figure()
-        for i in range(gen_imgs.size(0)):
-            plt.subplot(3, 3, i+1)
-            plt.tight_layout()
-            plt.imshow(gen_imgs.detach()[i, 0, :, :], interpolation='none')
-            plt.xticks([])
-            plt.yticks([])
-            plt.axis('off')
-        plt.show()
+    axsR = subfig[1].subplots(img_row_num, img_row_num)
+    for i in range(img_row_num):
+        for j in range(img_row_num):
+            axsR[i, j].imshow(gen_imgs[i+j], interpolation='none')
+            axsR[i, j].set_xticks([])
+            axsR[i, j].set_yticks([])
+            axsR[i, j].axis('off') 
+    subfig[1].subplots_adjust(wspace=.1, hspace=.1) 
+    subfig[1].suptitle('Generated imgs')
+
+    plt.savefig(f'{save_path}\\{chkpt_file_name}.png')
