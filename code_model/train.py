@@ -9,7 +9,8 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from code_model.utils import *
+from code_model.GAN_modules import *
+from code_model.data_modules import *
 
 def run_training(training_params, generation_params, training_restart=False):
         """Initialize Params"""
@@ -69,7 +70,7 @@ def run_training(training_params, generation_params, training_restart=False):
         """Training"""
         if __name__ == 'code_model.train':
                 # Load data
-                data = inputDataModule(
+                data = BlobDataModule(
                         data_file=f'{root_path}\\{data_folder}\\{data_file_name}',
                         batch_size=batch_size, num_workers=num_workers
                         )

@@ -8,7 +8,7 @@ import torch
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 
-from code_model.utils import *
+from code_model.GAN_modules import *
 
 def run_testing(training_params, generation_params, fig_num=5):
     """Initialize variables"""
