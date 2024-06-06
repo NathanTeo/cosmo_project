@@ -52,7 +52,8 @@ def run_training(training_params, generation_params, training_restart=False):
         
         # folder for logging imgs
         if not os.path.exists(f'{root_path}\\logs\\{chkpt_file_name}'):
-                os.makedirs(f'{root_path}\\logs\\{chkpt_file_name}')
+                os.makedirs(f'{root_path}\\logs\\{chkpt_file_name}\\images')
+                
 
         """Initialize checkpoint"""
         checkpoint_callback = ModelCheckpoint(

@@ -32,7 +32,7 @@ class GAN_utils():
             plt.tight_layout()
         fig.suptitle(f'Generated Data, Epoch: {self.current_epoch}')
         plt.tight_layout()
-        plt.savefig(f'{self.root_path}\\logs\\{self.log_img_folder}\\image{self.current_epoch}.png')
+        plt.savefig(f'{self.root_path}\\logs\\{self.log_folder}\\images\\image_epoch{self.current_epoch}.png')
         plt.close('all')
         
 
@@ -47,7 +47,7 @@ class CGAN(pl.LightningModule, GAN_utils):
         self.root_path = training_params['root_path']
         self.epoch_start_g_train = training_params['epoch_start_g_train']
         self.discriminator_train_freq = training_params['discriminator_train_freq']
-        self.log_img_folder = training_params['chkpt_file_name']
+        self.log_folder = training_params['chkpt_file_name']
         
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
@@ -163,7 +163,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
         self.gp_lambda = training_params['gp_lambda']
         self.epoch_start_g_train = training_params['epoch_start_g_train']
         self.discriminator_train_freq = training_params['discriminator_train_freq']
-        self.log_img_folder = training_params['chkpt_file_name']     
+        self.log_folder = training_params['chkpt_file_name']     
         
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
