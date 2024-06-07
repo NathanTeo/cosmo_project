@@ -1,7 +1,9 @@
 import os 
 import torch
 
+"""Params"""
 state = 'train'
+training_restart = False
 
 generation_params = {
         'blob_num': 1,
@@ -36,8 +38,7 @@ training_params = {
         'root_path': "C:\\Users\\Idiot\\Desktop\\Research\\OFYP\\cosmo_project"
 }
 
-training_restart = False
-
+"""Run"""
 import sys
 sys.path.append(f"{training_params['root_path']}")
 from code_model.train import *
