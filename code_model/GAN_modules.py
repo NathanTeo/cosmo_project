@@ -296,7 +296,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
         
         # Log losses
         self.epoch_g_losses.append(g_loss.detach().numpy())
-        self.epoch_d_losses.append(d_loss)
+        self.epoch_d_losses.append(d_loss.detach().numpy())
         
     def configure_optimizers(self):
         lr = self.lr
