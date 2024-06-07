@@ -40,10 +40,10 @@ def run_testing(training_params, generation_params, fig_num=5):
     data_folder = f'Data\\{blob_num}_blob'
     data_file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}.npy'
     chkpt_path = f'checkpoints/{blob_num}_blob'
-    chkpt_file_name = '{}-g{}-d{}-bn{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gu{}-dc{}-dl{}'.format(
+    chkpt_file_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gu{}-dc{}-dl{}'.format(
                 gan_version,
                 gen_version, dis_version,
-                blob_num, blob_size, sample_num, image_size,
+                blob_num, blob_size, np.log10(sample_num), image_size,
                 training_seed, str(lr)[2:],
                 latent_dim, gen_upsamp, dis_conv, dis_lin
                 )
