@@ -9,7 +9,7 @@ from tqdm.auto import tqdm
 image_size = 28
 seed = 70
 blob_size = 5
-sample_num = 10000
+sample_num = 100
 blob_num = 1
 pad = 0
 root_path = "C:\\Users\\Idiot\\Desktop\\Research\\OFYP\\cosmo_project"

@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 import torchvision
 import matplotlib.pyplot as plt
+import numpy as np
 
 import code_model.models as models
 
@@ -36,6 +37,20 @@ class GAN_utils():
         plt.tight_layout()
         plt.savefig(f'{self.root_path}\\logs\\{self.log_folder}\\images\\image_epoch{self.current_epoch}.png')
         plt.close('all')
+    
+    def log_losses(self, epoch_g_losses, epoch_d_losses):
+        filename = f'{self.root_path}\\logs\\{self.log_folder}\\losses.npz'
+        
+        if self.current_epoch == 0:
+            g_losses = [np.mean(epoch_g_losses)]
+            d_losses = [np.mean(epoch_d_losses)]
+            np.savez(filename, g_losses=g_losses, d_losses=d_losses)
+        else:
+            f = np.load(filename)
+            g_losses = np.append(f['g_losses'], np.mean(epoch_g_losses))
+            d_losses = np.append(f['d_losses'], np.mean(epoch_d_losses))
+            np.savez(filename, g_losses=g_losses, d_losses=d_losses)
+        return [], []
         
 
 class CGAN(pl.LightningModule, GAN_utils):
@@ -53,6 +68,9 @@ class CGAN(pl.LightningModule, GAN_utils):
         
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
+        
+        self.epoch_d_losses = []
+        self.epoch_g_losses = []
         
         # Initialize models
         self.generator = models.models[f'gen_v{gen_version}'](**training_params)
@@ -136,6 +154,10 @@ class CGAN(pl.LightningModule, GAN_utils):
             opt_d.step()
             opt_d.zero_grad()
         self.untoggle_optimizer(opt_d)
+        
+        # Log losses
+        self.epoch_g_losses.append(g_loss.detach().numpy())
+        self.epoch_d_losses.append(d_loss.detach().numpy())
             
     def configure_optimizers(self):
         lr = self.lr
@@ -145,6 +167,8 @@ class CGAN(pl.LightningModule, GAN_utils):
         
     def on_train_epoch_end(self):
         self.plot_imgs()
+        self.epoch_g_losses, self.epoch_d_losses = self.log_losses(
+            self.epoch_g_losses, self.epoch_d_losses)
         
         z = self.validation_z.type_as(self.generator.linear[0].weight)
 
@@ -170,6 +194,9 @@ class CWGAN(pl.LightningModule, GAN_utils):
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
         self.root_path = training_params['root_path']
+        
+        self.epoch_d_losses = []
+        self.epoch_g_losses = []
         
         # Initialize models
         self.generator = models.models[f'gen_v{gen_version}'](**training_params)
@@ -266,7 +293,11 @@ class CWGAN(pl.LightningModule, GAN_utils):
             opt_g.step()
             
             self.untoggle_optimizer(opt_g)
-            
+        
+        # Log losses
+        self.epoch_g_losses.append(g_loss.detach().numpy())
+        self.epoch_d_losses.append(d_loss)
+        
     def configure_optimizers(self):
         lr = self.lr
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=self.betas)
@@ -275,6 +306,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
         
     def on_train_epoch_end(self):
         self.plot_imgs()
+        self.epoch_g_losses, self.epoch_d_losses = self.log_losses(
+            self.epoch_g_losses, self.epoch_d_losses)
         
         z = self.validation_z.type_as(self.generator.linear[0].weight)
 
