@@ -44,7 +44,7 @@ def run_training(training_params, generation_params, training_restart=False):
         chkpt_file_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gu{}-dc{}-dl{}'.format(
                 gan_version,
                 gen_version, dis_version,
-                blob_num, blob_size, np.log10(sample_num), image_size,
+                blob_num, blob_size, int(np.log10(sample_num)), image_size,
                 training_seed, str(lr)[2:],
                 latent_dim, gen_upsamp, dis_conv, dis_lin
                 )

@@ -42,11 +42,13 @@ class GAN_utils():
         filename = f'{self.root_path}\\logs\\{self.log_folder}\\losses.npz'
         
         if self.current_epoch == 0:
+            epochs = [self.current_epoch]
             g_losses = [np.mean(epoch_g_losses)]
             d_losses = [np.mean(epoch_d_losses)]
-            np.savez(filename, g_losses=g_losses, d_losses=d_losses)
+            np.savez(filename, epochs=epochs, g_losses=g_losses, d_losses=d_losses)
         else:
-            f = np.load(filename)
+            f = np.load(filename, allow_pickle=True)
+            epochs = np.append(f['epochs'], self.current_epoch)
             g_losses = np.append(f['g_losses'], np.mean(epoch_g_losses))
             d_losses = np.append(f['d_losses'], np.mean(epoch_d_losses))
             np.savez(filename, g_losses=g_losses, d_losses=d_losses)
