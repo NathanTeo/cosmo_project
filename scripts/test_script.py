@@ -3,7 +3,7 @@ import torch
 
 """Params"""
 state = 'train'
-training_restart = True
+training_restart = False
 
 generation_params = {
         'blob_num': 1,
@@ -31,12 +31,13 @@ training_params = {
         'latent_dim': 10,
         'generator_upsamp_size': 8,
         'input_channels': 1,
-        'discriminator_conv_size': 8,
+        'discriminator_conv_size': 4,
         'discriminator_linear_size': 16,
         'linear_dropout': 0.2,
         'conv_dropout': 0.2,
         'root_path': "C:\\Users\\Idiot\\Desktop\\Research\\OFYP\\cosmo_project"
 }
+
 
 """Run"""
 import sys
