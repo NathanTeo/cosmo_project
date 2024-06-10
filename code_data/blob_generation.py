@@ -9,8 +9,8 @@ from tqdm.auto import tqdm
 image_size = 28
 seed = 70
 blob_size = 5
-sample_num = 100
-blob_num = 1
+sample_num = 10000
+blob_num = 10
 pad = 0
 root_path = "C:\\Users\\Idiot\\Desktop\\Research\\OFYP\\cosmo_project"
 save_path = f"{root_path}\\Data\\{blob_num}_blob"
@@ -57,12 +57,7 @@ for i in tqdm(range(sample_num)):
 np.save(f'{save_path}\\{file_name}', samples)
 
 # Check
-plt.title(f'size: {blob_size}, coords: {mean_coords}')
+plt.title(f'num of blobs: {blob_num} | image size: {image_size} | blob size: {blob_size}')
 plt.imshow(sample)
 plt.colorbar()
-plt.show()
-
-# plt.title(f'size: {blob_size}, coords: {mean_coords}')
-# plt.imshow(pad_sample)
-# plt.colorbar()
-# plt.show()
+plt.savefig(f'{save_path}\\sample_bn{blob_num}_is{image_size}_bs{blob_size}')
