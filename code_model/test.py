@@ -7,11 +7,13 @@ import os
 import torch
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
+from tqdm.auto import tqdm
 
 from code_model.data_modules import *
 from code_model.GAN_modules import *
+from code_model.plotting_utils import *
 
-def run_testing(training_params, generation_params, fig_num=5):
+def run_testing(training_params, generation_params, grid_row_num=2, plot_num=5):
     """Initialize variables"""
     gan_version = training_params['gan_version']
     gen_version = training_params['generator_version']
@@ -37,7 +39,7 @@ def run_testing(training_params, generation_params, fig_num=5):
 
     """Paths"""
     root_path = training_params['root_path']
-    data_folder = f'Data\\{blob_num}_blob'
+    data_path = f'Data\\{blob_num}_blob'
     data_file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}.npy'
     chkpt_path = f'checkpoints/{blob_num}_blob'
     chkpt_file_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gu{}-dc{}-dl{}'.format(
@@ -47,6 +49,7 @@ def run_testing(training_params, generation_params, fig_num=5):
                 training_seed, str(lr)[2:],
                 latent_dim, gen_upsamp, dis_conv, dis_lin
                 )
+    log_path = f'logs\\{chkpt_file_name}'
 
     training_params['chkpt_file_name'] = chkpt_file_name
     
@@ -59,7 +62,7 @@ def run_testing(training_params, generation_params, fig_num=5):
     torch.manual_seed(training_seed)
     
     """Load data"""
-    data = np.load(f'{root_path}\\{data_folder}\\{data_file_name}')
+    data = np.load(f'{root_path}\\{data_path}\\{data_file_name}')
     
     """Load model"""
     model = gans[gan_version].load_from_checkpoint(
@@ -68,36 +71,53 @@ def run_testing(training_params, generation_params, fig_num=5):
         )
 
     """Testing"""
-    img_row_num = 3
-    
     # Get images
-    real_imgs = data[:img_row_num*img_row_num]
+    real_imgs = data[:grid_row_num*grid_row_num]
     
-    z = torch.randn(img_row_num*img_row_num, latent_dim)
-    gen_imgs = model(z).detach().squeeze()
+    for n in tqdm(range(plot_num), desc='Plotting'):
+        z = torch.randn(grid_row_num*grid_row_num, latent_dim)
+        gen_imgs = model(z).detach().squeeze()
+        
+        # Plotting grid of images
+        fig = plt.figure(figsize=(6,3))
+        subfig = fig.subfigures(1, 2, wspace=0.2)
+        
+        plot_img_grid(subfig[0], real_imgs, grid_row_num, title='Real Imgs')
+        plot_img_grid(subfig[1], gen_imgs, grid_row_num, title='Generated Imgs')
+        
+        # Save
+        plt.savefig(f'{save_path}\\gen-imgs_{chkpt_file_name}_{n}.png')
+        plt.close()
     
-    # Plotting images
-    fig = plt.figure(figsize=(6,3))
-    subfig = fig.subfigures(1, 2, wspace=0.1)
-    # Plot real images
-    axsL = subfig[0].subplots(img_row_num, img_row_num)
-    for i in range(img_row_num):
-        for j in range(img_row_num):
-            axsL[i, j].imshow(real_imgs[i+j], interpolation='none')
-            axsL[i, j].set_xticks([])
-            axsL[i, j].set_yticks([])
-            axsL[i, j].axis('off')
-    subfig[0].subplots_adjust(wspace=.1, hspace=.1)         
-    subfig[0].suptitle('Real imgs')
-    # Plot generated images
-    axsR = subfig[1].subplots(img_row_num, img_row_num)
-    for i in range(img_row_num):
-        for j in range(img_row_num):
-            axsR[i, j].imshow(gen_imgs[i+j], interpolation='none')
-            axsR[i, j].set_xticks([])
-            axsR[i, j].set_yticks([])
-            axsR[i, j].axis('off') 
-    subfig[1].subplots_adjust(wspace=.1, hspace=.1) 
-    subfig[1].suptitle('Generated imgs')
-    # Save
-    plt.savefig(f'{save_path}\\{chkpt_file_name}.png')
+        # Plotting marginal sums
+        fig = plt.figure(figsize=(4,6))
+        subfig = fig.subfigures(1, 2)
+                
+        plot_marginal_sums(real_imgs, subfig[0], grid_row_num, title='Real')
+        plot_marginal_sums(gen_imgs, subfig[1], grid_row_num, title='Generated')
+        
+        fig.suptitle('Marginal Sums')
+        
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(f'{save_path}\\marg-sums_{chkpt_file_name}_{n}.png')
+        plt.close()
+        
+    """Losses"""
+    try:
+        losses = np.load(f'{root_path}\\{log_path}\\losses.npz')
+        g_losses = losses['g_losses']
+        d_losses = losses['d_losses']
+        epochs = losses['epochs']
+        
+        plt.figure(figsize=(6,4))
+        plt.plot(epochs, g_losses, label='generator')
+        plt.plot(epochs, d_losses, label='discriminator')
+        plt.title('Model Loss')
+        
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(f'{save_path}\\losses_{chkpt_file_name}.png')
+        plt.close()
+    except FileNotFoundError:
+        print('losses not found')
