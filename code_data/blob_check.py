@@ -6,9 +6,9 @@ Author: Nathan Teo
 import numpy as np
 import matplotlib.pyplot as plt
 
-blob_num = 1
+blob_num = 10
 generation_seed = 70
-sample_num = 1000
+sample_num = 10000
 image_size = 28
 blob_size = 5
 

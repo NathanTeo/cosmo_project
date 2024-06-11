@@ -88,16 +88,22 @@ def run_training(training_params, generation_params, training_restart=False):
                 
                 # Train
                 if training_restart:
+                        print('--------------------')
                         print('training restarted')
+                        print('--------------------')
                         trainer.fit(model, data)
                 else:
                         try:
                                 # Continue training from existing checkpoint
+                                print('--------------------')
                                 print('training continued')
+                                print('--------------------')
                                 trainer.fit(
                                         model, data,
                                         ckpt_path=f'{root_path}\\{chkpt_path}\\{chkpt_file_name}.ckpt'
                                 )                                
                         except(FileNotFoundError):
+                                print('--------------------------------------------')
                                 print('no trained model found, training new model')
+                                print('--------------------------------------------')
                                 trainer.fit(model, data)

@@ -2,7 +2,7 @@ import os
 import torch
 
 """Params"""
-state = 'train'
+state = 'test'
 training_restart = False
 
 generation_params = {
@@ -15,8 +15,8 @@ generation_params = {
 
 training_params = {
         'gan_version': 'CGAN',
-        'generator_version': 2,
-        'discriminator_version': 1,
+        'generator_version': 3,
+        'discriminator_version': 2,
         'random_seed': 40,
         'avail_gpus': min(1, torch.cuda.device_count()),
         'num_workers': int(os.cpu_count() / 2),

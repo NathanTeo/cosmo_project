@@ -2,7 +2,7 @@ import os
 import torch
 
 """Params"""
-state = 'train'
+state = 'test'
 training_restart = False
 
 generation_params = {
