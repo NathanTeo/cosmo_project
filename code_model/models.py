@@ -27,11 +27,9 @@ class Discriminator_v1(nn.Module):
         # Simple CNN
         self.cnn = nn.Sequential(
             nn.Conv2d(input_channels, conv_size, kernel_size=5, stride=1), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
             nn.BatchNorm2d(conv_size), nn.ReLU(inplace=True), nn.Dropout2d(conv_dropout),
 
             nn.Conv2d(conv_size, conv_size*2, kernel_size=5, stride=1), 
-            nn.MaxPool2d(kernel_size=2, stride=2),
             nn.BatchNorm2d(conv_size*2), nn.ReLU(inplace=True), nn.Dropout2d(conv_dropout),
             
             nn.Flatten()
@@ -76,11 +74,9 @@ class Discriminator_v2(nn.Module):
         # Simple CNN
         self.cnn = nn.Sequential(
             nn.Conv2d(input_channels, conv_size, kernel_size=5, stride=1), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
             nn.InstanceNorm2d(conv_size, affine=True), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(conv_dropout),
 
-            nn.Conv2d(conv_size, conv_size*2, kernel_size=5, stride=1), 
-            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(conv_size, conv_size*2, kernel_size=5, stride=1),
             nn.InstanceNorm2d(conv_size*2, affine=True), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(conv_dropout),
             
             nn.Flatten()
@@ -217,19 +213,18 @@ class Generator_v3(nn.Module):
             nn.Conv2d(int(upsamp_size/2), int(upsamp_size/4), 3, 1),
             
             nn.Conv2d(int(upsamp_size/4), 1, kernel_size=final_kernel_size-2),
-            
-            nn.Tanh()
         )
 
     def forward(self, x):
         x = self.linear(x)
         x = self.upsample(x)
-        return x
+        return torch.sigmoid(x)
 
 """All models"""
 models = {
     'gen_v1': Generator_v1,
     'gen_v2': Generator_v2,
+    'gen_v3': Generator_v3,
     'dis_v1': Discriminator_v1,
     'dis_v2': Discriminator_v2
 }
