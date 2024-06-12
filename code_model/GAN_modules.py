@@ -11,30 +11,37 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import code_model.models as models
+from code_model.plotting_utils import *
 
 class GAN_utils():
     def __init__(self):
         pass
     
-    def plot_imgs(self):
-        z = self.validation_z.type_as(self.generator.linear[0].weight)
-        sample_imgs = self(z).cpu()
+    def plot_imgs(self, gen_sample_imgs, real_sample_imgs):
+        real_disc_scores = self.discriminator(real_sample_imgs).cpu().detach().numpy()[:,0]
+        gen_disc_scores = self.discriminator(gen_sample_imgs).cpu().detach().numpy()[:,0]
         
-        fig = plt.figure()
-        for i in range(sample_imgs.size(0)):
-            plt.subplot(2, 3, i+1)
-            plt.imshow(sample_imgs.detach()[i, 0, :, :], interpolation='none')
-            plt.title(
-                'disc output: {:.4f}'.format(
-                    self.discriminator(sample_imgs)[i].detach().numpy()[0]
-                )
-                )
-            plt.xticks([])
-            plt.yticks([])
-            plt.axis('off')
-            plt.tight_layout()
-        fig.suptitle(f'Generated Data, Epoch: {self.current_epoch}')
+        real_sample_imgs = real_sample_imgs.cpu().detach()[:,0,:,:]
+        gen_sample_imgs = gen_sample_imgs.cpu().detach()[:,0,:,:]
+        
+        # Plotting grid of images
+        fig = plt.figure(figsize=(8,5))
+        subfig = fig.subfigures(1, 2, wspace=0.2)
+        
+        plot_img_grid(
+            subfig[0], real_sample_imgs, 3, 
+            title='Real Imgs', subplot_titles=real_disc_scores, wspace=.1, hspace=.1
+            )
+        plot_img_grid(
+            subfig[1], gen_sample_imgs, 3,
+            title='Generated Imgs', subplot_titles=gen_disc_scores, wspace=.1, hspace=.1
+            )
+        
+        fig.suptitle(f'Epoch {self.current_epoch}')
+        fig.text(.5, .03, 'disc score labelled above image', ha='center')
         plt.tight_layout()
+        
+        # Save
         plt.savefig(f'{self.root_path}\\logs\\{self.log_folder}\\images\\image_epoch{self.current_epoch}.png')
         plt.close('all')
     
@@ -95,9 +102,10 @@ class CGAN(pl.LightningModule, GAN_utils):
             real_imgs = batch
         
         # Log real imgs
-        sample_imgs = real_imgs[:6]
+        sample_imgs = real_imgs[:9]
         grid = torchvision.utils.make_grid(sample_imgs)
         self.logger.experiment.add_image("real_images", grid, 0)
+        self.real_sample_imgs = sample_imgs # For plotting
         
         # initialize optimizers
         opt_g, opt_d = self.optimizers()
@@ -112,7 +120,7 @@ class CGAN(pl.LightningModule, GAN_utils):
             y_hat = self.discriminator(fake_imgs)
             
             # Log generated imgs
-            sample_imgs = fake_imgs[:6]
+            sample_imgs = fake_imgs[:9]
             grid = torchvision.utils.make_grid(sample_imgs)
             self.logger.experiment.add_image(f"generated_images_{self.current_epoch}", grid, 0)
             
@@ -158,8 +166,8 @@ class CGAN(pl.LightningModule, GAN_utils):
         self.untoggle_optimizer(opt_d)
         
         # Log losses
-        self.epoch_g_losses.append(g_loss.detach().numpy())
-        self.epoch_d_losses.append(d_loss.detach().numpy())
+        self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
+        self.epoch_d_losses.append(d_loss.cpu().detach().numpy())
             
     def configure_optimizers(self):
         lr = self.lr
@@ -168,15 +176,15 @@ class CGAN(pl.LightningModule, GAN_utils):
         return [opt_g, opt_d], [] # Empty list for scheduler
         
     def on_train_epoch_end(self):
-        self.plot_imgs()
+        z = self.validation_z.type_as(self.generator.linear[0].weight)
+        gen_sample_imgs = self(z)[:9]
+        self.plot_imgs(gen_sample_imgs, self.real_sample_imgs)
+        
         self.epoch_g_losses, self.epoch_d_losses = self.log_losses(
             self.epoch_g_losses, self.epoch_d_losses)
-        
-        z = self.validation_z.type_as(self.generator.linear[0].weight)
 
         # log sampled images
-        sample_imgs = self(z)
-        grid = torchvision.utils.make_grid(sample_imgs)
+        grid = torchvision.utils.make_grid(gen_sample_imgs)
         self.logger.experiment.add_image(f"val_generated_images_{self.current_epoch}", grid, self.current_epoch)
 
 class CWGAN(pl.LightningModule, GAN_utils):
@@ -242,9 +250,10 @@ class CWGAN(pl.LightningModule, GAN_utils):
         real_imgs.requires_grad_()
         
         # Log real imgs
-        sample_imgs = real_imgs[:6]
+        sample_imgs = real_imgs[:9]
         grid = torchvision.utils.make_grid(sample_imgs)
         self.logger.experiment.add_image("real_images", grid, 0)
+        self.real_sample_imgs = sample_imgs
         
         # initialize optimizers
         opt_g, opt_d = self.optimizers()
@@ -297,8 +306,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
             self.untoggle_optimizer(opt_g)
         
         # Log losses
-        self.epoch_g_losses.append(g_loss.detach().numpy())
-        self.epoch_d_losses.append(d_loss.detach().numpy())
+        self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
+        self.epoch_d_losses.append(d_loss.cpu().detach().numpy())
         
     def configure_optimizers(self):
         lr = self.lr
@@ -307,7 +316,9 @@ class CWGAN(pl.LightningModule, GAN_utils):
         return [opt_g, opt_d], [] # Empty list for scheduler
         
     def on_train_epoch_end(self):
-        self.plot_imgs()
+        z = self.validation_z.type_as(self.generator.linear[0].weight)
+        gen_sample_imgs = self(z)
+        self.plot_imgs(gen_sample_imgs, self.real_sample_imgs)
         self.epoch_g_losses, self.epoch_d_losses = self.log_losses(
             self.epoch_g_losses, self.epoch_d_losses)
         

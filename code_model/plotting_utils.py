@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2):
+def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None):
     axs = subfig.subplots(grid_row_num, grid_row_num)
     for i in range(grid_row_num):
         for j in range(grid_row_num):
@@ -9,8 +9,10 @@ def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2):
             axs[i, j].set_xticks([])
             axs[i, j].set_yticks([])
             axs[i, j].axis('off')
+            if subplot_titles is not None:
+                axs[i, j].set_title('{:.4f}'.format(subplot_titles[i+j]))
     subfig.subplots_adjust(wspace=wspace, hspace=hspace)         
-    subfig.suptitle(title)
+    subfig.suptitle(title, y=0.95)
 
 def marginal_sums(img):
     y_sum = [y for y in img.sum(axis=1)]
