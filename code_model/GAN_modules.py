@@ -86,7 +86,7 @@ class CGAN(pl.LightningModule, GAN_utils):
         self.discriminator = models.models[f'dis_v{dis_version}'](**training_params)
 
         # Random noise
-        self.validation_z = torch.randn(6, training_params['latent_dim'])
+        self.validation_z = torch.randn(9, training_params['latent_dim'])
         
     def forward(self, z):
         return self.generator(z)
@@ -94,27 +94,28 @@ class CGAN(pl.LightningModule, GAN_utils):
     def adversarial_loss(self, y_hat, y):
         return F.binary_cross_entropy(y_hat, y)
     
-    def training_step(self, batch, batch_inx):
-        # load real imgs
+    def training_step(self, batch, batch_idx):
+        # Load real imgs
         if len(batch) == 2: # if label exists eg. MNIST dataset
             real_imgs, _ = batch
         else:
             real_imgs = batch
         
         # Log real imgs
-        sample_imgs = real_imgs[:9]
-        grid = torchvision.utils.make_grid(sample_imgs)
-        self.logger.experiment.add_image("real_images", grid, 0)
-        self.real_sample_imgs = sample_imgs # For plotting
+        if batch_idx==0:
+            sample_imgs = real_imgs[:9]
+            grid = torchvision.utils.make_grid(sample_imgs)
+            self.logger.experiment.add_image("real_images", grid, 0)
+            self.real_sample_imgs = sample_imgs
         
-        # initialize optimizers
+        # Initialize optimizers
         opt_g, opt_d = self.optimizers()
         
-        # sample noise
+        # Sample noise
         z = torch.randn(real_imgs.shape[0], self.latent_dim)
         z = z.type_as(real_imgs)
 
-        # train generator
+        # Train generator
         if self.current_epoch >= self.epoch_start_g_train:
             fake_imgs = self(z)
             y_hat = self.discriminator(fake_imgs)
@@ -136,11 +137,11 @@ class CGAN(pl.LightningModule, GAN_utils):
             self.untoggle_optimizer(opt_g)
         
 
-        # train discriminator    
+        # Train discriminator    
         self.toggle_optimizer(opt_d)
         
         for _ in range(self.discriminator_train_freq):
-            # performance of labelling real
+            # Performance of labelling real
             y_hat_real = self.discriminator(real_imgs)
             
             y_real = torch.ones(real_imgs.size(0), 1)
@@ -148,7 +149,7 @@ class CGAN(pl.LightningModule, GAN_utils):
             
             real_loss = self.adversarial_loss(y_hat_real, y_real)
             
-            # performance of labelling fake
+            # Performance of labelling fake
             y_hat_fake = self.discriminator(self(z).detach())
             
             y_fake = torch.zeros(real_imgs.size(0), 1)
@@ -156,7 +157,7 @@ class CGAN(pl.LightningModule, GAN_utils):
             
             fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
             
-            # total loss
+            # Total loss
             d_loss = (real_loss + fake_loss)/2
             self.log("d_loss", d_loss, prog_bar=True)
             
@@ -176,14 +177,18 @@ class CGAN(pl.LightningModule, GAN_utils):
         return [opt_g, opt_d], [] # Empty list for scheduler
         
     def on_train_epoch_end(self):
+        # Generate samples
         z = self.validation_z.type_as(self.generator.linear[0].weight)
         gen_sample_imgs = self(z)[:9]
+        
+        # Plot
         self.plot_imgs(gen_sample_imgs, self.real_sample_imgs)
         
+        # Log losses
         self.epoch_g_losses, self.epoch_d_losses = self.log_losses(
             self.epoch_g_losses, self.epoch_d_losses)
 
-        # log sampled images
+        # Log sampled images
         grid = torchvision.utils.make_grid(gen_sample_imgs)
         self.logger.experiment.add_image(f"val_generated_images_{self.current_epoch}", grid, self.current_epoch)
 
@@ -213,7 +218,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
         self.discriminator = models.models[f'dis_v{dis_version}'](**training_params)
 
         # Random noise
-        self.validation_z = torch.randn(6, training_params['latent_dim'])
+        self.validation_z = torch.randn(9, training_params['latent_dim'])
         
     def forward(self, z):
         return self.generator(z)

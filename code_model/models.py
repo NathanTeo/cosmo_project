@@ -218,7 +218,7 @@ class Generator_v3(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         x = self.upsample(x)
-        return torch.sigmoid(x)
+        return torch.sigmoid(0.01*x)
 
 """All models"""
 models = {
