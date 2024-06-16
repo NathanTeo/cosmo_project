@@ -27,6 +27,7 @@ def run_training(training_params, generation_params, training_restart=False):
         image_size = training_params['image_size']
 
         latent_dim = training_params['latent_dim']
+        gen_img_w = training_params['gen_img_w']
         gen_upsamp = training_params['generator_upsamp_size']
         dis_conv = training_params['discriminator_conv_size']
         dis_lin = training_params['discriminator_linear_size']
@@ -41,12 +42,12 @@ def run_training(training_params, generation_params, training_restart=False):
         data_folder = f'data\\{blob_num}_blob'
         data_file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}.npy'
         chkpt_path = f'checkpoints/{blob_num}_blob'
-        chkpt_file_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gu{}-dc{}-dl{}'.format(
+        chkpt_file_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}'.format(
                 gan_version,
                 gen_version, dis_version,
                 blob_num, blob_size, int(np.log10(sample_num)), image_size,
                 training_seed, str(lr)[2:],
-                latent_dim, gen_upsamp, dis_conv, dis_lin
+                latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin
                 )
         training_params['chkpt_file_name'] = chkpt_file_name
         

@@ -245,7 +245,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
         
         return gradient_penalty
     
-    def training_step(self, batch, batch_inx):
+    def training_step(self, batch, batch_idx):
         # load real imgs
         if len(batch) == 2: # if label exists eg. MNIST dataset
             real_imgs, _ = batch
@@ -255,10 +255,11 @@ class CWGAN(pl.LightningModule, GAN_utils):
         real_imgs.requires_grad_()
         
         # Log real imgs
-        sample_imgs = real_imgs[:9]
-        grid = torchvision.utils.make_grid(sample_imgs)
-        self.logger.experiment.add_image("real_images", grid, 0)
-        self.real_sample_imgs = sample_imgs
+        if batch_idx==0:
+            sample_imgs = real_imgs[:9]
+            grid = torchvision.utils.make_grid(sample_imgs)
+            self.logger.experiment.add_image("real_images", grid, 0)
+            self.real_sample_imgs = sample_imgs
         
         # initialize optimizers
         opt_g, opt_d = self.optimizers()
@@ -282,6 +283,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
             
             # log
             self.log("d_loss", d_loss, prog_bar=True)
+            self.log("gp", gp, prog_bar=True)
             
             # update weights
             opt_d.zero_grad()
@@ -321,19 +323,20 @@ class CWGAN(pl.LightningModule, GAN_utils):
         return [opt_g, opt_d], [] # Empty list for scheduler
         
     def on_train_epoch_end(self):
+        # Generate samples
         z = self.validation_z.type_as(self.generator.linear[0].weight)
-        gen_sample_imgs = self(z)
+        gen_sample_imgs = self(z)[:9]
+        
+        # Plot
         self.plot_imgs(gen_sample_imgs, self.real_sample_imgs)
+        
+        # Log losses
         self.epoch_g_losses, self.epoch_d_losses = self.log_losses(
             self.epoch_g_losses, self.epoch_d_losses)
-        
-        z = self.validation_z.type_as(self.generator.linear[0].weight)
 
-        # log sampled images
-        sample_imgs = self(z)
-        grid = torchvision.utils.make_grid(sample_imgs)
+        # Log sampled images
+        grid = torchvision.utils.make_grid(gen_sample_imgs)
         self.logger.experiment.add_image(f"val_generated_images_{self.current_epoch}", grid, self.current_epoch)
-
 gans = {
     'CGAN': CGAN,
     'CWGAN': CWGAN 

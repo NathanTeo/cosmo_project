@@ -44,7 +44,7 @@ class BlobDataModule(pl.LightningDataModule):
         return self.num_samples
 
     def num_training_batches(self):
-        return np.round(self.num_samples*self.train_split/self.batch_size+1)
+        return np.ceil(self.num_samples*self.train_split/self.batch_size)
 
     def train_dataloader(self):
         return DataLoader(self.inputData_train, batch_size=self.batch_size, num_workers=self.num_workers, persistent_workers=True)

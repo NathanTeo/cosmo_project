@@ -114,19 +114,18 @@ class Generator_v1(nn.Module):
         latent_dim = training_params['latent_dim']
         upsamp_size = training_params['generator_upsamp_size']
         image_size = training_params['image_size']
+        gen_img_w = training_params['gen_img_w']
         
         # Pass latent space input into linear layer and reshape
-        linear_output_width = 63
-        
         self.linear = nn.Sequential(
-            nn.Linear(latent_dim, linear_output_width*linear_output_width*upsamp_size),
+            nn.Linear(latent_dim, gen_img_w*gen_img_w*upsamp_size),
             nn.ReLU(inplace=True),
             
-            nn.Unflatten(1, (upsamp_size, linear_output_width, linear_output_width))
+            nn.Unflatten(1, (upsamp_size, gen_img_w, gen_img_w))
         )
         
         # Upsample
-        final_kernel_size = int((linear_output_width*2+2)*2+2 - image_size + 1)
+        final_kernel_size = int((gen_img_w*2+2)*2+2 - image_size + 1)
         
         self.upsample = nn.Sequential(
             nn.ConvTranspose2d(upsamp_size, int(upsamp_size/2), kernel_size=4, stride=2), 
@@ -154,25 +153,24 @@ class Generator_v2(nn.Module):
         latent_dim = training_params['latent_dim']
         upsamp_size = training_params['generator_upsamp_size']
         image_size = training_params['image_size']
+        gen_img_w = training_params['gen_img_w']
         
         # Pass latent space input into linear layer and reshape
-        linear_output_width = 64
-        
         self.linear = nn.Sequential(
-            nn.Linear(latent_dim, linear_output_width*linear_output_width*upsamp_size),
+            nn.Linear(latent_dim, gen_img_w*gen_img_w*upsamp_size),
             nn.ReLU(inplace=True),
             
-            nn.Unflatten(1, (upsamp_size, linear_output_width, linear_output_width))
+            nn.Unflatten(1, (upsamp_size, gen_img_w, gen_img_w))
         )
         
         # Upsample
-        final_kernel_size = int(linear_output_width*2*2 - image_size + 1)
+        final_kernel_size = int(gen_img_w*2*2 - image_size + 1)
         
         self.upsample = nn.Sequential(
-            nn.Upsample(size=(linear_output_width*2, linear_output_width*2), mode='nearest'),
+            nn.Upsample(size=(gen_img_w*2, gen_img_w*2), mode='nearest'),
             nn.Conv2d(upsamp_size, int(upsamp_size/2), 3, 1),
             
-            nn.Upsample(size=(linear_output_width*4, linear_output_width*4), mode='nearest'),
+            nn.Upsample(size=(gen_img_w*4, gen_img_w*4), mode='nearest'),
             nn.Conv2d(int(upsamp_size/2), int(upsamp_size/4), 3, 1),
             
             nn.Conv2d(int(upsamp_size/4), 1, kernel_size=final_kernel_size-2),
@@ -191,25 +189,24 @@ class Generator_v3(nn.Module):
         latent_dim = training_params['latent_dim']
         upsamp_size = training_params['generator_upsamp_size']
         image_size = training_params['image_size']
+        gen_img_w = training_params['gen_img_w']
         
         # Pass latent space input into linear layer and reshape
-        linear_output_width = 64
-        
         self.linear = nn.Sequential(
-            nn.Linear(latent_dim, linear_output_width*linear_output_width*upsamp_size),
+            nn.Linear(latent_dim, gen_img_w*gen_img_w*upsamp_size),
             nn.ReLU(inplace=True),
             
-            nn.Unflatten(1, (upsamp_size, linear_output_width, linear_output_width))
+            nn.Unflatten(1, (upsamp_size, gen_img_w, gen_img_w))
         )
         
         # Upsample
-        final_kernel_size = int(linear_output_width*2*2 - image_size + 1)
+        final_kernel_size = int(gen_img_w*2*2 - image_size + 1)
         
         self.upsample = nn.Sequential(
-            nn.Upsample(size=(linear_output_width*2, linear_output_width*2), mode='nearest'),
+            nn.Upsample(size=(gen_img_w*2, gen_img_w*2), mode='nearest'),
             nn.Conv2d(upsamp_size, int(upsamp_size/2), 3, 1),
             
-            nn.Upsample(size=(linear_output_width*4, linear_output_width*4), mode='nearest'),
+            nn.Upsample(size=(gen_img_w*4, gen_img_w*4), mode='nearest'),
             nn.Conv2d(int(upsamp_size/2), int(upsamp_size/4), 3, 1),
             
             nn.Conv2d(int(upsamp_size/4), 1, kernel_size=final_kernel_size-2),
