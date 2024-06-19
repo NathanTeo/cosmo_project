@@ -13,7 +13,7 @@ from code_model.data_modules import *
 from code_model.GAN_modules import *
 from code_model.plotting_utils import *
 
-def run_testing(training_params, generation_params, grid_row_num=2, plot_num=25, stack_num=10000):
+def run_testing(training_params, generation_params, checkpoint='last', grid_row_num=2, plot_num=25, stack_num=10000):
     """Initialize variables"""
     gan_version = training_params['gan_version']
     gen_version = training_params['generator_version']
@@ -37,24 +37,26 @@ def run_testing(training_params, generation_params, grid_row_num=2, plot_num=25,
     num_workers = training_params['num_workers']
     max_epochs = training_params['max_epochs']
     avail_gpus = training_params['avail_gpus']
+    
+    model_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}'.format(
+        gan_version,
+        gen_version, dis_version,
+        blob_num, blob_size, int(np.log10(sample_num)), image_size,
+        training_seed, str(lr)[2:],
+        latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin
+        )
 
     """Paths"""
     root_path = training_params['root_path']
     data_path = f'Data\\{blob_num}_blob'
     data_file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}.npy'
-    chkpt_path = f'checkpoints/{blob_num}_blob'
-    chkpt_file_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}'.format(
-            gan_version,
-            gen_version, dis_version,
-            blob_num, blob_size, int(np.log10(sample_num)), image_size,
-            training_seed, str(lr)[2:],
-            latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin
-            )
-    log_path = f'logs\\{chkpt_file_name}'
+    chkpt_path = f'checkpoints\\{blob_num}_blob\\{model_name}'
 
-    training_params['chkpt_file_name'] = chkpt_file_name
+    log_path = f'logs\\{model_name}'
+
+    training_params['model_name'] = model_name
     
-    save_path = f'{root_path}\\plots\\{chkpt_file_name}\\images'
+    save_path = f'{root_path}\\plots\\{model_name}\\images'
     
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -67,7 +69,7 @@ def run_testing(training_params, generation_params, grid_row_num=2, plot_num=25,
     
     """Load model"""
     model = gans[gan_version].load_from_checkpoint(
-        f'{root_path}\\{chkpt_path}\\{chkpt_file_name}.ckpt',
+        f'{root_path}\\{chkpt_path}\\{model_name}\\{checkpoint}.ckpt',
         **training_params
         )
 
@@ -87,7 +89,7 @@ def run_testing(training_params, generation_params, grid_row_num=2, plot_num=25,
         plot_img_grid(subfig[1], gen_imgs, grid_row_num, title='Generated Imgs')
         
         # Save
-        plt.savefig(f'{save_path}\\gen-imgs_{chkpt_file_name}_{n}.png')
+        plt.savefig(f'{save_path}\\gen-imgs_{model_name}_{n}.png')
         plt.close()
     
         # Plotting marginal sums
@@ -101,7 +103,7 @@ def run_testing(training_params, generation_params, grid_row_num=2, plot_num=25,
         
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f'{save_path}\\marg-sums_{chkpt_file_name}_{n}.png')
+        plt.savefig(f'{save_path}\\marg-sums_{model_name}_{n}.png')
         plt.close()
     
     """Stacking"""
@@ -124,7 +126,7 @@ def run_testing(training_params, generation_params, grid_row_num=2, plot_num=25,
     
     
     plt.tight_layout()
-    plt.savefig(f'{save_path}\\stacked_{chkpt_file_name}.png')
+    plt.savefig(f'{save_path}\\stacked_{model_name}.png')
     plt.close()
     
     """Losses"""
@@ -141,7 +143,7 @@ def run_testing(training_params, generation_params, grid_row_num=2, plot_num=25,
         
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f'{save_path}\\losses_{chkpt_file_name}.png')
+        plt.savefig(f'{save_path}\\losses_{model_name}.png')
         plt.close()
         
         # Zoom
@@ -155,7 +157,7 @@ def run_testing(training_params, generation_params, grid_row_num=2, plot_num=25,
         plt.ylim(-1,1)
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f'{save_path}\\losses_zm_{chkpt_file_name}.png')
+        plt.savefig(f'{save_path}\\losses_zm_{model_name}.png')
         plt.close()
     except FileNotFoundError:
         print('losses not found')

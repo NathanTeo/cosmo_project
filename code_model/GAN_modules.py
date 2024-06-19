@@ -130,7 +130,7 @@ class CGAN(pl.LightningModule, GAN_utils):
             
             self.toggle_optimizer(opt_g)
             g_loss = self.adversarial_loss(y_hat, y)
-            self.log("g_loss", g_loss, prog_bar=True)
+            self.log("g_loss", g_loss, on_epoch=True)
             self.manual_backward(g_loss)
             opt_g.step()
             opt_g.zero_grad()
@@ -159,7 +159,7 @@ class CGAN(pl.LightningModule, GAN_utils):
             
             # Total loss
             d_loss = (real_loss + fake_loss)/2
-            self.log("d_loss", d_loss, prog_bar=True)
+            self.log("d_loss", d_loss, on_epoch=True)
             
             self.manual_backward(d_loss)
             opt_d.step()
@@ -282,8 +282,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
             )
             
             # log
-            self.log("d_loss", d_loss, prog_bar=True)
-            self.log("gp", gp, prog_bar=True)
+            self.log("d_loss", d_loss, on_epoch=True)
+            self.log("gp", gp, on_epoch=True)
             
             # update weights
             opt_d.zero_grad()
@@ -303,7 +303,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
             g_loss = -torch.mean(output)
             
             # log
-            self.log("g_loss", g_loss, prog_bar=True)
+            self.log("g_loss", g_loss, on_epoch=True)
             
             # update weights
             opt_g.zero_grad()

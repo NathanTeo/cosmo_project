@@ -7,7 +7,8 @@ import os
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import WandbLogger
+import wandb
 
 from code_model.GAN_modules import *
 from code_model.data_modules import *
@@ -37,31 +38,39 @@ def run_training(training_params, generation_params, training_restart=False):
         max_epochs = training_params['max_epochs']
         avail_gpus = training_params['avail_gpus']
 
+        model_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}'.format(
+        gan_version,
+        gen_version, dis_version,
+        blob_num, blob_size, int(np.log10(sample_num)), image_size,
+        training_seed, str(lr)[2:],
+        latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin
+        )
+        
         """Paths"""
         root_path = training_params['root_path']
         data_folder = f'data\\{blob_num}_blob'
         data_file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}.npy'
-        chkpt_path = f'checkpoints/{blob_num}_blob'
-        chkpt_file_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}'.format(
-                gan_version,
-                gen_version, dis_version,
-                blob_num, blob_size, int(np.log10(sample_num)), image_size,
-                training_seed, str(lr)[2:],
-                latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin
-                )
-        training_params['chkpt_file_name'] = chkpt_file_name
+        chkpt_path = f'checkpoints\\{blob_num}_blob\\{model_name}'
+        training_params['model_name'] = model_name
         
         # folder for logging imgs
-        if not os.path.exists(f'{root_path}\\logs\\{chkpt_file_name}'):
-                os.makedirs(f'{root_path}\\logs\\{chkpt_file_name}\\images')
-                
+        if not os.path.exists(f'{root_path}\\logs\\{model_name}'):
+                os.makedirs(f'{root_path}\\logs\\{model_name}\\images')
+        
+        """Initialize callbacks"""
+        wandb.login()
+        wandb_logger = WandbLogger(
+                project='cosmo_project',
+                name=model_name
+                )
+        wandb_logger.experiment.config.update(training_params)
 
-        """Initialize checkpoint"""
+        
         checkpoint_callback = ModelCheckpoint(
                 monitor = None,
                 dirpath = f'{root_path}\\{chkpt_path}',
-                filename = chkpt_file_name,
-                save_top_k = 1,  # Save only the top 1 checkpoint
+                filename = 'min',
+                save_top_k = 3,  # Save only the top 1 checkpoint
                 save_last = True,
                 enable_version_counter=False
         )
@@ -82,7 +91,9 @@ def run_training(training_params, generation_params, training_restart=False):
                 model = gans[gan_version](**training_params)
                 
                 # Initialize trainer
-                trainer = pl.Trainer(max_epochs=max_epochs,
+                trainer = pl.Trainer(
+                        max_epochs=max_epochs,
+                        logger=wandb_logger,
                         callbacks=[checkpoint_callback],
                         log_every_n_steps=data.num_training_batches()
                 )
@@ -101,7 +112,7 @@ def run_training(training_params, generation_params, training_restart=False):
                                 print('--------------------')
                                 trainer.fit(
                                         model, data,
-                                        ckpt_path=f'{root_path}\\{chkpt_path}\\{chkpt_file_name}.ckpt'
+                                        ckpt_path=f'{root_path}\\{chkpt_path}\\{model_name}.ckpt'
                                 )                                
                         except(FileNotFoundError):
                                 print('--------------------------------------------')
