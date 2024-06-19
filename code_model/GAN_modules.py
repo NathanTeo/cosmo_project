@@ -9,6 +9,7 @@ import torch.nn.functional as F
 import torchvision
 import matplotlib.pyplot as plt
 import numpy as np
+import wandb
 
 import code_model.models as models
 from code_model.plotting_utils import *
@@ -73,7 +74,7 @@ class CGAN(pl.LightningModule, GAN_utils):
         self.root_path = training_params['root_path']
         self.epoch_start_g_train = training_params['epoch_start_g_train']
         self.discriminator_train_freq = training_params['discriminator_train_freq']
-        self.log_folder = training_params['chkpt_file_name']
+        self.log_folder = training_params['model_name']
         
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
@@ -105,7 +106,7 @@ class CGAN(pl.LightningModule, GAN_utils):
         if batch_idx==0:
             sample_imgs = real_imgs[:9]
             grid = torchvision.utils.make_grid(sample_imgs)
-            self.logger.experiment.add_image("real_images", grid, 0)
+            wandb.log({"real_images": wandb.Image(grid, caption="real_images")})
             self.real_sample_imgs = sample_imgs
         
         # Initialize optimizers
@@ -122,8 +123,6 @@ class CGAN(pl.LightningModule, GAN_utils):
             
             # Log generated imgs
             sample_imgs = fake_imgs[:9]
-            grid = torchvision.utils.make_grid(sample_imgs)
-            self.logger.experiment.add_image(f"generated_images_{self.current_epoch}", grid, 0)
             
             y = torch.ones(real_imgs.size(0), 1)
             y = y.type_as(real_imgs)
@@ -190,7 +189,7 @@ class CGAN(pl.LightningModule, GAN_utils):
 
         # Log sampled images
         grid = torchvision.utils.make_grid(gen_sample_imgs)
-        self.logger.experiment.add_image(f"val_generated_images_{self.current_epoch}", grid, self.current_epoch)
+        wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
 
 class CWGAN(pl.LightningModule, GAN_utils):
     def __init__(self, **training_params):
@@ -204,7 +203,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
         self.gp_lambda = training_params['gp_lambda']
         self.epoch_start_g_train = training_params['epoch_start_g_train']
         self.discriminator_train_freq = training_params['discriminator_train_freq']
-        self.log_folder = training_params['chkpt_file_name']     
+        self.log_folder = training_params['model_name']     
         
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
@@ -258,7 +257,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
         if batch_idx==0:
             sample_imgs = real_imgs[:9]
             grid = torchvision.utils.make_grid(sample_imgs)
-            self.logger.experiment.add_image("real_images", grid, 0)
+            wandb.log({"real_images": wandb.Image(grid, caption="real_images")})
             self.real_sample_imgs = sample_imgs
         
         # initialize optimizers
@@ -336,7 +335,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
 
         # Log sampled images
         grid = torchvision.utils.make_grid(gen_sample_imgs)
-        self.logger.experiment.add_image(f"val_generated_images_{self.current_epoch}", grid, self.current_epoch)
+        wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
+
 gans = {
     'CGAN': CGAN,
     'CWGAN': CWGAN 

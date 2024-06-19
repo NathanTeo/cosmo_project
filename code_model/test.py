@@ -13,7 +13,7 @@ from code_model.data_modules import *
 from code_model.GAN_modules import *
 from code_model.plotting_utils import *
 
-def run_testing(training_params, generation_params, checkpoint='last', grid_row_num=2, plot_num=25, stack_num=10000):
+def run_testing(training_params, generation_params, checkpoint='last', grid_row_num=2, plot_num=5, stack_num=10000):
     """Initialize variables"""
     gan_version = training_params['gan_version']
     gen_version = training_params['generator_version']
@@ -28,7 +28,7 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
     image_size = training_params['image_size']
 
     latent_dim = training_params['latent_dim']
-    gen_img_w = training_params['gen_img_w']
+    gen_img_w = training_params['generator_img_w']
     gen_upsamp = training_params['generator_upsamp_size']
     dis_conv = training_params['discriminator_conv_size']
     dis_lin = training_params['discriminator_linear_size']
@@ -45,17 +45,14 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
         training_seed, str(lr)[2:],
         latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin
         )
+    training_params['model_name'] = model_name
 
     """Paths"""
     root_path = training_params['root_path']
     data_path = f'Data\\{blob_num}_blob'
     data_file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}.npy'
     chkpt_path = f'checkpoints\\{blob_num}_blob\\{model_name}'
-
-    log_path = f'logs\\{model_name}'
-
-    training_params['model_name'] = model_name
-    
+    log_path = f'logs\\{model_name}'    
     save_path = f'{root_path}\\plots\\{model_name}\\images'
     
     if not os.path.exists(save_path):
@@ -69,7 +66,7 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
     
     """Load model"""
     model = gans[gan_version].load_from_checkpoint(
-        f'{root_path}\\{chkpt_path}\\{model_name}\\{checkpoint}.ckpt',
+        f'{root_path}\\{chkpt_path}\\{checkpoint}.ckpt',
         **training_params
         )
 

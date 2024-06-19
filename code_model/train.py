@@ -58,6 +58,8 @@ def run_training(training_params, generation_params, training_restart=False):
                 os.makedirs(f'{root_path}\\logs\\{model_name}\\images')
         
         """Initialize callbacks"""
+        # os.environ['WANDB_API_KEY']='3c2e56d7951699612266059b4061b9f87f462ec4'
+        # os.environ['WANDB_ENTITY']='nathanteo'
         wandb.login()
         wandb_logger = WandbLogger(
                 project='cosmo_project',
@@ -65,9 +67,8 @@ def run_training(training_params, generation_params, training_restart=False):
                 )
         wandb_logger.experiment.config.update(training_params)
 
-        
         checkpoint_callback = ModelCheckpoint(
-                monitor = None,
+                monitor = 'g_loss',
                 dirpath = f'{root_path}\\{chkpt_path}',
                 filename = 'min',
                 save_top_k = 3,  # Save only the top 1 checkpoint
@@ -119,3 +120,5 @@ def run_training(training_params, generation_params, training_restart=False):
                                 print('no trained model found, training new model')
                                 print('--------------------------------------------')
                                 trainer.fit(model, data)
+                        
+                os.system("rm -r wandb")
