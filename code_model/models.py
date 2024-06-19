@@ -114,7 +114,7 @@ class Generator_v1(nn.Module):
         latent_dim = training_params['latent_dim']
         upsamp_size = training_params['generator_upsamp_size']
         image_size = training_params['image_size']
-        gen_img_w = training_params['gen_img_w']
+        gen_img_w = training_params['generator_img_w']
         
         # Pass latent space input into linear layer and reshape
         self.linear = nn.Sequential(
@@ -153,7 +153,7 @@ class Generator_v2(nn.Module):
         latent_dim = training_params['latent_dim']
         upsamp_size = training_params['generator_upsamp_size']
         image_size = training_params['image_size']
-        gen_img_w = training_params['gen_img_w']
+        gen_img_w = training_params['generator_img_w']
         
         # Pass latent space input into linear layer and reshape
         self.linear = nn.Sequential(
@@ -189,7 +189,7 @@ class Generator_v3(nn.Module):
         latent_dim = training_params['latent_dim']
         upsamp_size = training_params['generator_upsamp_size']
         image_size = training_params['image_size']
-        gen_img_w = training_params['gen_img_w']
+        gen_img_w = training_params['generator_img_w']
         
         # Pass latent space input into linear layer and reshape
         self.linear = nn.Sequential(

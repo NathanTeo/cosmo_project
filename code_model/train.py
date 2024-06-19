@@ -28,7 +28,7 @@ def run_training(training_params, generation_params, training_restart=False):
         image_size = training_params['image_size']
 
         latent_dim = training_params['latent_dim']
-        gen_img_w = training_params['gen_img_w']
+        gen_img_w = training_params['generator_img_w']
         gen_upsamp = training_params['generator_upsamp_size']
         dis_conv = training_params['discriminator_conv_size']
         dis_lin = training_params['discriminator_linear_size']
