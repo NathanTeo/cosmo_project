@@ -13,7 +13,7 @@ from code_model.data_modules import *
 from code_model.GAN_modules import *
 from code_model.plotting_utils import *
 
-def run_testing(training_params, generation_params, grid_row_num=2, plot_num=5):
+def run_testing(training_params, generation_params, grid_row_num=2, plot_num=25, stack_num=10000):
     """Initialize variables"""
     gan_version = training_params['gan_version']
     gen_version = training_params['generator_version']
@@ -71,13 +71,13 @@ def run_testing(training_params, generation_params, grid_row_num=2, plot_num=5):
         **training_params
         )
 
-    """Testing"""
+    """Plot generated images"""
     # Get images
     real_imgs = data[:grid_row_num*grid_row_num]
     
     for n in tqdm(range(plot_num), desc='Plotting'):
         z = torch.randn(grid_row_num*grid_row_num, latent_dim)
-        gen_imgs = model(z).detach().squeeze()
+        gen_imgs = model(z).cpu().detach().squeeze()
         
         # Plotting grid of images
         fig = plt.figure(figsize=(6,3))
@@ -103,7 +103,30 @@ def run_testing(training_params, generation_params, grid_row_num=2, plot_num=5):
         plt.tight_layout()
         plt.savefig(f'{save_path}\\marg-sums_{chkpt_file_name}_{n}.png')
         plt.close()
-        
+    
+    """Stacking"""
+    # Generate images
+    z = torch.randn(stack_num, latent_dim)
+    
+    print('generating images...')
+    gen_imgs = model(z).cpu().detach().squeeze()
+    
+    # Stack images
+    stacked_real_img = stack_imgs(data)
+    stacked_gen_img = stack_imgs(gen_imgs)
+    
+    fig, axs = plt.subplots(1, 2)
+    
+    plot_stacked_imgs(axs[0], stacked_real_img, title='real')
+    plot_stacked_imgs(axs[1], stacked_gen_img, title='generated')
+    
+    fig.suptitle('Stacked Image')
+    
+    
+    plt.tight_layout()
+    plt.savefig(f'{save_path}\\stacked_{chkpt_file_name}.png')
+    plt.close()
+    
     """Losses"""
     try:
         losses = np.load(f'{root_path}\\{log_path}\\losses.npz')
@@ -119,6 +142,20 @@ def run_testing(training_params, generation_params, grid_row_num=2, plot_num=5):
         plt.legend()
         plt.tight_layout()
         plt.savefig(f'{save_path}\\losses_{chkpt_file_name}.png')
+        plt.close()
+        
+        # Zoom
+        plt.figure(figsize=(6,4))
+        plt.plot(epochs, g_losses, label='generator')
+        plt.plot(epochs, d_losses, label='discriminator')
+        plt.title('Model Loss')
+        
+        plt.axhline(y=0, color='r', alpha=0.2, linestyle='dashed')
+        
+        plt.ylim(-1,1)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(f'{save_path}\\losses_zm_{chkpt_file_name}.png')
         plt.close()
     except FileNotFoundError:
         print('losses not found')

@@ -26,3 +26,15 @@ def plot_marginal_sums(imgs, subfig, grid_row_num, title):
         ax.plot(y_sum, label='y')
         ax.plot(x_sum, label='x')
     subfig.suptitle(title, y=0.95)
+
+def stack_imgs(imgs):
+    for i, sample in enumerate(imgs):
+        if i == 0:
+            stacked_img = sample
+        else:
+            stacked_img = np.add(stacked_img, sample)
+    return stacked_img
+
+def plot_stacked_imgs(ax, stacked_img, title):
+    ax.imshow(stacked_img)
+    ax.set_title(title)
