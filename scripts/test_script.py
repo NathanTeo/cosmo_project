@@ -29,6 +29,7 @@ training_params = {
         'epoch_start_g_train': 0,
         'discriminator_train_freq': 1,
         'latent_dim': 10,
+        'generator_img_w': 16,
         'generator_upsamp_size': 8,
         'gen_img_width'
         'input_channels': 1,
