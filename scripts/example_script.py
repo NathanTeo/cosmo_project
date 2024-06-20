@@ -2,19 +2,19 @@ import os
 import torch
 
 """Params"""
-state = 'test'
-training_restart = False
+state = 'train'
+training_restart = True
 
 generation_params = {
-        'blob_num': 10,
+        'blob_num': 1,
         'blob_size':5,
         'image_size': 28,
-        'sample_num': 10000,
+        'sample_num': 100,
         'seed':70
         }
 
 training_params = {
-        'gan_version': 'CWGAN',
+        'gan_version': 'CGAN',
         'generator_version': 2,
         'discriminator_version': 1,
         'random_seed': 40,
@@ -28,15 +28,17 @@ training_params = {
         'max_epochs': 50,
         'epoch_start_g_train': 0,
         'discriminator_train_freq': 1,
-        'latent_dim': 15,
-        'generator_upsamp_size': 16,
+        'latent_dim': 10,
+        'generator_img_w': 16,
+        'generator_upsamp_size': 8,
         'input_channels': 1,
-        'discriminator_conv_size': 8,
-        'discriminator_linear_size': 32,
+        'discriminator_conv_size': 4,
+        'discriminator_linear_size': 16,
         'linear_dropout': 0.2,
         'conv_dropout': 0.2,
         'root_path': "C:\\Users\\Idiot\\Desktop\\Research\\OFYP\\cosmo_project"
 }
+
 
 """Run"""
 import sys

@@ -2,7 +2,7 @@ import os
 import torch
 
 """Params"""
-state = 'test'
+state = 'train'
 training_restart = False
 
 generation_params = {
@@ -24,12 +24,13 @@ training_params = {
         'batch_size': 32,
         'lr': 0.0005,
         'betas': (0.9,0.999),
-        'gp_lambda': 10,
-        'max_epochs': 50,
+        'gp_lambda': 100,
+        'max_epochs': 100,
         'epoch_start_g_train': 0,
         'discriminator_train_freq': 1,
         'latent_dim': 15,
-        'generator_upsamp_size': 16,
+        'gen_img_w': 16,
+        'generator_upsamp_size': 32,
         'input_channels': 1,
         'discriminator_conv_size': 8,
         'discriminator_linear_size': 32,

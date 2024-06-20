@@ -3,7 +3,7 @@ import torch
 
 """Params"""
 state = 'train'
-training_restart = False
+training_restart = True
 
 generation_params = {
         'blob_num': 1,
@@ -29,7 +29,9 @@ training_params = {
         'epoch_start_g_train': 0,
         'discriminator_train_freq': 1,
         'latent_dim': 10,
+        'generator_img_w': 16,
         'generator_upsamp_size': 8,
+        'gen_img_width'
         'input_channels': 1,
         'discriminator_conv_size': 4,
         'discriminator_linear_size': 16,
