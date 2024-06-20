@@ -43,11 +43,11 @@ class GAN_utils():
         plt.tight_layout()
         
         # Save
-        plt.savefig(f'{self.root_path}\\logs\\{self.log_folder}\\images\\image_epoch{self.current_epoch}.png')
+        plt.savefig(f'{self.root_path}/logs/{self.log_folder}/images/image_epoch{self.current_epoch}.png')
         plt.close('all')
     
     def log_losses(self, epoch_g_losses, epoch_d_losses):
-        filename = f'{self.root_path}\\logs\\{self.log_folder}\\losses.npz'
+        filename = f'{self.root_path}/logs/{self.log_folder}/losses.npz'
         
         if self.current_epoch == 0:
             epochs = [0] # Current epoch is 0

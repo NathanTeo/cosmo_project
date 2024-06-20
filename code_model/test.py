@@ -49,11 +49,11 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
 
     """Paths"""
     root_path = training_params['root_path']
-    data_path = f'Data\\{blob_num}_blob'
+    data_path = f'Data/{blob_num}_blob'
     data_file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}.npy'
-    chkpt_path = f'checkpoints\\{blob_num}_blob\\{model_name}'
-    log_path = f'logs\\{model_name}'    
-    save_path = f'{root_path}\\plots\\{model_name}\\images'
+    chkpt_path = f'checkpoints/{blob_num}_blob/{model_name}'
+    log_path = f'logs/{model_name}'    
+    save_path = f'{root_path}/plots/{model_name}/images'
     
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -62,11 +62,11 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
     torch.manual_seed(training_seed)
     
     """Load data"""
-    data = np.load(f'{root_path}\\{data_path}\\{data_file_name}')
+    data = np.load(f'{root_path}/{data_path}/{data_file_name}')
     
     """Load model"""
     model = gans[gan_version].load_from_checkpoint(
-        f'{root_path}\\{chkpt_path}\\{checkpoint}.ckpt',
+        f'{root_path}/{chkpt_path}/{checkpoint}.ckpt',
         **training_params
         )
 
@@ -86,7 +86,7 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
         plot_img_grid(subfig[1], gen_imgs, grid_row_num, title='Generated Imgs')
         
         # Save
-        plt.savefig(f'{save_path}\\gen-imgs_{model_name}_{n}.png')
+        plt.savefig(f'{save_path}/gen-imgs_{model_name}_{n}.png')
         plt.close()
     
         # Plotting marginal sums
@@ -100,7 +100,7 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
         
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f'{save_path}\\marg-sums_{model_name}_{n}.png')
+        plt.savefig(f'{save_path}/marg-sums_{model_name}_{n}.png')
         plt.close()
     
     """Stacking"""
@@ -123,12 +123,12 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
     
     
     plt.tight_layout()
-    plt.savefig(f'{save_path}\\stacked_{model_name}.png')
+    plt.savefig(f'{save_path}/stacked_{model_name}.png')
     plt.close()
     
     """Losses"""
     try:
-        losses = np.load(f'{root_path}\\{log_path}\\losses.npz')
+        losses = np.load(f'{root_path}/{log_path}/losses.npz')
         g_losses = losses['g_losses']
         d_losses = losses['d_losses']
         epochs = losses['epochs']
@@ -140,7 +140,7 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
         
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f'{save_path}\\losses_{model_name}.png')
+        plt.savefig(f'{save_path}/losses_{model_name}.png')
         plt.close()
         
         # Zoom
@@ -154,7 +154,7 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
         plt.ylim(-1,1)
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f'{save_path}\\losses_zm_{model_name}.png')
+        plt.savefig(f'{save_path}/losses_zm_{model_name}.png')
         plt.close()
     except FileNotFoundError:
         print('losses not found')

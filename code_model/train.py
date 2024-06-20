@@ -48,14 +48,14 @@ def run_training(training_params, generation_params, training_restart=False):
         
         """Paths"""
         root_path = training_params['root_path']
-        data_folder = f'data\\{blob_num}_blob'
+        data_folder = f'data/{blob_num}_blob'
         data_file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}.npy'
-        chkpt_path = f'checkpoints\\{blob_num}_blob\\{model_name}'
+        chkpt_path = f'checkpoints/{blob_num}_blob/{model_name}'
         training_params['model_name'] = model_name
         
         # folder for logging imgs
-        if not os.path.exists(f'{root_path}\\logs\\{model_name}'):
-                os.makedirs(f'{root_path}\\logs\\{model_name}\\images')
+        if not os.path.exists(f'{root_path}/logs/{model_name}'):
+                os.makedirs(f'{root_path}/logs/{model_name}/images')
         
         """Initialize callbacks"""
         # os.environ['WANDB_API_KEY']='3c2e56d7951699612266059b4061b9f87f462ec4'
@@ -69,7 +69,7 @@ def run_training(training_params, generation_params, training_restart=False):
 
         checkpoint_callback = ModelCheckpoint(
                 monitor = 'g_loss',
-                dirpath = f'{root_path}\\{chkpt_path}',
+                dirpath = f'{root_path}/{chkpt_path}',
                 filename = 'min',
                 save_top_k = 3,  # Save only the top 1 checkpoint
                 save_last = True,
@@ -83,7 +83,7 @@ def run_training(training_params, generation_params, training_restart=False):
         if __name__ == 'code_model.train':
                 # Load data
                 data = BlobDataModule(
-                        data_file=f'{root_path}\\{data_folder}\\{data_file_name}',
+                        data_file=f'{root_path}/{data_folder}/{data_file_name}',
                         batch_size=batch_size, num_workers=num_workers
                         )
                 'data = MNISTDataModule(batch_size=batch_size, num_workers=num_workers)'
@@ -113,7 +113,7 @@ def run_training(training_params, generation_params, training_restart=False):
                                 print('--------------------')
                                 trainer.fit(
                                         model, data,
-                                        ckpt_path=f'{root_path}\\{chkpt_path}\\{model_name}.ckpt'
+                                        ckpt_path=f'{root_path}/{chkpt_path}/{model_name}.ckpt'
                                 )                                
                         except(FileNotFoundError):
                                 print('--------------------------------------------')
