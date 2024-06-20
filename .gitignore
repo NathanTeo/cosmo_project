@@ -1,8 +1,16 @@
+# Ignore pycache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual env
+venv/
+
+# Data folders
 data/
 lightning_logs/
 logs/
 temp_plots/
 plots/
 check_functions/
-venv/
 checkpoints/

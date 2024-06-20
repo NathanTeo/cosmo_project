@@ -25,7 +25,7 @@ training_params = {
         'lr': 0.0005,
         'betas': (0.0,0.9),
         'gp_lambda': 1,
-        'max_epochs': 100,
+        'max_epochs': 20,
         'epoch_start_g_train': 0,
         'discriminator_train_freq': 5,
         'latent_dim': 15,
@@ -36,7 +36,7 @@ training_params = {
         'discriminator_linear_size': 32,
         'linear_dropout': 0.2,
         'conv_dropout': 0.2,
-        'root_path': "C:\\Users\\Idiot\\Desktop\\Research\\OFYP\\cosmo_project"
+        'root_path': "/home/nteo/projects/def-douglas/nteo/cosmo_project"
 }
 
 """Run"""

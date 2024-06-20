@@ -10,6 +10,6 @@
 cd ~/$cosgan
 module purge
 module load python/3.10
-source ~/venv/bin/activate
+source ./venv/bin/activate
 
-python myScript.py
+python scripts/CWGAN_bn1_sn1e4.py
