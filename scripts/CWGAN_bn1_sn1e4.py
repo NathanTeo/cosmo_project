@@ -2,8 +2,8 @@ import os
 import torch
 
 """Params"""
-state = 'test'
-training_restart = False
+state = 'train'
+training_restart = True
 
 generation_params = {
         'blob_num': 1,

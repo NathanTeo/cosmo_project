@@ -49,7 +49,7 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
 
     """Paths"""
     root_path = training_params['root_path']
-    data_path = f'Data/{blob_num}_blob'
+    data_path = f'data/{blob_num}_blob'
     data_file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}.npy'
     chkpt_path = f'checkpoints/{blob_num}_blob/{model_name}'
     log_path = f'logs/{model_name}'    
