@@ -225,7 +225,6 @@ class CWGAN(pl.LightningModule, GAN_utils):
     def gradient_penalty(self, discriminator, real, fake):
         batch_size, c, h, w = real.size()
         epsilon = torch.rand((batch_size, 1, 1, 1), device=self.device).repeat(1, c, h, w)
-        print(real.get_device(), fake.get_device(), epsilon.get_device())
         interpolated_imgs = real*epsilon + fake*(1-epsilon)
         
         # calculate discriminator scores

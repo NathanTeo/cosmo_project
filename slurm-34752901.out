@@ -1,0 +1,37 @@
+The following modules were not unloaded:
+  (Use "module --force purge" to unload all):
+
+  1) CCconfig        6)  ucx/1.14.1         11) flexiblas/3.3.1
+  2) gentoo/2023     7)  libfabric/1.18.0   12) imkl/2023.2.0
+  3) gcccore/.12.3   8)  pmix/4.2.4         13) StdEnv/2023
+  4) gcc/12.3        9)  ucc/1.2.0
+  5) hwloc/2.9.1     10) openmpi/4.1.5
+wandb: Currently logged in as: nathanteo (closed-AI). Use `wandb login --relogin` to force relogin
+wandb: wandb version 0.17.2 is available!  To upgrade, please run:
+wandb:  $ pip install wandb --upgrade
+wandb: Tracking run with wandb version 0.16.0
+wandb: Run data is saved locally in ./wandb/run-20240621_114526-7ju4merf
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run CWGAN-g4-d3-bn1-bs5-sn1e4-is28-ts40-lr0005-ld15-gw16-gu128-dc32-dl128
+wandb: ⭐️ View project at https://wandb.ai/closed-AI/cosmo_project
+wandb: 🚀 View run at https://wandb.ai/closed-AI/cosmo_project/runs/7ju4merf
+Traceback (most recent call last):
+  File "/project/6003007/nteo/cosmo_project/scripts/CWGAN_bn1_sn1e4.py", line 50, in <module>
+    run_training(training_params, generation_params, training_restart)
+  File "/home/nteo/projects/def-douglas/nteo/cosmo_project/code_model/train.py", line 92, in run_training
+    model = gans[gan_version](**training_params)
+  File "/home/nteo/projects/def-douglas/nteo/cosmo_project/code_model/GAN_modules.py", line 217, in __init__
+    self.discriminator = models.models[f'dis_v{dis_version}'](**training_params)
+  File "/home/nteo/projects/def-douglas/nteo/cosmo_project/code_model/models.py", line 137, in __init__
+    n_channels = self.cnn(torch.empty(1, 1, image_size, image_size)).size(-1)
+  File "/project/6003007/nteo/cosmo_project/venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1532, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/project/6003007/nteo/cosmo_project/venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1541, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/project/6003007/nteo/cosmo_project/venv/lib/python3.10/site-packages/torch/nn/modules/container.py", line 217, in forward
+    input = module(input)
+TypeError: 'NoneType' object is not callable
+wandb: - 0.005 MB of 0.005 MB uploadedwandb: \ 0.005 MB of 0.005 MB uploadedwandb: | 0.005 MB of 0.005 MB uploadedwandb: / 0.005 MB of 0.005 MB uploadedwandb: - 0.005 MB of 0.005 MB uploadedwandb: 🚀 View run CWGAN-g4-d3-bn1-bs5-sn1e4-is28-ts40-lr0005-ld15-gw16-gu128-dc32-dl128 at: https://wandb.ai/closed-AI/cosmo_project/runs/7ju4merf
+wandb: ️⚡ View job at https://wandb.ai/closed-AI/cosmo_project/jobs/QXJ0aWZhY3RDb2xsZWN0aW9uOjIxMzg1MzQzOA==/version_details/v1
+wandb: Synced 5 W&B file(s), 0 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20240621_114526-7ju4merf/logs

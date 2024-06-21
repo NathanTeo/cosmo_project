@@ -37,7 +37,7 @@ training_params = {
         'discriminator_linear_size': 16,
         'linear_dropout': 0.2,
         'conv_dropout': 0.2,
-        'root_path': "C:\\Users\\Idiot\\Desktop\\Research\\OFYP\\cosmo_project"
+        'root_path': "/home/nteo/projects/def-douglas/nteo/cosmo_project"
 }
 
 
