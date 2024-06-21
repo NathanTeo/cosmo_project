@@ -15,8 +15,8 @@ generation_params = {
 
 training_params = {
         'gan_version': 'CWGAN',
-        'generator_version': 3,
-        'discriminator_version': 2,
+        'generator_version': 4,
+        'discriminator_version': 3,
         'random_seed': 40,
         'avail_gpus': min(1, torch.cuda.device_count()),
         'num_workers': int(os.cpu_count() / 2),
@@ -36,7 +36,7 @@ training_params = {
         'discriminator_linear_size': 32,
         'linear_dropout': 0.2,
         'conv_dropout': 0.2,
-        'root_path': "/home/nteo/projects/def-douglas/nteo/cosmo_project"
+        'root_path': "C:/Users/Idiot/Desktop/Research/OFYP/cosmo_project"
 }
 
 """Run"""
