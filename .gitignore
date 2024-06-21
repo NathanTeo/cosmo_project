@@ -2,6 +2,7 @@
 **/__pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # Virtual env
 venv/
@@ -19,4 +20,3 @@ scripts/*
 
 # Exceptions
 !scripts/example_script.py
-
