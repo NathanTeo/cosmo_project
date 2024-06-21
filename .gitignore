@@ -1,5 +1,5 @@
 # Ignore pycache
-__pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 
@@ -18,5 +18,5 @@ wandb/
 scripts/*
 
 # Exceptions
-
+!scripts/example_script.py
 

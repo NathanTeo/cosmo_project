@@ -118,19 +118,14 @@ class Discriminator_v3(nn.Module):
         
         self.gan_version = training_params['gan_version']
         
-        # Convolutional block
-        def conv_block(input_channels, conv_size):
-            nn.Conv2d(input_channels, conv_size, kernel_size=5, stride=1), 
-            nn.InstanceNorm2d(conv_size, affine=True), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(conv_dropout)
-        
         # CNN
         self.cnn = nn.Sequential(
-            conv_block(input_channels, conv_size),
-            conv_block(input_channels, conv_size*2),
-            conv_block(input_channels*2, conv_size*4),
-            conv_block(input_channels*4, conv_size*4),
+            self._conv_block(input_channels, conv_size, conv_dropout=conv_dropout),
+            self._conv_block(conv_size, conv_size*2, conv_dropout=conv_dropout),
+            self._conv_block(conv_size*2, conv_size*4, conv_dropout=conv_dropout),
+            self._conv_block(conv_size*4, conv_size*4, conv_dropout=conv_dropout),
             
-            nn.Flatten()
+            nn.Flatten(),
         )
         
         # Classifier
@@ -141,9 +136,17 @@ class Discriminator_v3(nn.Module):
             nn.Linear(n_channels, linear_size),
             nn.ReLU(),
             nn.Dropout(linear_dropout),
-            nn.Linear(linear_size, 1)
+            nn.Linear(linear_size, 1),
     )
-  
+        
+    def _conv_block(self, input_channels, conv_size, conv_dropout=0.2, kernel_size=5, stride=1):
+        # Convolutional block
+        return nn.Sequential(
+            nn.Conv2d(input_channels, conv_size, kernel_size=kernel_size, stride=stride), 
+            nn.InstanceNorm2d(conv_size, affine=True), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(conv_dropout)
+        )
+
+
     def forward(self, x):
         x = self.cnn(x)
         x = self.classifier(x)
@@ -278,11 +281,6 @@ class Generator_v4(nn.Module):
         image_size = training_params['image_size']
         gen_img_w = training_params['generator_img_w']
         
-        # Unsample Block
-        def upsamp_block(gen_img_w, upsamp_size_input, upsamp_size_output):
-            nn.Upsample(size=(gen_img_w*2, gen_img_w*2), mode='nearest'),
-            nn.Conv2d(upsamp_size_input, upsamp_size_output, 3, 1)
-        
         # Pass latent space input into linear layer and reshape
         self.linear = nn.Sequential(
             nn.Linear(latent_dim, gen_img_w*gen_img_w*upsamp_size),
@@ -292,15 +290,23 @@ class Generator_v4(nn.Module):
         )
         
         # Upsample
-        final_kernel_size = int(gen_img_w*2*2 - image_size + 1)
+        final_kernel_size = int(gen_img_w*2*2*2 - image_size + 1)
         
         self.upsample = nn.Sequential(
-            upsamp_block(gen_img_w*2, upsamp_size, int(upsamp_size/2)),
-            upsamp_block(gen_img_w*4, int(upsamp_size/2), int(upsamp_size/4)),
-            upsamp_block(gen_img_w*8, int(upsamp_size/4), 5),
+            self._upsamp_block(gen_img_w*2, upsamp_size, int(upsamp_size/2)),
+            self._upsamp_block(gen_img_w*4, int(upsamp_size/2), int(upsamp_size/4)),
+            self._upsamp_block(gen_img_w*8, int(upsamp_size/4), 5),
             
             nn.Conv2d(5, 1, kernel_size=final_kernel_size-2),
         )
+        
+    def _upsamp_block(self, gen_img_w, upsamp_size_input, upsamp_size_output):
+        # Upsample block
+        return nn.Sequential(
+            nn.Upsample(size=(gen_img_w*2, gen_img_w*2), mode='nearest'),
+            nn.Conv2d(upsamp_size_input, upsamp_size_output, 3, 1),
+        )
+
 
     def forward(self, x):
         x = self.linear(x)
