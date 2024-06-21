@@ -14,9 +14,9 @@ temp_plots/
 plots/
 check_functions/
 checkpoints/
-scripts/
 wandb/
+scripts/*
 
 # Exceptions
-!scripts/example_script.py
+
 
