@@ -1,7 +1,8 @@
 # Ignore pycache
-__pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # Virtual env
 venv/
@@ -14,4 +15,8 @@ temp_plots/
 plots/
 check_functions/
 checkpoints/
-scripts/
+wandb/
+scripts/*
+
+# Exceptions
+!scripts/example_script.py
