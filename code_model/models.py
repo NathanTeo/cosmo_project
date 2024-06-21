@@ -293,17 +293,17 @@ class Generator_v4(nn.Module):
         final_kernel_size = int(gen_img_w*2*2*2 - image_size + 1)
         
         self.upsample = nn.Sequential(
-            self._upsamp_block(gen_img_w*2, upsamp_size, int(upsamp_size/2)),
-            self._upsamp_block(gen_img_w*4, int(upsamp_size/2), int(upsamp_size/4)),
-            self._upsamp_block(gen_img_w*8, int(upsamp_size/4), 5),
+            self._upsamp_block(gen_img_w, upsamp_size, int(upsamp_size/2)),
+            self._upsamp_block(gen_img_w*2, int(upsamp_size/2), int(upsamp_size/4)),
+            self._upsamp_block(gen_img_w*4, int(upsamp_size/4), 5),
             
             nn.Conv2d(5, 1, kernel_size=final_kernel_size-2),
         )
         
-    def _upsamp_block(self, gen_img_w, upsamp_size_input, upsamp_size_output):
+    def _upsamp_block(self, img_w, upsamp_size_input, upsamp_size_output):
         # Upsample block
         return nn.Sequential(
-            nn.Upsample(size=(gen_img_w*2, gen_img_w*2), mode='nearest'),
+            nn.Upsample(size=(img_w*2, img_w*2), mode='nearest'),
             nn.Conv2d(upsamp_size_input, upsamp_size_output, 3, 1),
         )
 
@@ -311,6 +311,7 @@ class Generator_v4(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         x = self.upsample(x)
+        # print(x.size())
         return torch.sigmoid(0.01*x)
 
 
