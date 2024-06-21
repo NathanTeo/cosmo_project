@@ -17,6 +17,7 @@ check_functions/
 checkpoints/
 wandb/
 scripts/*
+job_scripts/
 
 # Exceptions
 !scripts/example_script.py
