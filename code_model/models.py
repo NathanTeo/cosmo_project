@@ -269,7 +269,7 @@ class Generator_v3(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         x = self.upsample(x)
-        return torch.sigmoid(0.01*x)
+        return x
 
 class Generator_v4(nn.Module):
     def __init__(self, **training_params):
@@ -311,8 +311,7 @@ class Generator_v4(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         x = self.upsample(x)
-        # print(x.size())
-        return torch.sigmoid(0.01*x)
+        return x
 
 
 """All models"""
