@@ -121,4 +121,3 @@ def run_training(training_params, generation_params, training_restart=False):
                                 print('--------------------------------------------')
                                 trainer.fit(model, data)
                         
-                os.system("rm -r wandb")
