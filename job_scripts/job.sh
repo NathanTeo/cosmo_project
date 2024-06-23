@@ -2,7 +2,7 @@
 #SBATCH --mem=32G
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=12
-#SBATCH --time=3:0:0    
+#SBATCH --time=4:0:0    
 #SBATCH --mail-user=<nath0020@e.ntu.edu.sg>
 #SBATCH --mail-type=ALL
 #SBATCH --gres=gpu:v100l:1
@@ -12,4 +12,4 @@ module purge
 module load python/3.10
 source ./venv/bin/activate
 
-python scripts/CWGAN_run_1.py
+python scripts/CGAN_run_1.py
