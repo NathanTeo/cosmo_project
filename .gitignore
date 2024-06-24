@@ -19,6 +19,7 @@ checkpoints/
 wandb/
 scripts/*
 job_scripts/
+terminal_archive/
 
 # Exceptions
 !scripts/example_script.py
