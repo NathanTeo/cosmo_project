@@ -26,6 +26,7 @@ def run_training(training_params, generation_params, training_restart=False):
         blob_size = generation_params['blob_size']
         sample_num = generation_params['sample_num']
         image_size = training_params['image_size']
+        noise = generation_params['noise']
 
         latent_dim = training_params['latent_dim']
         gen_img_w = training_params['generator_img_w']
@@ -49,7 +50,7 @@ def run_training(training_params, generation_params, training_restart=False):
         """Paths"""
         root_path = training_params['root_path']
         data_folder = f'data/{blob_num}_blob'
-        data_file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}.npy'
+        data_file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{noise}'
         chkpt_path = f'checkpoints/{blob_num}_blob/{model_name}'
         training_params['model_name'] = model_name
         
@@ -58,8 +59,6 @@ def run_training(training_params, generation_params, training_restart=False):
                 os.makedirs(f'{root_path}/logs/{model_name}/images')
         
         """Initialize callbacks"""
-        # os.environ['WANDB_API_KEY']='3c2e56d7951699612266059b4061b9f87f462ec4'
-        # os.environ['WANDB_ENTITY']='nathanteo'
         wandb.login()
         wandb_logger = WandbLogger(
                 project='cosmo_project',
@@ -86,7 +85,6 @@ def run_training(training_params, generation_params, training_restart=False):
                         data_file=f'{root_path}/{data_folder}/{data_file_name}',
                         batch_size=batch_size, num_workers=num_workers
                         )
-                'data = MNISTDataModule(batch_size=batch_size, num_workers=num_workers)'
                 
                 # Load model
                 model = gans[gan_version](**training_params)

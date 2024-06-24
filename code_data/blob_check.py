@@ -11,10 +11,11 @@ generation_seed = 70
 sample_num = 10000
 image_size = 28
 blob_size = 5
+noise = False
 
 root_path = "C:/Users/Idiot/Desktop/Research/OFYP/cosmo_project"
 data_dir=f'{root_path}/Data/{blob_num}_blob'
-file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}'
+file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{noise}'
 
 samples = np.load(f'{data_dir}/{file_name}.npy')
     

@@ -13,7 +13,7 @@ from code_model.data_modules import *
 from code_model.GAN_modules import *
 from code_model.plotting_utils import *
 
-def run_testing(training_params, generation_params, checkpoint='last', grid_row_num=2, plot_num=5, stack_num=10000):
+def run_testing(training_params, generation_params, testing_params):
     """Initialize variables"""
     gan_version = training_params['gan_version']
     gen_version = training_params['generator_version']
@@ -26,6 +26,7 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
     blob_size = generation_params['blob_size']
     sample_num = generation_params['sample_num']
     image_size = training_params['image_size']
+    noise = generation_params['noise']
 
     latent_dim = training_params['latent_dim']
     gen_img_w = training_params['generator_img_w']
@@ -46,11 +47,17 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
         latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin
         )
     training_params['model_name'] = model_name
-
+    
+    checkpoint = testing_params['checkpoint']
+    grid_row_num = testing_params['grid_row_num']
+    plot_num = testing_params['plot_num']
+    stack_num = testing_params['stack_num']
+    loss_zoom_bounds = testing_params['loss_zoom_bounds']
+    
     """Paths"""
     root_path = training_params['root_path']
     data_path = f'data/{blob_num}_blob'
-    data_file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{generation_seed}.npy'
+    data_file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{noise}'
     chkpt_path = f'checkpoints/{blob_num}_blob/{model_name}'
     log_path = f'logs/{model_name}'    
     save_path = f'{root_path}/plots/{model_name}/images'
@@ -136,6 +143,8 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
         plt.figure(figsize=(6,4))
         plt.plot(epochs, g_losses, label='generator')
         plt.plot(epochs, d_losses, label='discriminator')
+        plt.xlabel('epoch')
+        plt.ylabel('loss')
         plt.title('Model Loss')
         
         plt.legend()
@@ -147,11 +156,14 @@ def run_testing(training_params, generation_params, checkpoint='last', grid_row_
         plt.figure(figsize=(6,4))
         plt.plot(epochs, g_losses, label='generator')
         plt.plot(epochs, d_losses, label='discriminator')
+        plt.xlabel('epoch')
+        plt.ylabel('loss')
         plt.title('Model Loss')
         
-        plt.axhline(y=0, color='r', alpha=0.2, linestyle='dashed')
+        if gan_version=='CWGAN':
+            plt.axhline(y=0, color='r', alpha=0.2, linestyle='dashed')
         
-        plt.ylim(-1,1)
+        plt.ylim(*loss_zoom_bounds)
         plt.legend()
         plt.tight_layout()
         plt.savefig(f'{save_path}/losses_zm_{model_name}.png')

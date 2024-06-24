@@ -12,9 +12,11 @@ blob_size = 5
 sample_num = 10000
 blob_num = 10
 pad = 0
+noise = True
+noise_range = (-0.1, 0.1)
 root_path = "C:/Users/Idiot/Desktop/Research/OFYP/cosmo_project"
 save_path = f"{root_path}/Data/{blob_num}_blob"
-file_name = f'{blob_num}blob_imgsize{image_size}_blobsize{blob_size}_samplenum{sample_num}_seed{seed}'
+file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{seed}-ns{noise}'
 
 "Initialize"
 random.seed(seed)
@@ -44,10 +46,15 @@ for i in tqdm(range(sample_num)):
             sample_next = multivariate_normal(mean_coords, [[blob_size, 0], [0, blob_size]]).pdf(pos)
             sample = np.add(sample, sample_next)
     
-    # normalize
+    # Normalize
     sample = normalize_2d(sample)
     
-    # unpad
+    # Add nosie
+    if noise==True:
+        noise_img = np.random.uniform(*noise_range, (image_size, image_size))
+        sample = sample + noise_img
+        
+    # Unpad
     pad_sample = sample
     if pad != 0:
         sample = sample[pad:-pad,pad:-pad]
@@ -56,8 +63,8 @@ for i in tqdm(range(sample_num)):
 
 np.save(f'{save_path}/{file_name}', samples)
 
-# Check
+# Plot to check
 plt.title(f'num of blobs: {blob_num} | image size: {image_size} | blob size: {blob_size}')
 plt.imshow(sample)
 plt.colorbar()
-plt.savefig(f'{save_path}/sample_bn{blob_num}_is{image_size}_bs{blob_size}')
+plt.savefig(f'{save_path}/{file_name}')
