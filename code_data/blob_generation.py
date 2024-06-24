@@ -10,13 +10,13 @@ image_size = 28
 seed = 70
 blob_size = 5
 sample_num = 10000
-blob_num = 10
+blob_num = 1
 pad = 0
 noise = True
 noise_range = (-0.1, 0.1)
 root_path = "C:/Users/Idiot/Desktop/Research/OFYP/cosmo_project"
 save_path = f"{root_path}/Data/{blob_num}_blob"
-file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{seed}-ns{noise}'
+file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{seed}-ns{int(noise)}'
 
 "Initialize"
 random.seed(seed)

@@ -57,7 +57,7 @@ def run_testing(training_params, generation_params, testing_params):
     """Paths"""
     root_path = training_params['root_path']
     data_path = f'data/{blob_num}_blob'
-    data_file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{noise}'
+    data_file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{int(noise)}.npy'
     chkpt_path = f'checkpoints/{blob_num}_blob/{model_name}'
     log_path = f'logs/{model_name}'    
     save_path = f'{root_path}/plots/{model_name}/images'

@@ -50,7 +50,7 @@ def run_training(training_params, generation_params, training_restart=False):
         """Paths"""
         root_path = training_params['root_path']
         data_folder = f'data/{blob_num}_blob'
-        data_file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{noise}'
+        data_file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{int(noise)}.npy'
         chkpt_path = f'checkpoints/{blob_num}_blob/{model_name}'
         training_params['model_name'] = model_name
         
