@@ -1,3 +1,10 @@
+"""
+Author: Nathan Teo
+
+This script generates and saves real samples for the GAN.
+The samples are saved in a single .npy file along with a single sample plot.
+"""
+
 import numpy as np
 from scipy.stats import multivariate_normal
 import matplotlib.pyplot as plt
@@ -19,14 +26,16 @@ save_path = f"{root_path}/Data/{blob_num}_blob"
 file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{seed}-ns{int(noise)}'
 
 "Initialize"
+# Initialize random seed
 random.seed(seed)
 
+# Create save directory
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 
+# Padding
 if pad == 'auto':
-    pad = blob_size
-    
+    pad = blob_size 
 generation_matrix_size = image_size + pad*2
 
 """Create blob"""
@@ -36,13 +45,17 @@ def normalize_2d(matrix):
 x, y = np.mgrid[0:generation_matrix_size:1, 0:generation_matrix_size:1]
 pos = np.dstack((x, y))
 
+# Create samples
 samples = []
 for i in tqdm(range(sample_num)):
     for j in range(blob_num):
+        # Random coordinate for blob
         mean_coords = [random.randint(0, generation_matrix_size-1), random.randint(0, generation_matrix_size-1)]
         if j==0:
+            # Add first blob to image
             sample = multivariate_normal(mean_coords, [[blob_size, 0], [0, blob_size]]).pdf(pos)
         if j!=0:
+            # Add subsequent single blob to image
             sample_next = multivariate_normal(mean_coords, [[blob_size, 0], [0, blob_size]]).pdf(pos)
             sample = np.add(sample, sample_next)
     
@@ -59,8 +72,10 @@ for i in tqdm(range(sample_num)):
     if pad != 0:
         sample = sample[pad:-pad,pad:-pad]
     
+    # Add sample to list
     samples.append(sample)
 
+# Save samples
 np.save(f'{save_path}/{file_name}', samples)
 
 # Plot to check

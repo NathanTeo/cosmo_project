@@ -1,5 +1,11 @@
 """
 Author: Nathan Teo
+
+This script contains runs testing on the model:
+Plot real and generated sample images.
+Plot marginal sums of real and generated sample images.
+Plot stacked image
+Plot loss with epoch (if available). 
 """
 
 import os

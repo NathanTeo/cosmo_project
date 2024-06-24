@@ -1,6 +1,7 @@
 """
 Author: Nathan Teo
 
+This scripts contains the Pytorch Lightning modules used for training. 
 """
 
 import pytorch_lightning as pl
@@ -15,13 +16,21 @@ import code_model.models as models
 from code_model.plotting_utils import *
 
 class GAN_utils():
+    """
+    Utilities that are useful in the GAN modules.
+    Contains plotting and logging functions that are common.
+    """
     def __init__(self):
+        # Nothing initialized (yet)
         pass
     
+    # Plots a grid of real and generated images with the discriminator scores
     def plot_imgs(self, gen_sample_imgs, real_sample_imgs):
+        # Get discriminator scores for the samples
         real_disc_scores = self.discriminator(real_sample_imgs).cpu().detach().numpy()[:,0]
         gen_disc_scores = self.discriminator(gen_sample_imgs).cpu().detach().numpy()[:,0]
         
+        # Reshape and send sample images to cpu 
         real_sample_imgs = real_sample_imgs.cpu().detach()[:,0,:,:]
         gen_sample_imgs = gen_sample_imgs.cpu().detach()[:,0,:,:]
         
@@ -42,13 +51,15 @@ class GAN_utils():
         fig.text(.5, .03, 'disc score labelled above image', ha='center')
         plt.tight_layout()
         
-        # Save
+        # Save plots
         plt.savefig(f'{self.root_path}/logs/{self.log_folder}/images/image_epoch{self.current_epoch}.png')
         plt.close('all')
     
     def log_losses(self, epoch_g_losses, epoch_d_losses):
+        # Log save file
         filename = f'{self.root_path}/logs/{self.log_folder}/losses.npz'
         
+        # Logging
         if self.current_epoch == 0:
             epochs = [0] # Current epoch is 0
             g_losses = [np.mean(epoch_g_losses)]
@@ -64,6 +75,9 @@ class GAN_utils():
         
 
 class CGAN(pl.LightningModule, GAN_utils):
+    """
+    Pytorch Lightning module for training a GAN using JS divergence
+    """
     def __init__(self, **training_params):
         super().__init__()
         self.automatic_optimization = False
@@ -88,10 +102,12 @@ class CGAN(pl.LightningModule, GAN_utils):
 
         # Random noise
         self.validation_z = torch.randn(9, training_params['latent_dim'])
-        
+    
+    # Generate image
     def forward(self, z):
         return self.generator(z)
 
+    # Loss function
     def adversarial_loss(self, y_hat, y):
         return F.binary_cross_entropy(y_hat, y)
     
@@ -168,13 +184,15 @@ class CGAN(pl.LightningModule, GAN_utils):
         # Log losses
         self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
         self.epoch_d_losses.append(d_loss.cpu().detach().numpy())
-            
+    
+    # Optimizer
     def configure_optimizers(self):
         lr = self.lr
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr)
         opt_d = torch.optim.Adam(self.discriminator.parameters(), lr=lr)
         return [opt_g, opt_d], [] # Empty list for scheduler
-        
+    
+    # Method is run at the end of each training epoch
     def on_train_epoch_end(self):
         # Generate samples
         z = self.validation_z.type_as(self.generator.linear[0].weight)
@@ -192,6 +210,9 @@ class CGAN(pl.LightningModule, GAN_utils):
         wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
 
 class CWGAN(pl.LightningModule, GAN_utils):
+    """
+    Pytorch Lightning module for training a GAN using Wasserstein distance
+    """
     def __init__(self, **training_params):
         super().__init__()
         self.automatic_optimization = False
@@ -218,18 +239,23 @@ class CWGAN(pl.LightningModule, GAN_utils):
 
         # Random noise
         self.validation_z = torch.randn(9, training_params['latent_dim'])
-        
+    
+    # Generate Image
     def forward(self, z):
         return self.generator(z)
 
+    # Calculate gradient penalty
     def gradient_penalty(self, discriminator, real, fake):
         batch_size, c, h, w = real.size()
+        
+        # Interpolate image
         epsilon = torch.rand((batch_size, 1, 1, 1), device=self.device).repeat(1, c, h, w)
         interpolated_imgs = real*epsilon + fake*(1-epsilon)
         
-        # calculate discriminator scores
+        # Calculate discriminator scores
         mixed_scores = discriminator(interpolated_imgs)
         
+        # Calculate gradient penalty
         gradient = torch.autograd.grad(
             inputs = interpolated_imgs,
             outputs = mixed_scores,
@@ -320,7 +346,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=self.betas)
         opt_d = torch.optim.Adam(self.discriminator.parameters(), lr=lr, betas=self.betas)
         return [opt_g, opt_d], [] # Empty list for scheduler
-        
+    
+    # Method is run at the end of each training epoch
     def on_train_epoch_end(self):
         # Generate samples
         z = self.validation_z.type_as(self.generator.linear[0].weight)

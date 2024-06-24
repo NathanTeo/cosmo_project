@@ -1,6 +1,7 @@
 """
 Author: Nathan Teo
 
+This script contains all data modules
 """
 
 import numpy as np
@@ -11,8 +12,13 @@ from torch.utils.data import DataLoader, random_split
 from torchvision.datasets import MNIST
 
 class BlobDataModule(pl.LightningDataModule):
+    """
+    Pytorch Lightning data module for loading and transforming the real sample gaussian blobs
+    """
     def __init__(self, data_file, batch_size, num_workers, train_split=0.8):
         super().__init__()
+        
+        # Parameters
         self.data_file = data_file
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -21,6 +27,7 @@ class BlobDataModule(pl.LightningDataModule):
         
         self.num_samples = len(np.load(data_file))
 
+        # Transformations
         self.transform = transforms.Compose(
             [
                 transforms.ToTensor(),
@@ -41,18 +48,23 @@ class BlobDataModule(pl.LightningDataModule):
             self.inputData_test = self.samples
     
     def len(self):
+        # Returns length of data (number of samples)
         return self.num_samples
 
     def num_training_batches(self):
+        # Returns number of training batches
         return np.ceil(self.num_samples*self.train_split/self.batch_size)
 
     def train_dataloader(self):
+        # Initiates and returns data loader for training
         return DataLoader(self.inputData_train, batch_size=self.batch_size, num_workers=self.num_workers, persistent_workers=True)
 
     def val_dataloader(self):
+        # Initiates and returns data loader for validation
         return DataLoader(self.inputData_val, batch_size=self.batch_size, num_workers=self.num_workers)
 
     def test_dataloader(self):
+        # Initiates and returns data loader for testing
         return DataLoader(self.inputData_test, batch_size=self.batch_size, num_workers=self.num_workers)
     
 

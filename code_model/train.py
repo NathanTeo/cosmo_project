@@ -1,6 +1,7 @@
 """
 Author: Nathan Teo
 
+This script runs GAN training
 """
 
 import os
@@ -59,6 +60,7 @@ def run_training(training_params, generation_params, training_restart=False):
                 os.makedirs(f'{root_path}/logs/{model_name}/images')
         
         """Initialize callbacks"""
+        # Logger
         wandb.login()
         wandb_logger = WandbLogger(
                 project='cosmo_project',
@@ -66,6 +68,7 @@ def run_training(training_params, generation_params, training_restart=False):
                 )
         wandb_logger.experiment.config.update(training_params)
 
+        # Checkpoint
         checkpoint_callback = ModelCheckpoint(
                 monitor = 'g_loss',
                 dirpath = f'{root_path}/{chkpt_path}',

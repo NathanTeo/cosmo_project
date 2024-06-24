@@ -1,13 +1,13 @@
 """
 Author: Nathan Teo
 
+This script contains generators and discriminators (or critics) used in the GANs
 """
 
 import torch
 import torch.nn as nn
 
 """Discriminators"""
-# Detective: fake or no fake -> 1 output [0, 1]
 class Discriminator_v1(nn.Module):
     """
     Simple discriminator based on standard convolutional neural network architechture
@@ -104,7 +104,7 @@ class Discriminator_v2(nn.Module):
     
 class Discriminator_v3(nn.Module):
     """
-    Simple discriminator that uses instance norm and leaky ReLU
+    Discriminator that uses instance norm and leaky ReLU
     """
     def __init__(self, **training_params):
         super().__init__()
@@ -236,6 +236,9 @@ class Generator_v2(nn.Module):
         return x
     
 class Generator_v3(nn.Module):
+    """
+    Simple generator that uses nearest neighbour to upsample
+    """
     def __init__(self, **training_params):
         super().__init__()
         
@@ -272,6 +275,9 @@ class Generator_v3(nn.Module):
         return x
 
 class Generator_v4(nn.Module):
+    """
+    Generator that uses nearest neighbour to upsample
+    """
     def __init__(self, **training_params):
         super().__init__()
         

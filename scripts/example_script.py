@@ -1,3 +1,10 @@
+"""
+Author: Nathan Teo
+
+This script is run to train or test the model.
+All tunable parameters are listed in the dictionaries.
+"""
+
 import os 
 import torch
 
