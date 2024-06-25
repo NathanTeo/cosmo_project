@@ -54,7 +54,7 @@ def run_testing(training_params, generation_params, testing_params):
         )
     training_params['model_name'] = model_name
     
-    checkpoint = testing_params['checkpoint']
+    which_checkpoint = testing_params['checkpoint']
     grid_row_num = testing_params['grid_row_num']
     plot_num = testing_params['plot_num']
     stack_num = testing_params['stack_num']
@@ -79,7 +79,7 @@ def run_testing(training_params, generation_params, testing_params):
     
     """Load model"""
     model = gans[gan_version].load_from_checkpoint(
-        f'{root_path}/{chkpt_path}/{checkpoint}.ckpt',
+        f'{root_path}/{chkpt_path}/{which_checkpoint}.ckpt',
         **training_params
         )
 

@@ -1,7 +1,7 @@
 """
 Author: Nathan Teo
 
-This script is run to train or test the model.
+This script is executed to train or test the model.
 All tunable parameters are listed in the dictionaries.
 """
 
@@ -27,7 +27,7 @@ training_params = {
         'random_seed': 40,
         'avail_gpus': min(1, torch.cuda.device_count()),
         'num_workers': int(os.cpu_count() / 2),
-        'image_size': generation_params['image_size'], # update this to directly take from imported
+        'image_size': generation_params['image_size'], 
         'batch_size': 32,
         'lr': 0.0005,
         'betas': (0.9,0.999),
