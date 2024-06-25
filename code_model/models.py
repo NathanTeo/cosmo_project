@@ -165,7 +165,6 @@ class Discriminator_v4(nn.Module):
         # Params
         input_channels = training_params['input_channels']
         conv_size = training_params['discriminator_conv_size']
-        conv_dropout = training_params['conv_dropout']
         linear_size = training_params['discriminator_linear_size']
         linear_dropout = training_params['linear_dropout']
         image_size = training_params['image_size']
@@ -174,14 +173,13 @@ class Discriminator_v4(nn.Module):
         
         # CNN
         self.cnn = nn.Sequential(
-            self._conv_block(input_channels, conv_size, conv_dropout=conv_dropout),
-            self._conv_block(conv_size, conv_size*2, conv_dropout=conv_dropout),
-            self._conv_block(conv_size*2, conv_size*4, conv_dropout=conv_dropout),
-            self._conv_block(conv_size*4, conv_size*4, conv_dropout=conv_dropout),
+            *self._conv_block(input_channels, conv_size, image_size),
+            *self._conv_block(conv_size, conv_size*2, self.norm_img_size),
+            *self._conv_block(conv_size*2, conv_size*4, self.norm_img_size),
+            *self._conv_block(conv_size*4, conv_size*4, self.norm_img_size),
             
             nn.Flatten(),
         )
-        
         # Classifier
         n_channels = self.cnn(torch.empty(1, 1, image_size, image_size)).size(-1)
         
@@ -193,13 +191,13 @@ class Discriminator_v4(nn.Module):
             nn.Linear(linear_size, 1),
     )
         
-    def _conv_block(self, input_channels, conv_size, conv_dropout=0.2, kernel_size=5, stride=1):
+    def _conv_block(self, input_channels, conv_size, img_size, kernel_size=5, stride=1):
         # Convolutional block
-        return nn.Sequential(
-            nn.Conv2d(input_channels, conv_size, kernel_size=kernel_size, stride=stride), 
-            nn.LayerNorm(conv_size, affine=True), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(conv_dropout)
-        )
-
+        layers = [nn.Conv2d(input_channels, conv_size, kernel_size=kernel_size, stride=stride)]
+        self.norm_img_size = int((img_size-kernel_size)/stride + 1)
+        layers.append(nn.LayerNorm([conv_size, self.norm_img_size, self.norm_img_size]))
+        layers.append(nn.LeakyReLU(0.2, inplace=True))
+        return layers
 
     def forward(self, x):
         x = self.cnn(x)
