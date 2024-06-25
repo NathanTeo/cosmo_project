@@ -155,7 +155,60 @@ class Discriminator_v3(nn.Module):
             x = torch.sigmoid(x)
         
         return x
-    
+
+class Discriminator_v4(nn.Module):
+    """
+    Discriminator that uses layer norm and leaky ReLU
+    """
+    def __init__(self, **training_params):
+        super().__init__()
+        # Params
+        input_channels = training_params['input_channels']
+        conv_size = training_params['discriminator_conv_size']
+        conv_dropout = training_params['conv_dropout']
+        linear_size = training_params['discriminator_linear_size']
+        linear_dropout = training_params['linear_dropout']
+        image_size = training_params['image_size']
+        
+        self.gan_version = training_params['gan_version']
+        
+        # CNN
+        self.cnn = nn.Sequential(
+            self._conv_block(input_channels, conv_size, conv_dropout=conv_dropout),
+            self._conv_block(conv_size, conv_size*2, conv_dropout=conv_dropout),
+            self._conv_block(conv_size*2, conv_size*4, conv_dropout=conv_dropout),
+            self._conv_block(conv_size*4, conv_size*4, conv_dropout=conv_dropout),
+            
+            nn.Flatten(),
+        )
+        
+        # Classifier
+        n_channels = self.cnn(torch.empty(1, 1, image_size, image_size)).size(-1)
+        
+        self.classifier = nn.Sequential(
+            nn.Dropout(linear_dropout),
+            nn.Linear(n_channels, linear_size),
+            nn.ReLU(),
+            nn.Dropout(linear_dropout),
+            nn.Linear(linear_size, 1),
+    )
+        
+    def _conv_block(self, input_channels, conv_size, conv_dropout=0.2, kernel_size=5, stride=1):
+        # Convolutional block
+        return nn.Sequential(
+            nn.Conv2d(input_channels, conv_size, kernel_size=kernel_size, stride=stride), 
+            nn.LayerNorm(conv_size, affine=True), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(conv_dropout)
+        )
+
+
+    def forward(self, x):
+        x = self.cnn(x)
+        x = self.classifier(x)
+        
+        if self.gan_version=='CGAN':
+            x = torch.sigmoid(x)
+        
+        return x
 
 """Generators"""
 class Generator_v1(nn.Module):
@@ -375,4 +428,5 @@ models = {
     'dis_v1': Discriminator_v1,
     'dis_v2': Discriminator_v2,
     'dis_v3': Discriminator_v3,
+    'dis_v4': Discriminator_v4
 }
