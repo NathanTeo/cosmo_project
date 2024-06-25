@@ -311,6 +311,7 @@ class Generator_v4(nn.Module):
         return nn.Sequential(
             nn.Upsample(size=(img_w*2, img_w*2), mode='nearest'),
             nn.Conv2d(upsamp_size_input, upsamp_size_output, 3, 1),
+            nn.BatchNorm2d(upsamp_size_input), nn.LeakyReLU(0.2, inplace=True)
         )
 
 
