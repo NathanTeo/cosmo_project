@@ -1,7 +1,7 @@
 """
 Author: Nathan Teo
 
-This script contains all data modules
+This script contains all data modules.
 """
 
 import numpy as np
