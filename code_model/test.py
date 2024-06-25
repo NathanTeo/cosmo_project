@@ -98,7 +98,7 @@ def run_testing(training_params, generation_params, testing_params):
         plot_img_grid(subfig[0], real_imgs, grid_row_num, title='Real Imgs')
         plot_img_grid(subfig[1], gen_imgs, grid_row_num, title='Generated Imgs')
         
-        # Save
+        # Save plot
         plt.savefig(f'{save_path}/gen-imgs_{model_name}_{n}.png')
         plt.close()
     
@@ -109,10 +109,12 @@ def run_testing(training_params, generation_params, testing_params):
         plot_marginal_sums(real_imgs, subfig[0], grid_row_num, title='Real')
         plot_marginal_sums(gen_imgs, subfig[1], grid_row_num, title='Generated')
         
+        # Format
         fig.suptitle('Marginal Sums')
-        
         plt.legend()
         plt.tight_layout()
+        
+        # Save plot
         plt.savefig(f'{save_path}/marg-sums_{model_name}_{n}.png')
         plt.close()
     
@@ -127,52 +129,62 @@ def run_testing(training_params, generation_params, testing_params):
     stacked_real_img = stack_imgs(data)
     stacked_gen_img = stack_imgs(gen_imgs)
     
+    # Plotting
     fig, axs = plt.subplots(1, 2)
     
     plot_stacked_imgs(axs[0], stacked_real_img, title='real')
     plot_stacked_imgs(axs[1], stacked_gen_img, title='generated')
     
+    # Format
     fig.suptitle('Stacked Image')
-    
-    
     plt.tight_layout()
+    
+    # Save plot
     plt.savefig(f'{save_path}/stacked_{model_name}.png')
     plt.close()
     
     """Losses"""
     try:
+        # Load loss
         losses = np.load(f'{root_path}/{log_path}/losses.npz')
         g_losses = losses['g_losses']
         d_losses = losses['d_losses']
         epochs = losses['epochs']
         
+        # Plot
         plt.figure(figsize=(6,4))
         plt.plot(epochs, g_losses, label='generator')
         plt.plot(epochs, d_losses, label='discriminator')
+        
+        # Format
         plt.xlabel('epoch')
         plt.ylabel('loss')
         plt.title('Model Loss')
-        
         plt.legend()
         plt.tight_layout()
+        
+        # Save plot
         plt.savefig(f'{save_path}/losses_{model_name}.png')
         plt.close()
         
-        # Zoom
+        # Plot zoom 
         plt.figure(figsize=(6,4))
         plt.plot(epochs, g_losses, label='generator')
         plt.plot(epochs, d_losses, label='discriminator')
+        
+        # Format
         plt.xlabel('epoch')
         plt.ylabel('loss')
         plt.title('Model Loss')
-        
         if gan_version=='CWGAN':
             plt.axhline(y=0, color='r', alpha=0.2, linestyle='dashed')
-        
         plt.ylim(*loss_zoom_bounds)
         plt.legend()
         plt.tight_layout()
+        
+        # Save plots
         plt.savefig(f'{save_path}/losses_zm_{model_name}.png')
         plt.close()
+        
     except FileNotFoundError:
         print('losses not found')
