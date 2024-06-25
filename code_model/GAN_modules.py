@@ -25,7 +25,7 @@ class GAN_utils():
         pass
     
     # Plots a grid of real and generated images with the discriminator scores
-    def plot_imgs(self, gen_sample_imgs, real_sample_imgs):
+    def _plot_imgs(self, gen_sample_imgs, real_sample_imgs):
         # Get discriminator scores for the samples
         real_disc_scores = self.discriminator(real_sample_imgs).cpu().detach().numpy()[:,0]
         gen_disc_scores = self.discriminator(gen_sample_imgs).cpu().detach().numpy()[:,0]
@@ -55,7 +55,7 @@ class GAN_utils():
         plt.savefig(f'{self.root_path}/logs/{self.log_folder}/images/image_epoch{self.current_epoch}.png')
         plt.close('all')
     
-    def log_losses(self, epoch_g_losses, epoch_d_losses):
+    def _log_losses(self, epoch_g_losses, epoch_d_losses):
         # Log save file
         filename = f'{self.root_path}/logs/{self.log_folder}/losses.npz'
         
@@ -72,6 +72,9 @@ class GAN_utils():
             d_losses = np.append(f['d_losses'], np.mean(epoch_d_losses))
             np.savez(filename, epochs=epochs, g_losses=g_losses, d_losses=d_losses)
         return [], []
+    
+    def _add_noise(self, imgs, mean=0, std_dev=0.05):
+        return imgs + (std_dev)*torch.randn(*imgs.size()) + mean
         
 
 class CGAN(pl.LightningModule, GAN_utils):
@@ -89,6 +92,7 @@ class CGAN(pl.LightningModule, GAN_utils):
         self.epoch_start_g_train = training_params['epoch_start_g_train']
         self.discriminator_train_freq = training_params['discriminator_train_freq']
         self.log_folder = training_params['model_name']
+        self.noise = training_params['noise']
         
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
@@ -128,34 +132,21 @@ class CGAN(pl.LightningModule, GAN_utils):
         # Initialize optimizers
         opt_g, opt_d = self.optimizers()
         
-        # Sample noise
+        # Sample latent noise
         z = torch.randn(real_imgs.shape[0], self.latent_dim)
         z = z.type_as(real_imgs)
-
-        # Train generator
-        if self.current_epoch >= self.epoch_start_g_train:
-            fake_imgs = self(z)
-            y_hat = self.discriminator(fake_imgs)
-            
-            # Log generated imgs
-            sample_imgs = fake_imgs[:9]
-            
-            y = torch.ones(real_imgs.size(0), 1)
-            y = y.type_as(real_imgs)
-            
-            self.toggle_optimizer(opt_g)
-            g_loss = self.adversarial_loss(y_hat, y)
-            self.log("g_loss", g_loss, on_epoch=True)
-            self.manual_backward(g_loss)
-            opt_g.step()
-            opt_g.zero_grad()
-            self.untoggle_optimizer(opt_g)
-        
 
         # Train discriminator    
         self.toggle_optimizer(opt_d)
         
         for _ in range(self.discriminator_train_freq):
+            fake_imgs = self(z).detach()
+            
+            # Add noise
+            if self.noise is not None:
+                real_imgs = self._add_noise(real_imgs, *self.noise)
+                fake_imgs = self._add_noise(fake_imgs, *self.noise)
+            
             # Performance of labelling real
             y_hat_real = self.discriminator(real_imgs)
             
@@ -165,7 +156,7 @@ class CGAN(pl.LightningModule, GAN_utils):
             real_loss = self.adversarial_loss(y_hat_real, y_real)
             
             # Performance of labelling fake
-            y_hat_fake = self.discriminator(self(z).detach())
+            y_hat_fake = self.discriminator(fake_imgs)
             
             y_fake = torch.zeros(real_imgs.size(0), 1)
             y_fake = y_fake.type_as(real_imgs)
@@ -176,10 +167,38 @@ class CGAN(pl.LightningModule, GAN_utils):
             d_loss = (real_loss + fake_loss)/2
             self.log("d_loss", d_loss, on_epoch=True)
             
+            # Update weights
             self.manual_backward(d_loss)
             opt_d.step()
             opt_d.zero_grad()
+            
         self.untoggle_optimizer(opt_d)
+
+        # Train generator
+        if self.current_epoch >= self.epoch_start_g_train:
+            fake_imgs = self(z)
+            
+            # Add noise
+            if self.noise is not None:
+                fake_imgs = self._add_noise(fake_imgs, *self.noise)
+            
+            # Loss
+            y_hat = self.discriminator(fake_imgs)
+            
+            y = torch.ones(real_imgs.size(0), 1)
+            y = y.type_as(real_imgs)
+            
+            g_loss = self.adversarial_loss(y_hat, y)
+            self.log("g_loss", g_loss, on_epoch=True)
+            
+            # Update weights
+            self.toggle_optimizer(opt_g)
+            
+            self.manual_backward(g_loss)
+            opt_g.step()
+            opt_g.zero_grad()
+            
+            self.untoggle_optimizer(opt_g)
         
         # Log losses
         self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
@@ -199,10 +218,10 @@ class CGAN(pl.LightningModule, GAN_utils):
         gen_sample_imgs = self(z)[:9]
         
         # Plot
-        self.plot_imgs(gen_sample_imgs, self.real_sample_imgs)
+        self._plot_imgs(gen_sample_imgs, self.real_sample_imgs)
         
         # Log losses
-        self.epoch_g_losses, self.epoch_d_losses = self.log_losses(
+        self.epoch_g_losses, self.epoch_d_losses = self._log_losses(
             self.epoch_g_losses, self.epoch_d_losses)
 
         # Log sampled images
@@ -224,7 +243,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
         self.gp_lambda = training_params['gp_lambda']
         self.epoch_start_g_train = training_params['epoch_start_g_train']
         self.discriminator_train_freq = training_params['discriminator_train_freq']
-        self.log_folder = training_params['model_name']     
+        self.log_folder = training_params['model_name']
+        self.noise = training_params['noise']     
         
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
@@ -271,7 +291,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
         return gradient_penalty
     
     def training_step(self, batch, batch_idx):
-        # load real imgs
+        # Load real imgs
         if len(batch) == 2: # if label exists eg. MNIST dataset
             real_imgs, _ = batch
         else:
@@ -289,37 +309,49 @@ class CWGAN(pl.LightningModule, GAN_utils):
         # initialize optimizers
         opt_g, opt_d = self.optimizers()
         
-        # generate fakes
+        # # Sample latent noise
         z = torch.randn(real_imgs.shape[0], self.latent_dim)
         z = z.type_as(real_imgs)
         
-        # train discriminator    
+        # Train discriminator    
         self.toggle_optimizer(opt_d)
         
         for _ in range(self.discriminator_train_freq):
-            dis_real = self.discriminator(real_imgs)
-            dis_fake = self.discriminator(self(z).detach())
+            fake_imgs = self(z).detach()
             
-            # calculate loss
+            # Add noise
+            if self.noise is not None:
+                real_imgs = self._add_noise(real_imgs, *self.noise)
+                fake_imgs = self._add_noise(fake_imgs, *self.noise)
+            
+            dis_real = self.discriminator(real_imgs)
+            dis_fake = self.discriminator(fake_imgs)
+            
+            # Calculate loss
             gp = self.gradient_penalty(self.discriminator, real_imgs, self(z))
             d_loss = (
                 -(torch.mean(dis_real) - torch.mean(dis_fake)) + self.gp_lambda*gp
             )
             
-            # log
+            # Log
             self.log("d_loss", d_loss, on_epoch=True)
             self.log("gp", gp, on_epoch=True)
             
-            # update weights
+            # Update weights
             opt_d.zero_grad()
             self.manual_backward(d_loss, retain_graph=True)
             opt_d.step()
 
         self.untoggle_optimizer(opt_d)
 
-        # train generator
+        # Train generator
         if self.current_epoch >= self.epoch_start_g_train:
             fake_imgs = self(z)
+            
+            # Add noise
+            if self.noise is not None:
+                fake_imgs = self._add_noise(fake_imgs, *self.noise)
+            
             output = self.discriminator(fake_imgs)
             
             self.toggle_optimizer(opt_g)
@@ -354,10 +386,10 @@ class CWGAN(pl.LightningModule, GAN_utils):
         gen_sample_imgs = self(z)[:9]
         
         # Plot
-        self.plot_imgs(gen_sample_imgs, self.real_sample_imgs)
+        self._plot_imgs(gen_sample_imgs, self.real_sample_imgs)
         
         # Log losses
-        self.epoch_g_losses, self.epoch_d_losses = self.log_losses(
+        self.epoch_g_losses, self.epoch_d_losses = self._log_losses(
             self.epoch_g_losses, self.epoch_d_losses)
 
         # Log sampled images

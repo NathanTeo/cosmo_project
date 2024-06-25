@@ -31,7 +31,8 @@ training_params = {
         'batch_size': 32,
         'lr': 0.0005,
         'betas': (0.9,0.999),
-        'gp_lambda': 10,
+        'gp_lambda': 10, # Only for Wasserstein GAN
+        'noise': (0, 0.05),
         'max_epochs': 50,
         'epoch_start_g_train': 0,
         'discriminator_train_freq': 1,
