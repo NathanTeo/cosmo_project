@@ -17,10 +17,10 @@ image_size = 28
 seed = 70
 blob_size = 5
 sample_num = 10000
-blob_num = 1
+blob_num = 10
 pad = 0
 noise = True
-noise_range = (-0.1, 0.1)
+noise_scale = 0.05
 root_path = "C:/Users/Idiot/Desktop/Research/OFYP/cosmo_project"
 save_path = f"{root_path}/Data/{blob_num}_blob"
 file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{seed}-ns{int(noise)}'
@@ -64,8 +64,8 @@ for i in tqdm(range(sample_num)):
     
     # Add nosie
     if noise==True:
-        noise_img = np.random.uniform(*noise_range, (image_size, image_size))
-        sample = sample + noise_img
+        noise_img = np.random.normal(0, noise_scale, (image_size, image_size))
+        sample = np.add(sample, noise_img)
         
     # Unpad
     pad_sample = sample
