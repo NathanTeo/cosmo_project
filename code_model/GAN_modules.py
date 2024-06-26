@@ -74,7 +74,7 @@ class GAN_utils():
         return [], []
     
     def _add_noise(self, imgs, mean=0, std_dev=0.05):
-        return imgs + (std_dev)*torch.randn(*imgs.size()) + mean
+        return imgs + (std_dev)*torch.randn(*imgs.size(), device=self.device) + torch.Tensor([mean]).type_as(imgs)
         
 
 class CGAN(pl.LightningModule, GAN_utils):
