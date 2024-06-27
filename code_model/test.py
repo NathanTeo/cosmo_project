@@ -32,13 +32,14 @@ def run_testing(training_params, generation_params, testing_params):
     blob_size = generation_params['blob_size']
     sample_num = generation_params['sample_num']
     image_size = training_params['image_size']
-    noise = generation_params['noise']
+    gen_noise = generation_params['noise']
 
     latent_dim = training_params['latent_dim']
     gen_img_w = training_params['generator_img_w']
     gen_upsamp = training_params['generator_upsamp_size']
     dis_conv = training_params['discriminator_conv_size']
     dis_lin = training_params['discriminator_linear_size']
+    training_noise = training_params['noise']
 
     batch_size = training_params['batch_size']
     num_workers = training_params['num_workers']
@@ -51,7 +52,7 @@ def run_testing(training_params, generation_params, testing_params):
         blob_num, blob_size, int(np.log10(sample_num)), image_size,
         training_seed, str(lr)[2:],
         latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
-        str(noise[1])[2:] if noise is not None else '_'
+        str(training_noise[1])[2:] if training_noise is not None else '_'
     )
     training_params['model_name'] = model_name
     
@@ -64,7 +65,7 @@ def run_testing(training_params, generation_params, testing_params):
     """Paths"""
     root_path = training_params['root_path']
     data_path = f'data/{blob_num}_blob'
-    data_file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{int(noise)}.npy'
+    data_file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{int(gen_noise)}.npy'
     chkpt_path = f'checkpoints/{blob_num}_blob/{model_name}'
     log_path = f'logs/{model_name}'    
     save_path = f'{root_path}/plots/{model_name}/images'
