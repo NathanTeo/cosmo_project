@@ -45,13 +45,14 @@ def run_testing(training_params, generation_params, testing_params):
     max_epochs = training_params['max_epochs']
     avail_gpus = training_params['avail_gpus']
     
-    model_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}'.format(
+    model_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
         gan_version,
         gen_version, dis_version,
         blob_num, blob_size, int(np.log10(sample_num)), image_size,
         training_seed, str(lr)[2:],
-        latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin
-        )
+        latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
+        str(noise[1])[2:]
+    )
     training_params['model_name'] = model_name
     
     which_checkpoint = testing_params['checkpoint']
