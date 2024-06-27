@@ -51,7 +51,7 @@ def run_testing(training_params, generation_params, testing_params):
         blob_num, blob_size, int(np.log10(sample_num)), image_size,
         training_seed, str(lr)[2:],
         latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
-        str(noise[1])[2:] if noise is not None else 0
+        str(noise[1])[2:] if noise is not None else '_'
     )
     training_params['model_name'] = model_name
     
