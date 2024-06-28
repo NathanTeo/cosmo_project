@@ -44,9 +44,19 @@ training_params = {
         'discriminator_linear_size': 16,
         'linear_dropout': 0.2,
         'conv_dropout': 0.2,
-        'root_path': "C:/Users/Idiot/Desktop/Research/OFYP/cosmo_project"
+        'root_path': "Users/..."
 }
 
+testing_params = {
+    'checkpoint': 'last',
+    'grid_row_num': 2,
+    'plot_num': 5, 
+    'stack_num': 1000,
+    'loss_zoom_bounds': (-1,1), # Implement Auto
+    'peak_min_distance': 1, 
+    'peak_threshold_abs': 0.02,
+    'peak_filter_sd': 2
+}
 
 """Run"""
 import sys
