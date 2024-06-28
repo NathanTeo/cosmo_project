@@ -61,6 +61,9 @@ def run_testing(training_params, generation_params, testing_params):
     plot_num = testing_params['plot_num']
     stack_num = testing_params['stack_num']
     loss_zoom_bounds = testing_params['loss_zoom_bounds']
+    min_distance = testing_params['peak_min_distance']
+    threshold_abs = testing_params['peak_threshold_abs']
+    filter_sd = testing_params['peak_filter_sd']
     
     """Paths"""
     root_path = training_params['root_path']
@@ -91,7 +94,7 @@ def run_testing(training_params, generation_params, testing_params):
     
     for n in tqdm(range(plot_num), desc='Plotting'):
         z = torch.randn(grid_row_num*grid_row_num, latent_dim)
-        gen_imgs = model(z).cpu().detach().squeeze()
+        gen_imgs = model(z).cpu().detach().squeeze().numpy()
         
         # Plotting grid of images
         fig = plt.figure(figsize=(6,3))
@@ -119,6 +122,31 @@ def run_testing(training_params, generation_params, testing_params):
         # Save plot
         plt.savefig(f'{save_path}/marg-sums_{model_name}_{n}.png')
         plt.close()
+        
+        # Peak detection
+        real_peaks, real_peak_nums = find_peaks(
+            real_imgs, 
+            min_distance=min_distance, threshold_abs=threshold_abs,
+            filter_sd=filter_sd
+            )
+        gen_peaks, gen_peak_nums = find_peaks(
+            gen_imgs, 
+            min_distance=min_distance, threshold_abs=threshold_abs,
+            filter_sd=filter_sd
+            )
+
+        fig = plt.figure(figsize=(6,3))
+        subfig = fig.subfigures(1, 2, wspace=0.2)
+        
+        plot_peak_grid(subfig[0], real_imgs, real_peaks, grid_row_num, 
+                       title='real imgaes', subplot_titles=real_peak_nums)
+        plot_peak_grid(subfig[1], gen_imgs, gen_peaks, grid_row_num, 
+                       title='generated imgaes', subplot_titles=gen_peak_nums)
+        
+        # Save plot
+        plt.savefig(f'{save_path}/peak-imgs_{model_name}_{n}.png')
+        plt.close()
+        
     
     """Stacking"""
     # Generate images
