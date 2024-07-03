@@ -77,7 +77,7 @@ class GAN_utils():
     def _add_noise(self, imgs, mean=0, std_dev=0.05):
         return imgs + (std_dev)*torch.randn(*imgs.size(), device=self.device) + torch.Tensor([mean]).type_as(imgs)
         
-class GapAwareScheduler(object):
+class GapAwareScheduler():
     """
     Dynamic gap aware learning rate update method.
     """
@@ -113,9 +113,10 @@ class GapAwareScheduler(object):
             return lr
     
     def step(self, lr, V_d):
-        new_lr = lr * self.lr_update_function(self.V_ideal, V_d, self.k0, self.k1)
-        new_lr = self.clip(new_lr)
-        self.optimizer.param_groups[0]['lr'] = new_lr
+        with torch.no_grad():
+            new_lr = lr * self.lr_update_function(self.V_ideal, V_d, self.k0, self.k1)
+            new_lr = self.clip(new_lr)
+            self.optimizer.param_groups[0]['lr'] = new_lr
         
     def state_dict(self) -> Dict[str, Any]:
         return {key: value for key, value in self.__dict__.items() if key != 'optimizer'}
@@ -260,6 +261,9 @@ class CGAN(pl.LightningModule, GAN_utils):
         # Log losses
         self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
         self.epoch_d_losses.append(d_loss.cpu().detach().numpy())
+        
+        # Empty cache
+        torch.cuda.empty_cache()        
     
     # Optimizer
     def configure_optimizers(self):
@@ -403,6 +407,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
             self.log("d_loss", d_loss, on_epoch=True)
             self.log("gp", gp, on_epoch=True)
             self.log("lr", self.get_lr(opt_d))
+            
+            print(torch.cuda.memory_allocated())
 
             # Update weights
             opt_d.zero_grad()
@@ -443,6 +449,9 @@ class CWGAN(pl.LightningModule, GAN_utils):
         # Log losses
         self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
         self.epoch_d_losses.append(d_loss.cpu().detach().numpy())
+        
+        # Empty cache
+        torch.cuda.empty_cache()
         
     def configure_optimizers(self):
         lr = self.lr
