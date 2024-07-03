@@ -17,7 +17,8 @@ generation_params = {
         'blob_size':5,
         'image_size': 28,
         'sample_num': 100,
-        'seed':70
+        'seed':70,
+        'noise': False
         }
 
 training_params = {
