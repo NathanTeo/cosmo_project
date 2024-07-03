@@ -11,6 +11,7 @@ import torchvision
 import matplotlib.pyplot as plt
 import numpy as np
 import wandb
+from typing import Any, Dict
 
 import code_model.models as models
 from code_model.plotting_utils import *
@@ -76,6 +77,52 @@ class GAN_utils():
     def _add_noise(self, imgs, mean=0, std_dev=0.05):
         return imgs + (std_dev)*torch.randn(*imgs.size(), device=self.device) + torch.Tensor([mean]).type_as(imgs)
         
+class GapAwareScheduler(object):
+    """
+    Dynamic gap aware learning rate update method.
+    """
+    def __init__(self, optimizer, V_ideal, k0=(2, 0.1), k1=(0.1, 0.1)):
+        self.optimizer = optimizer
+        self.V_ideal = V_ideal
+        self.k0 = k0
+        self.k1 = k1
+        
+    def lr_update_function(self, V_ideal, V_d, k0, k1):
+        """
+        Function that returns the factor to update the learning rate by. 
+        The variables k0 and k1 represent the parameters as such: 
+        k0 = (f_max, x_max)
+        k1 = (h_min, X_min)
+        """
+        if V_d >= V_ideal:
+            x = V_d - V_ideal
+            if x >= 1:
+                return 1
+            else:
+                return torch.min(torch.Tensor([(k0[0])**(x/k0[1]), k0[0]]))
+        elif V_d <= V_ideal:
+            x = V_ideal - V_d
+            return torch.max(torch.Tensor([(k1[0])**(x/k1[1]), k1[0]]))
+    
+    def clip(self, lr, limits=(1e-10, 0.1)):
+        if lr>limits[1]:
+            return limits[1]
+        elif lr<limits[0]:
+            return limits[0]
+        else:
+            return lr
+    
+    def step(self, lr, V_d):
+        new_lr = lr * self.lr_update_function(self.V_ideal, V_d, self.k0, self.k1)
+        new_lr = self.clip(new_lr)
+        self.optimizer.param_groups[0]['lr'] = new_lr
+        
+    def state_dict(self) -> Dict[str, Any]:
+        return {key: value for key, value in self.__dict__.items() if key != 'optimizer'}
+
+    def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
+        self.__dict__.update(state_dict)
+        
 
 class CGAN(pl.LightningModule, GAN_utils):
     """
@@ -106,6 +153,9 @@ class CGAN(pl.LightningModule, GAN_utils):
 
         # Random noise
         self.validation_z = torch.randn(9, training_params['latent_dim'])
+        
+        # initialize d_loss estimate with ideal V 
+        self.d_loss_est = np.log10(4)
     
     # Generate image
     def forward(self, z):
@@ -131,6 +181,7 @@ class CGAN(pl.LightningModule, GAN_utils):
         
         # Initialize optimizers
         opt_g, opt_d = self.optimizers()
+        shed_d = self.lr_schedulers()
         
         # Sample latent noise
         z = torch.randn(real_imgs.shape[0], self.latent_dim)
@@ -172,6 +223,12 @@ class CGAN(pl.LightningModule, GAN_utils):
             opt_d.step()
             opt_d.zero_grad()
             
+            # Update learning rate
+            self.log("lr", self.get_lr(opt_d))
+            self.d_loss_est = 0.95*self.d_loss_est + (1-0.95)*d_loss
+            shed_d.step(self.get_lr(opt_d), self.d_loss_est)
+            
+            
         self.untoggle_optimizer(opt_d)
 
         # Train generator
@@ -209,7 +266,12 @@ class CGAN(pl.LightningModule, GAN_utils):
         lr = self.lr
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr)
         opt_d = torch.optim.Adam(self.discriminator.parameters(), lr=lr)
-        return [opt_g, opt_d], [] # Empty list for scheduler
+        sched_d = GapAwareScheduler(opt_d, V_ideal=np.log10(4))
+        return [opt_g, opt_d], [sched_d, ]
+    
+    def get_lr(optimizer):
+        for param_group in optimizer.param_groups:
+            return param_group['lr']
     
     # Method is run at the end of each training epoch
     def on_train_epoch_end(self):
@@ -259,6 +321,9 @@ class CWGAN(pl.LightningModule, GAN_utils):
 
         # Random noise
         self.validation_z = torch.randn(9, training_params['latent_dim'])
+        
+        # initialize d_loss estimate with ideal V 
+        self.d_loss_est = 0 
     
     # Generate Image
     def forward(self, z):
@@ -308,6 +373,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
         
         # initialize optimizers
         opt_g, opt_d = self.optimizers()
+        sched_d = self.lr_schedulers()
         
         # # Sample latent noise
         z = torch.randn(real_imgs.shape[0], self.latent_dim)
@@ -336,11 +402,16 @@ class CWGAN(pl.LightningModule, GAN_utils):
             # Log
             self.log("d_loss", d_loss, on_epoch=True)
             self.log("gp", gp, on_epoch=True)
-            
+            self.log("lr", self.get_lr(opt_d))
+
             # Update weights
             opt_d.zero_grad()
             self.manual_backward(d_loss, retain_graph=True)
             opt_d.step()
+            
+            # Update learning rate
+            self.d_loss_est = 0.95*self.d_loss_est + (1-0.95)*d_loss
+            sched_d.step(self.get_lr(opt_d), self.d_loss_est)
 
         self.untoggle_optimizer(opt_d)
 
@@ -377,7 +448,12 @@ class CWGAN(pl.LightningModule, GAN_utils):
         lr = self.lr
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=self.betas)
         opt_d = torch.optim.Adam(self.discriminator.parameters(), lr=lr, betas=self.betas)
-        return [opt_g, opt_d], [] # Empty list for scheduler
+        sched_d = GapAwareScheduler(opt_d, V_ideal=0)
+        return [opt_g, opt_d], [sched_d, ]
+    
+    def get_lr(self, optimizer):
+        for param_group in optimizer.param_groups:
+            return param_group['lr']
     
     # Method is run at the end of each training epoch
     def on_train_epoch_end(self):
