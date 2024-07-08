@@ -33,6 +33,7 @@ training_params = {
         'lr': 0.0005,
         'betas': (0.9,0.999),
         'gp_lambda': 10, # Only for Wasserstein GAN
+        'scheduler_params': ((2, 0.1), (0.1, 0.1), 0.95, 50),
         'noise': (0, 0.05),
         'max_epochs': 50,
         'epoch_start_g_train': 0,

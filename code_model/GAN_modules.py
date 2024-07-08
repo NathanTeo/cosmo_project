@@ -144,6 +144,11 @@ class CGAN(pl.LightningModule, GAN_utils):
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
         
+        self.sched_k0 = training_params['scheduler_params'][0]
+        self.sched_k1 = training_params['scheduler_params'][1]
+        self.sched_alpha = training_params['scheduler_params'][2]
+        self.sched_start_epoch = training_params['scheduler_params'][3]
+        
         self.epoch_d_losses = []
         self.epoch_g_losses = []
         
@@ -181,7 +186,7 @@ class CGAN(pl.LightningModule, GAN_utils):
         
         # Initialize optimizers
         opt_g, opt_d = self.optimizers()
-        shed_d = self.lr_schedulers()
+        sched_d = self.lr_schedulers()
         
         # Sample latent noise
         z = torch.randn(real_imgs.shape[0], self.latent_dim)
@@ -224,9 +229,10 @@ class CGAN(pl.LightningModule, GAN_utils):
             opt_d.zero_grad()
             
             # Update learning rate
-            self.log("lr", self.get_lr(opt_d))
-            self.d_loss_est = 0.95*self.d_loss_est + (1-0.95)*d_loss.detach()
-            shed_d.step(self.get_lr(opt_d), self.d_loss_est)
+            if self.current_epoch >= self.sched_start_epoch:
+                self.log("d_lr", self.get_lr(opt_d))
+                self.d_loss_est = self.sched_alpha*self.d_loss_est + (1-self.sched_alpha)*d_loss.detach()
+                sched_d.step(self.get_lr(opt_d), self.d_loss_est)
             
             
         self.untoggle_optimizer(opt_d)
@@ -269,7 +275,7 @@ class CGAN(pl.LightningModule, GAN_utils):
         lr = self.lr
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr)
         opt_d = torch.optim.Adam(self.discriminator.parameters(), lr=lr)
-        sched_d = GapAwareScheduler(opt_d, V_ideal=np.log10(4))
+        sched_d = GapAwareScheduler(opt_d, V_ideal=np.log10(4), k0=self.sched_k0, k1=self.sched_k1)
         return [opt_g, opt_d], [sched_d, ]
     
     def get_lr(optimizer):
@@ -314,6 +320,11 @@ class CWGAN(pl.LightningModule, GAN_utils):
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
         self.root_path = training_params['root_path']
+        
+        self.sched_k0 = training_params['scheduler_params'][0]
+        self.sched_k1 = training_params['scheduler_params'][1]
+        self.sched_alpha = training_params['scheduler_params'][2]
+        self.sched_start_epoch = training_params['scheduler_params'][3]
         
         self.epoch_d_losses = []
         self.epoch_g_losses = []
@@ -376,7 +387,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
         
         # initialize optimizers
         opt_g, opt_d = self.optimizers()
-        # sched_d = self.lr_schedulers()
+        sched_d = self.lr_schedulers()
         
         # # Sample latent noise
         z = torch.randn(real_imgs.shape[0], self.latent_dim)
@@ -412,9 +423,10 @@ class CWGAN(pl.LightningModule, GAN_utils):
             opt_d.step()
             
             # Update learning rate
-            # self.log("d_lr", self.get_lr(opt_d))
-            # self.d_loss_est = 0.95*self.d_loss_est + (1-0.95)*d_loss.detach()
-            # sched_d.step(self.get_lr(opt_d), self.d_loss_est)
+            if self.current_epoch >= self.sched_start_epoch:
+                self.log("d_lr", self.get_lr(opt_d))
+                self.d_loss_est = self.sched_alpha*self.d_loss_est + (1-self.sched_alpha)*d_loss.detach()
+                sched_d.step(self.get_lr(opt_d), self.d_loss_est)
 
         self.untoggle_optimizer(opt_d)
 
@@ -447,11 +459,12 @@ class CWGAN(pl.LightningModule, GAN_utils):
         self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
         self.epoch_d_losses.append(d_loss.cpu().detach().numpy())
         
+        
     def configure_optimizers(self):
         lr = self.lr
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=self.betas)
         opt_d = torch.optim.Adam(self.discriminator.parameters(), lr=lr, betas=self.betas)
-        sched_d = GapAwareScheduler(opt_d, V_ideal=0)
+        sched_d = GapAwareScheduler(opt_d, V_ideal=np.log10(4), k0=self.sched_k0, k1=self.sched_k1)
         return [opt_g, opt_d], [sched_d, ]
     
     def lr_scheduler_step(self, scheduler, metric):
