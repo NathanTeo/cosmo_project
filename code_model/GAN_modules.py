@@ -447,10 +447,6 @@ class CWGAN(pl.LightningModule, GAN_utils):
         self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
         self.epoch_d_losses.append(d_loss.cpu().detach().numpy())
         
-        # Empty cache
-        # torch.cuda.empty_cache()
-        # print(f'empty cache: {torch.cuda.memory_allocated()}')
-        
     def configure_optimizers(self):
         lr = self.lr
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=self.betas)

@@ -30,20 +30,64 @@ def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subpl
     subfig.subplots_adjust(wspace=wspace, hspace=hspace)         
     subfig.suptitle(title, y=0.95)
 
-def find_peaks(imgs, min_distance=3, threshold_abs=0.05, filter_sd = 2):
+def create_circular_mask(h, w, center, radius=None):
+    """
+    Creates a circular mask on an image of size (h,w) at a specified coordinate
+    """
+    if radius is None: # use the smallest distance between the center and image walls
+        radius = min(center[0], center[1], w-center[0], h-center[1])
+
+    Y, X = np.ogrid[:h, :w]
+    dist_from_center = np.sqrt((X - center[0])**2 + (Y-center[1])**2)
+
+    mask = dist_from_center <= radius
+    return mask
+
+def find_local_peaks(img, min_distance=1, threshold_abs=0):
+    """
+    Returns coordinates of all local peaks of an image.
+    Minimum distance between peaks (size of mask) and absolute minimum threshold can be specified
+    """
+    # Create a temporary padded image so that mask can be iterated through each point
+    temp_canvas = np.pad(img, (min_distance,min_distance), mode='constant', constant_values=(0,0))
+    
+    # Find local peak coordinates
+    img_peak_coords = []
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
+            # Mask image to only find maximum of local region
+            mask = create_circular_mask(
+                temp_canvas.shape[1], temp_canvas.shape[0],
+                (j+min_distance,i+min_distance),
+                radius = min_distance
+                )
+            masked_canvas = temp_canvas.copy()
+            masked_canvas[~mask] = 0
+
+            # Coordinates of local maxima 
+            canvas_peak_coord = np.unravel_index(masked_canvas.argmax(), masked_canvas.shape)
+
+            # Record coordinates if the local maxima is the center of the mask and above absolute threshold
+            if canvas_peak_coord == (i+min_distance, j+min_distance):
+                if masked_canvas[canvas_peak_coord[0], canvas_peak_coord[1]]>=threshold_abs:
+                    img_peak_coords.append([coord-min_distance for coord in canvas_peak_coord])
+    
+    return np.array(img_peak_coords)
+
+def imgs_peak_finder(imgs, min_distance=3, threshold_abs=0.05, filter_sd = None):
     """
     Return coordinates of peaks for an array of images
     """
     peak_coords = []
     peak_nums = []
     
-    for i in range(len(imgs)):
+    for img in imgs:
         # Smooth image to remove noise
-        img = gaussian_filter(imgs[i], filter_sd, mode='nearest')
+        if filter_sd is not None:    
+            img = gaussian_filter(img, filter_sd, mode='nearest')
         
         # Find and record peaks
-        img_peak_coords = peak_local_max(img, min_distance=min_distance, 
-                                         threshold_abs=threshold_abs, exclude_border=False)
+        img_peak_coords = find_local_peaks(img, min_distance=min_distance, threshold_abs=threshold_abs)
         peak_coords.append(img_peak_coords)
         peak_nums.append(len(img_peak_coords))
         

@@ -124,12 +124,12 @@ def run_testing(training_params, generation_params, testing_params):
         plt.close()
         
         # Peak detection
-        real_peaks, real_peak_nums = find_peaks(
+        real_peaks, real_peak_nums = imgs_peak_finder(
             real_imgs, 
             min_distance=min_distance, threshold_abs=threshold_abs,
             filter_sd=filter_sd
             )
-        gen_peaks, gen_peak_nums = find_peaks(
+        gen_peaks, gen_peak_nums = imgs_peak_finder(
             gen_imgs, 
             min_distance=min_distance, threshold_abs=threshold_abs,
             filter_sd=filter_sd
@@ -142,6 +142,8 @@ def run_testing(training_params, generation_params, testing_params):
                        title='real imgaes', subplot_titles=real_peak_nums)
         plot_peak_grid(subfig[1], gen_imgs, gen_peaks, grid_row_num, 
                        title='generated imgaes', subplot_titles=gen_peak_nums)
+        
+        fig.text(.5, .03, 'number of peaks labelled above image', ha='center')
         
         # Save plot
         plt.savefig(f'{save_path}/peak-imgs_{model_name}_{n}.png')
