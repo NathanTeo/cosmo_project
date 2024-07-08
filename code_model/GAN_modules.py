@@ -376,7 +376,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
         
         # initialize optimizers
         opt_g, opt_d = self.optimizers()
-        sched_d = self.lr_schedulers()
+        # sched_d = self.lr_schedulers()
         
         # # Sample latent noise
         z = torch.randn(real_imgs.shape[0], self.latent_dim)
@@ -412,9 +412,9 @@ class CWGAN(pl.LightningModule, GAN_utils):
             opt_d.step()
             
             # Update learning rate
-            self.log("d_lr", self.get_lr(opt_d))
-            self.d_loss_est = 0.95*self.d_loss_est + (1-0.95)*d_loss.detach()
-            sched_d.step(self.get_lr(opt_d), self.d_loss_est)
+            # self.log("d_lr", self.get_lr(opt_d))
+            # self.d_loss_est = 0.95*self.d_loss_est + (1-0.95)*d_loss.detach()
+            # sched_d.step(self.get_lr(opt_d), self.d_loss_est)
 
         self.untoggle_optimizer(opt_d)
 
