@@ -113,10 +113,9 @@ class GapAwareScheduler():
             return lr
     
     def step(self, lr, V_d):
-        with torch.no_grad():
-            new_lr = lr * self.lr_update_function(self.V_ideal, V_d, self.k0, self.k1)
-            new_lr = self.clip(new_lr)
-            self.optimizer.param_groups[0]['lr'] = new_lr
+        new_lr = lr * self.lr_update_function(self.V_ideal, V_d, self.k0, self.k1)
+        new_lr = self.clip(new_lr)
+        self.optimizer.param_groups[0]['lr'] = new_lr
         
     def state_dict(self) -> Dict[str, Any]:
         return {key: value for key, value in self.__dict__.items() if key != 'optimizer'}
@@ -217,7 +216,7 @@ class CGAN(pl.LightningModule, GAN_utils):
             
             # Total loss
             d_loss = (real_loss + fake_loss)/2
-            self.log("d_loss", d_loss, on_epoch=True)
+            self.log("d_loss", d_loss, on_epoch=False)
             
             # Update weights
             self.manual_backward(d_loss)
@@ -226,7 +225,7 @@ class CGAN(pl.LightningModule, GAN_utils):
             
             # Update learning rate
             self.log("lr", self.get_lr(opt_d))
-            self.d_loss_est = 0.95*self.d_loss_est + (1-0.95)*d_loss
+            self.d_loss_est = 0.95*self.d_loss_est + (1-0.95)*d_loss.detach()
             shed_d.step(self.get_lr(opt_d), self.d_loss_est)
             
             
@@ -247,7 +246,7 @@ class CGAN(pl.LightningModule, GAN_utils):
             y = y.type_as(real_imgs)
             
             g_loss = self.adversarial_loss(y_hat, y)
-            self.log("g_loss", g_loss, on_epoch=True)
+            self.log("g_loss", g_loss, on_epoch=False)
             
             # Update weights
             self.toggle_optimizer(opt_g)
@@ -404,11 +403,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
             )
             
             # Log
-            self.log("d_loss", d_loss, on_epoch=True)
-            self.log("gp", gp, on_epoch=True)
-            self.log("lr", self.get_lr(opt_d))
-            
-            print(torch.cuda.memory_allocated())
+            self.log("d_loss", d_loss, on_epoch=False)
+            self.log("gp", gp, on_epoch=False)
 
             # Update weights
             opt_d.zero_grad()
@@ -416,7 +412,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
             opt_d.step()
             
             # Update learning rate
-            self.d_loss_est = 0.95*self.d_loss_est + (1-0.95)*d_loss
+            self.log("d_lr", self.get_lr(opt_d))
+            self.d_loss_est = 0.95*self.d_loss_est + (1-0.95)*d_loss.detach()
             sched_d.step(self.get_lr(opt_d), self.d_loss_est)
 
         self.untoggle_optimizer(opt_d)
@@ -437,7 +434,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
             g_loss = -torch.mean(output)
             
             # log
-            self.log("g_loss", g_loss, on_epoch=True)
+            self.log("g_loss", g_loss, on_epoch=False)
             
             # update weights
             opt_g.zero_grad()
@@ -451,7 +448,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
         self.epoch_d_losses.append(d_loss.cpu().detach().numpy())
         
         # Empty cache
-        torch.cuda.empty_cache()
+        # torch.cuda.empty_cache()
+        # print(f'empty cache: {torch.cuda.memory_allocated()}')
         
     def configure_optimizers(self):
         lr = self.lr
@@ -460,6 +458,9 @@ class CWGAN(pl.LightningModule, GAN_utils):
         sched_d = GapAwareScheduler(opt_d, V_ideal=0)
         return [opt_g, opt_d], [sched_d, ]
     
+    def lr_scheduler_step(self, scheduler, metric):
+        scheduler.step()
+        
     def get_lr(self, optimizer):
         for param_group in optimizer.param_groups:
             return param_group['lr']
