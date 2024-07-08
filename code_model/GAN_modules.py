@@ -104,7 +104,7 @@ class GapAwareScheduler():
             x = V_ideal - V_d
             return torch.max(torch.Tensor([(k1[0])**(x/k1[1]), k1[0]]))
     
-    def clip(self, lr, limits=(1e-10, 0.1)):
+    def clip(self, lr, limits=(1e-6, 0.001)):
         if lr>limits[1]:
             return limits[1]
         elif lr<limits[0]:
