@@ -64,11 +64,11 @@ def find_local_peaks(img, min_distance=1, threshold_abs=0):
             masked_canvas = temp_canvas.copy()
             masked_canvas[~mask] = 0
 
-            # Coordinates of local maxima 
+            # Coordinates of local maxima
             canvas_peak_coord = np.unravel_index(masked_canvas.argmax(), masked_canvas.shape)
-
+            
             # Record coordinates if the local maxima is the center of the mask and above absolute threshold
-            if canvas_peak_coord == (i+min_distance, j+min_distance):
+            if masked_canvas[canvas_peak_coord[0], canvas_peak_coord[1]] == masked_canvas[i+min_distance, j+min_distance]:
                 if masked_canvas[canvas_peak_coord[0], canvas_peak_coord[1]]>=threshold_abs:
                     img_peak_coords.append([coord-min_distance for coord in canvas_peak_coord])
     

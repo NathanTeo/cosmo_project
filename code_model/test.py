@@ -80,7 +80,7 @@ def run_testing(training_params, generation_params, testing_params):
     torch.manual_seed(training_seed)
     
     """Load data"""
-    data = np.load(f'{root_path}/{data_path}/{data_file_name}')
+    real_imgs = np.load(f'{root_path}/{data_path}/{data_file_name}')
     
     """Load model"""
     model = gans[gan_version].load_from_checkpoint(
@@ -90,7 +90,7 @@ def run_testing(training_params, generation_params, testing_params):
 
     """Plot generated images"""
     # Get images
-    real_imgs = data[:grid_row_num*grid_row_num]
+    real_imgs_sample = real_imgs[:grid_row_num*grid_row_num]
     
     for n in tqdm(range(plot_num), desc='Plotting'):
         z = torch.randn(grid_row_num*grid_row_num, latent_dim)
@@ -100,7 +100,7 @@ def run_testing(training_params, generation_params, testing_params):
         fig = plt.figure(figsize=(6,3))
         subfig = fig.subfigures(1, 2, wspace=0.2)
         
-        plot_img_grid(subfig[0], real_imgs, grid_row_num, title='Real Imgs')
+        plot_img_grid(subfig[0], real_imgs_sample, grid_row_num, title='Real Imgs')
         plot_img_grid(subfig[1], gen_imgs, grid_row_num, title='Generated Imgs')
         
         # Save plot
@@ -111,7 +111,7 @@ def run_testing(training_params, generation_params, testing_params):
         fig = plt.figure(figsize=(4,6))
         subfig = fig.subfigures(1, 2)
                 
-        plot_marginal_sums(real_imgs, subfig[0], grid_row_num, title='Real')
+        plot_marginal_sums(real_imgs_sample, subfig[0], grid_row_num, title='Real')
         plot_marginal_sums(gen_imgs, subfig[1], grid_row_num, title='Generated')
         
         # Format
@@ -125,7 +125,7 @@ def run_testing(training_params, generation_params, testing_params):
         
         # Peak detection
         real_peaks, real_peak_nums = imgs_peak_finder(
-            real_imgs, 
+            real_imgs_sample, 
             min_distance=min_distance, threshold_abs=threshold_abs,
             filter_sd=filter_sd
             )
@@ -138,7 +138,7 @@ def run_testing(training_params, generation_params, testing_params):
         fig = plt.figure(figsize=(6,3))
         subfig = fig.subfigures(1, 2, wspace=0.2)
         
-        plot_peak_grid(subfig[0], real_imgs, real_peaks, grid_row_num, 
+        plot_peak_grid(subfig[0], real_imgs_sample, real_peaks, grid_row_num, 
                        title='real imgaes', subplot_titles=real_peak_nums)
         plot_peak_grid(subfig[1], gen_imgs, gen_peaks, grid_row_num, 
                        title='generated imgaes', subplot_titles=gen_peak_nums)
@@ -158,7 +158,8 @@ def run_testing(training_params, generation_params, testing_params):
     gen_imgs = model(z).cpu().detach().squeeze()
     
     # Stack images
-    stacked_real_img = stack_imgs(data)
+    print('stacking...')
+    stacked_real_img = stack_imgs(real_imgs)
     stacked_gen_img = stack_imgs(gen_imgs)
     
     # Plotting
@@ -173,6 +174,37 @@ def run_testing(training_params, generation_params, testing_params):
     
     # Save plot
     plt.savefig(f'{save_path}/stacked_{model_name}.png')
+    plt.close()
+    
+    """Mean number of peaks"""
+    print('counting peaks...')
+    _, real_peak_nums = imgs_peak_finder(
+            real_imgs[:1000], 
+            min_distance=min_distance, threshold_abs=threshold_abs,
+            filter_sd=filter_sd
+            )
+    _, gen_peak_nums = imgs_peak_finder(
+            gen_imgs, 
+            min_distance=min_distance, threshold_abs=threshold_abs,
+            filter_sd=filter_sd
+            )    
+    
+    print(f'mean number of real peaks: {np.mean(real_peak_nums)}')
+    print(f'mean number of generated peaks: {np.mean(gen_peak_nums)}')
+    
+    min_num_real_peaks = np.min(real_peak_nums)
+    min_num_gen_peaks =  np.min(gen_peak_nums)
+    
+    min_real_peak_idx = np.argmin(real_peak_nums)
+    min_gen_peak_idx = np.argmin(gen_peak_nums)
+    
+    fig, axs = plt.subplots(2)
+    axs[0].imshow(real_imgs[min_real_peak_idx])
+    axs[0].set_title(min_num_real_peaks)
+    axs[1].imshow(gen_imgs[min_gen_peak_idx])
+    axs[1].set_title(min_num_gen_peaks)
+    
+    plt.show()
     plt.close()
     
     """Losses"""
