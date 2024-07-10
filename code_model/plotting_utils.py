@@ -93,6 +93,14 @@ def imgs_peak_finder(imgs, min_distance=3, threshold_abs=0.05, filter_sd = None)
         
     return peak_coords, peak_nums
     
+def plot_min_num_peaks(ax, imgs, peak_nums, title):
+    min_num_peaks = np.min(peak_nums)
+    min_peak_idx = np.argmin(peak_nums)
+
+    ax.imshow(imgs[min_peak_idx])
+    ax.set_title(f"{title}\nmin_num_peaks")
+    
+    return min_num_peaks
 
 def plot_peak_grid(subfig, imgs, imgs_coords, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None):
     """
@@ -170,3 +178,7 @@ def plot_stacked_imgs(ax, stacked_img, title):
     """
     ax.imshow(stacked_img)
     ax.set_title(title)
+
+def plot_histogram(ax, imgs, color, bins=None):
+    for img in imgs:
+        ax.hist(img.ravel(), histtype='step', log=True, color=color, bins=bins)

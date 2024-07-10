@@ -196,12 +196,12 @@ class CGAN(pl.LightningModule, GAN_utils):
         self.toggle_optimizer(opt_d)
         
         for _ in range(self.discriminator_train_freq):
-            fake_imgs = self(z).detach()
+            gen_imgs = self(z).detach()
             
             # Add noise
             if self.noise is not None:
                 real_imgs = self._add_noise(real_imgs, *self.noise)
-                fake_imgs = self._add_noise(fake_imgs, *self.noise)
+                gen_imgs = self._add_noise(gen_imgs, *self.noise)
             
             # Performance of labelling real
             y_hat_real = self.discriminator(real_imgs)
@@ -212,7 +212,7 @@ class CGAN(pl.LightningModule, GAN_utils):
             real_loss = self.adversarial_loss(y_hat_real, y_real)
             
             # Performance of labelling fake
-            y_hat_fake = self.discriminator(fake_imgs)
+            y_hat_fake = self.discriminator(gen_imgs)
             
             y_fake = torch.zeros(real_imgs.size(0), 1)
             y_fake = y_fake.type_as(real_imgs)
@@ -239,14 +239,14 @@ class CGAN(pl.LightningModule, GAN_utils):
 
         # Train generator
         if self.current_epoch >= self.epoch_start_g_train:
-            fake_imgs = self(z)
+            gen_imgs = self(z)
             
             # Add noise
             if self.noise is not None:
-                fake_imgs = self._add_noise(fake_imgs, *self.noise)
+                gen_imgs = self._add_noise(gen_imgs, *self.noise)
             
             # Loss
-            y_hat = self.discriminator(fake_imgs)
+            y_hat = self.discriminator(gen_imgs)
             
             y = torch.ones(real_imgs.size(0), 1)
             y = y.type_as(real_imgs)
@@ -265,11 +265,8 @@ class CGAN(pl.LightningModule, GAN_utils):
         
         # Log losses
         self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
-        self.epoch_d_losses.append(d_loss.cpu().detach().numpy())
+        self.epoch_d_losses.append(d_loss.cpu().detach().numpy())       
         
-        # Empty cache
-        torch.cuda.empty_cache()        
-    
     # Optimizer
     def configure_optimizers(self):
         lr = self.lr
@@ -298,6 +295,29 @@ class CGAN(pl.LightningModule, GAN_utils):
         # Log sampled images
         grid = torchvision.utils.make_grid(gen_sample_imgs)
         wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
+
+    def on_test_epoch_start(self):
+        self.test_output_list = {
+            'gen_imgs': []
+        }
+
+    def test_step(self, batch, batch_idx):
+        # Load real imgs
+        if len(batch) == 2: # if label exists eg. MNIST dataset
+            real_imgs, _ = batch
+        else:
+            real_imgs = batch
+            
+        # Generate imgs
+        z = torch.randn(real_imgs.shape[0], self.latent_dim)
+        z = z.type_as(real_imgs)
+        gen_imgs = self(z).cpu().detach().squeeze().numpy()
+        
+        self.test_output_list['gen_imgs'].extend(gen_imgs)
+
+    def on_test_epoch_end(self):
+        gen_imgs = self.test_output_list['gen_imgs']
+        self.outputs =  np.array(gen_imgs) 
 
 class CWGAN(pl.LightningModule, GAN_utils):
     """
@@ -397,15 +417,15 @@ class CWGAN(pl.LightningModule, GAN_utils):
         self.toggle_optimizer(opt_d)
         
         for _ in range(self.discriminator_train_freq):
-            fake_imgs = self(z).detach()
+            gen_imgs = self(z).detach()
             
             # Add noise
             if self.noise is not None:
                 real_imgs = self._add_noise(real_imgs, *self.noise)
-                fake_imgs = self._add_noise(fake_imgs, *self.noise)
+                gen_imgs = self._add_noise(gen_imgs, *self.noise)
             
             dis_real = self.discriminator(real_imgs)
-            dis_fake = self.discriminator(fake_imgs)
+            dis_fake = self.discriminator(gen_imgs)
             
             # Calculate loss
             gp = self.gradient_penalty(self.discriminator, real_imgs, self(z))
@@ -432,13 +452,13 @@ class CWGAN(pl.LightningModule, GAN_utils):
 
         # Train generator
         if self.current_epoch >= self.epoch_start_g_train:
-            fake_imgs = self(z)
+            gen_imgs = self(z)
             
             # Add noise
             if self.noise is not None:
-                fake_imgs = self._add_noise(fake_imgs, *self.noise)
+                gen_imgs = self._add_noise(gen_imgs, *self.noise)
             
-            output = self.discriminator(fake_imgs)
+            output = self.discriminator(gen_imgs)
             
             self.toggle_optimizer(opt_g)
             
@@ -457,9 +477,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
         
         # Log losses
         self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
-        self.epoch_d_losses.append(d_loss.cpu().detach().numpy())
-        
-        
+        self.epoch_d_losses.append(d_loss.cpu().detach().numpy())     
+    
     def configure_optimizers(self):
         lr = self.lr
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=self.betas)
@@ -490,6 +509,29 @@ class CWGAN(pl.LightningModule, GAN_utils):
         # Log sampled images
         grid = torchvision.utils.make_grid(gen_sample_imgs)
         wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
+    
+    def on_test_epoch_start(self):
+        self.test_output_list = {
+            'gen_imgs': []
+        }
+
+    def test_step(self, batch, batch_idx):
+        # Load real imgs
+        if len(batch) == 2: # if label exists eg. MNIST dataset
+            real_imgs, _ = batch
+        else:
+            real_imgs = batch
+            
+        # Generate imgs
+        z = torch.randn(real_imgs.shape[0], self.latent_dim)
+        z = z.type_as(real_imgs)
+        gen_imgs = self(z).cpu().detach().squeeze().numpy()
+        
+        self.test_output_list['gen_imgs'].extend(gen_imgs)
+
+    def on_test_epoch_end(self):
+        gen_imgs = self.test_output_list['gen_imgs']
+        self.outputs =  np.array(gen_imgs) 
 
 gans = {
     'CGAN': CGAN,

@@ -53,7 +53,7 @@ testing_params = {
     'checkpoint': 'last',
     'grid_row_num': 2,
     'plot_num': 5, 
-    'stack_num': 1000,
+    'generator_sample_num': 1000,
     'loss_zoom_bounds': (-1,1), # Implement Auto
     'peak_min_distance': 1, 
     'peak_threshold_abs': 0.02,
