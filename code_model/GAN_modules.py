@@ -116,6 +116,7 @@ class GapAwareScheduler():
         new_lr = lr * self.lr_update_function(self.V_ideal, V_d, self.k0, self.k1)
         new_lr = self.clip(new_lr)
         self.optimizer.param_groups[0]['lr'] = new_lr
+        return self.lr_update_function(self.V_ideal, V_d, self.k0, self.k1)
         
     def state_dict(self) -> Dict[str, Any]:
         return {key: value for key, value in self.__dict__.items() if key != 'optimizer'}
@@ -446,7 +447,8 @@ class CWGAN(pl.LightningModule, GAN_utils):
             if self.current_epoch >= self.sched_start_epoch:
                 self.log("d_lr", self.get_lr(opt_d))
                 self.d_loss_est = self.sched_alpha*self.d_loss_est + (1-self.sched_alpha)*d_loss.detach()
-                sched_d.step(self.get_lr(opt_d), self.d_loss_est)
+                update = sched_d.step(self.get_lr(opt_d), self.d_loss_est)
+                self.log("update", update)
 
         self.untoggle_optimizer(opt_d)
 
