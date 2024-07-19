@@ -54,15 +54,17 @@ for i in tqdm(range(sample_num)):
         if j==0:
             # Add first blob to image
             sample = multivariate_normal(mean_coords, [[blob_size, 0], [0, blob_size]]).pdf(pos)
+            # Normalize
+            sample = normalize_2d(sample)
+        
         if j!=0:
             # Add subsequent single blob to image
             sample_next = multivariate_normal(mean_coords, [[blob_size, 0], [0, blob_size]]).pdf(pos)
+            # Normalize
+            sample_next = normalize_2d(sample_next)
             sample = np.add(sample, sample_next)
     
-    # Normalize
-    sample = normalize_2d(sample)
-    
-    # Add nosie
+    # Add noise
     if noise==True:
         noise_img = np.random.normal(0, noise_scale, (image_size, image_size))
         sample = np.add(sample, noise_img)
@@ -71,6 +73,9 @@ for i in tqdm(range(sample_num)):
     pad_sample = sample
     if pad != 0:
         sample = sample[pad:-pad,pad:-pad]
+    
+    # Rescale
+    sample = sample/blob_num
     
     # Add sample to list
     samples.append(sample)

@@ -11,6 +11,7 @@ import torch
 """Params"""
 state = 'train'
 training_restart = True
+testing_restart = True
 
 generation_params = {
         'blob_num': 1,

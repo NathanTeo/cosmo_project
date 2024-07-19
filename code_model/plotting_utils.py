@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage.feature import peak_local_max
 from scipy.ndimage import gaussian_filter
+from tqdm.auto import tqdm
+from scipy.stats import multivariate_normal
 
 def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None):
     """
@@ -74,14 +76,15 @@ def find_local_peaks(img, min_distance=1, threshold_abs=0):
     
     return np.array(img_peak_coords)
 
-def imgs_peak_finder(imgs, min_distance=3, threshold_abs=0.05, filter_sd = None):
+def imgs_peak_finder(imgs, min_distance=3, threshold_abs=0.05, filter_sd = None, progress_bar=True):
     """
     Return coordinates of peaks for an array of images
     """
     peak_coords = []
     peak_nums = []
+    peak_vals = []
     
-    for img in imgs:
+    for img in tqdm(imgs, disable=(not progress_bar)):
         # Smooth image to remove noise
         if filter_sd is not None:    
             img = gaussian_filter(img, filter_sd, mode='nearest')
@@ -90,19 +93,98 @@ def imgs_peak_finder(imgs, min_distance=3, threshold_abs=0.05, filter_sd = None)
         img_peak_coords = find_local_peaks(img, min_distance=min_distance, threshold_abs=threshold_abs)
         peak_coords.append(img_peak_coords)
         peak_nums.append(len(img_peak_coords))
+        peak_vals.append([img[coord[0],coord[1]] for coord in img_peak_coords])
         
-    return peak_coords, peak_nums
+    return peak_coords, peak_nums, peak_vals
+
+def guassian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=20):
+    img_decomp = img.copy()
+    peak_coords = []
+    peak_vals = []
+    
+    for _ in range(max_iters):
+        peak_coord = np.unravel_index(img_decomp.argmax(), img_decomp.shape)
+        peak_val = np.max(img_decomp)
+    
+        x, y = np.mgrid[0:img_decomp.shape[0]:1, 0:img_decomp.shape[1]:1]
+        pos = np.dstack((x, y))
+        gaussian = normalize_2d(multivariate_normal(peak_coord, [[blob_size, 0], [0, blob_size]]).pdf(pos))*peak_val
+
+        img_decomp = np.subtract(img_decomp, gaussian)        
+        
+        if peak_val<=min_peak_threshold:
+            break
+        
+        mask_radius = int(np.round(blob_size/2))
+        temp_canvas = np.pad(img_decomp, (mask_radius,mask_radius), mode='constant', constant_values=(0,0))
+        mask = create_circular_mask(
+            temp_canvas.shape[1], temp_canvas.shape[0],
+            np.add((peak_coord[1], peak_coord[0]),mask_radius),
+            radius = mask_radius
+        )
+        
+        masked_canvas = temp_canvas.copy()
+        masked_canvas[~mask] = 0
+
+        mask_size = np.count_nonzero(mask)
+        
+        if masked_canvas.sum()/mask_size<=-0.01:
+            img_decomp[peak_coord[0], peak_coord[1]] = 0
+            continue
+        else:
+            peak_coords.append(peak_coord)
+            peak_vals.append(peak_val)
+        
+    return peak_coords, peak_vals
+
+def imgs_blob_finder(imgs, blob_size, min_peak_threshold, max_iters=20, filter_sd=None, progress_bar=True):
+    """
+    Return coordinates of blobs and the corresponding peak values for an array of images
+    """
+    blob_coords = []
+    blob_nums = []
+    peak_vals = []
+    
+    for img in tqdm(imgs, disable=(not progress_bar)):
+        # Smooth image to remove noise
+        if filter_sd is not None:    
+            img = gaussian_filter(img, filter_sd, mode='nearest')
+        
+        # Find and record blobs
+        img_blob_coords, img_peak_vals = guassian_decomposition(img, blob_size, min_peak_threshold, max_iters)
+        blob_coords.append(img_blob_coords)
+        blob_nums.append(len(img_blob_coords))
+        peak_vals.append(img_peak_vals)
+
+    return blob_coords, blob_nums, peak_vals
+
+def count_blobs(imgs_peak_vals, generation_blob_number):
+    """
+    Find the counts for each peak and the total number of peaks for a series of images
+    """
+    imgs_peak_counts = []
+    imgs_total_blob_counts = []
+    
+    for peak_vals in imgs_peak_vals:
+        peak_count_vals = [int(np.round(vals*generation_blob_number)) for vals in peak_vals]
+        imgs_peak_counts.append(peak_count_vals)
+        imgs_total_blob_counts.append(np.sum(peak_count_vals))
+    
+    return imgs_peak_counts, imgs_total_blob_counts
     
 def plot_min_num_peaks(ax, imgs, peak_nums, title):
+    """
+    Plot the image with the minimum number of peaks
+    """
     min_num_peaks = np.min(peak_nums)
     min_peak_idx = np.argmin(peak_nums)
 
-    ax.imshow(imgs[min_peak_idx])
+    ax.imshow(imgs[min_peak_idx], vmin=0, vmax=1)
     ax.set_title(f"{title}\nmin_num_peaks")
     
     return min_num_peaks
 
-def plot_peak_grid(subfig, imgs, imgs_coords, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None):
+def plot_peak_grid(subfig, imgs, imgs_coords, imgs_peak_values, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None):
     """
     Plot a grid of images with detected peaks in a subfigure/figure
     """
@@ -117,7 +199,7 @@ def plot_peak_grid(subfig, imgs, imgs_coords, grid_row_num, title, wspace=.2, hs
             coords = np.array(imgs_coords[(grid_row_num)*i+j])
             coords_x = coords[:, 1]
             coords_y = coords[:, 0]
-            peak_values = [img[coords_y[i],coords_x[i]] for i in range(len(coords_x))]
+            peak_values = imgs_peak_values[(grid_row_num)*i+j]
             
             # Plot
             axs[i, j].imshow(img, interpolation='none')
@@ -125,8 +207,12 @@ def plot_peak_grid(subfig, imgs, imgs_coords, grid_row_num, title, wspace=.2, hs
             axs[i, j].set_xticks([])
             axs[i, j].set_yticks([])
             axs[i, j].axis('off')
+            
             for k in range(len(peak_values)):    
-                axs[i, j].annotate('{:.2f}'.format(peak_values[k]), (coords_x[k], coords_y[k]))
+                if isinstance(peak_values[0], int): # I don't like how this works. Find a more general way to do this?
+                    axs[i, j].annotate('{}'.format(peak_values[k]), (coords_x[k], coords_y[k]))
+                else:
+                    axs[i, j].annotate('{:.2f}'.format(peak_values[k]), (coords_x[k], coords_y[k]))
             
             if subplot_titles is not None:
                 axs[i, j].set_title('{}'.format(subplot_titles[(grid_row_num)*i+j]))
@@ -180,5 +266,60 @@ def plot_stacked_imgs(ax, stacked_img, title):
     ax.set_title(title)
 
 def plot_histogram(ax, imgs, color, bins=None):
+    """
+    Plot individual image histograms on the same axes.
+    """
     for img in imgs:
         ax.hist(img.ravel(), histtype='step', log=True, color=color, bins=bins)
+    
+    ax.set_ylabel('counts')
+    ax.set_xlabel('pixel value')
+        
+def stack_histograms(imgs, bins=np.arange(-0.1,1,0.05), mean=True, progress_bar=True):
+    """
+    Find the mean/total of a series of histograms.
+    Returns edges for plotting purposes. 
+    """
+    if isinstance(bins, int):
+        stack = np.zeros(bins)
+    else:
+        stack = np.zeros(len(bins)-1)
+        
+    for img in tqdm(imgs, disable=(not progress_bar)):
+        # Get histogram for single image    
+        n, edges, _ = plt.hist(img.ravel(), bins=bins)
+        # Add histogram to stack
+        stack = np.add(stack, n)
+
+    if mean:
+        # Mean histogram
+        return stack/len(imgs), edges
+    else:
+        # Total histogram
+        return stack, edges
+
+def plot_histogram_stack(ax, hist, edges, color, fill_color='r', fill=False):
+    """
+    Plots histogram from histogram data, n (value for each bar) and edges (x values of each bar).
+    """
+    # Create points from histogram data
+    x, y = [edges[0]], [0]
+    for i in range(len(hist)):
+        x.extend((edges[i], edges[i+1]))
+        y.extend((hist[i], hist[i]))
+    x.append(edges[-1])
+    y.append(0)
+    
+    # Plot
+    ax.plot(x, y, color=color)
+    
+    # Labels
+    ax.set_ylabel('counts')
+    ax.set_xlabel('pixel value')
+    
+    # Fill colour
+    if fill:
+        ax.fill_between(x, 0, y, color=fill_color)
+
+def normalize_2d(matrix):
+    return (matrix-np.min(matrix))/(np.max(matrix)-np.min(matrix)) 
