@@ -116,7 +116,7 @@ def run_training(training_params, generation_params, training_restart=False):
                                 print('--------------------')
                                 trainer.fit(
                                         model, data,
-                                        ckpt_path=f'{root_path}/{chkpt_path}/{model_name}.ckpt'
+                                        ckpt_path=f'{root_path}/{chkpt_path}/last.ckpt'
                                 )                                
                         except(FileNotFoundError):
                                 print('--------------------------------------------')
