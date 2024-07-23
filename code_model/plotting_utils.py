@@ -10,6 +10,7 @@ from skimage.feature import peak_local_max
 from scipy.ndimage import gaussian_filter
 from tqdm.auto import tqdm
 from scipy.stats import multivariate_normal
+import random
 
 def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None):
     """
@@ -179,8 +180,8 @@ def plot_min_num_peaks(ax, imgs, peak_nums, title):
     min_num_peaks = np.min(peak_nums)
     min_peak_idx = np.argmin(peak_nums)
 
-    ax.imshow(imgs[min_peak_idx], vmin=0, vmax=1)
-    ax.set_title(f"{title}\nmin_num_peaks")
+    ax.imshow(imgs[min_peak_idx])
+    ax.set_title(f"{title}\n{min_num_peaks}")
     
     return min_num_peaks
 
@@ -298,7 +299,7 @@ def stack_histograms(imgs, bins=np.arange(-0.1,1,0.05), mean=True, progress_bar=
         # Total histogram
         return stack, edges
 
-def plot_histogram_stack(ax, hist, edges, color, fill_color='r', fill=False):
+def plot_histogram_stack(ax, hist, edges, color, label=None, fill_color='r', fill=False):
     """
     Plots histogram from histogram data, n (value for each bar) and edges (x values of each bar).
     """
@@ -311,7 +312,7 @@ def plot_histogram_stack(ax, hist, edges, color, fill_color='r', fill=False):
     y.append(0)
     
     # Plot
-    ax.plot(x, y, color=color)
+    ax.plot(x, y, color=color, label=label)
     
     # Labels
     ax.set_ylabel('counts')
@@ -322,4 +323,96 @@ def plot_histogram_stack(ax, hist, edges, color, fill_color='r', fill=False):
         ax.fill_between(x, 0, y, color=fill_color)
 
 def normalize_2d(matrix):
-    return (matrix-np.min(matrix))/(np.max(matrix)-np.min(matrix)) 
+    """
+    Normalized entire matrix to minimum and maximum of the matrix
+    """
+    return (matrix-np.min(matrix))/(np.max(matrix)-np.min(matrix))
+
+def euclidean_dist(coord_1, coord_2):
+    """
+    Calculates euclidean distance between 2 points
+    """
+    return ((coord_1[0]-coord_2[0])**2+(coord_1[1]-coord_2[1])**2)**0.5
+
+def generate_random_coords(image_size, n):
+    """
+    Generate n number of random 2D coordinates within the range of the image size
+    """
+    coords = []
+    for _ in range(n):
+        coords.append([random.randint(0, image_size-1), random.randint(0, image_size-1)])
+    return np.array(coords)
+
+def find_pair_distances(sample_1, sample_2):
+    """
+    Find distances between all pairs of points given two samples.
+    If both samples are the same, the distances to all pairs of points within one sample will be calculated.
+    """
+    if (len(sample_1)==len(sample_2)) and ((sample_1==sample_2).all()):
+        sample = sample_1
+        sample_temp = np.array(sample).copy()
+        distances = []
+        
+        # Calculate distances
+        for coord in sample:
+            for i in range(len(sample_temp)-1):
+                distances.append(euclidean_dist(coord, sample_temp[i+1]))
+            sample_temp = sample_temp[1:]
+    else:
+        distances = []
+        for coord_1 in sample_1:
+            for coord_2 in sample_2:
+                distances.append(euclidean_dist(coord_1, coord_2))
+                
+    return distances
+
+def find_pair_hist(sample_1, sample_2, bins):
+    """
+    Returns the histogram of distances given two samples of points.
+    """
+    distances = find_pair_distances(sample_1, sample_2)
+    n, edges, _ = plt.hist(distances, bins=bins)
+    
+    return n/len(distances), edges
+
+def two_point_correlation(sample, image_size, bins=10, rel_random_n=5):
+    """
+    Calculates the two point correlation using the Landy Szalay estimator given an image sample
+    """
+    random_sample = generate_random_coords(image_size, len(sample)*rel_random_n)
+    
+    dd_mean, edges = find_pair_hist(sample, sample, bins)
+    rr_mean, _ = find_pair_hist(random_sample, random_sample, bins)
+    dr_mean, _ = find_pair_hist(sample, random_sample, bins)
+    
+    return (dd_mean-2*dr_mean+rr_mean)/rr_mean, edges
+
+def stack_two_point_correlation(point_coords, image_size, bins=10, rel_random_n=5):
+    """
+    Calculates the two point correlation using the Landy Szalay estimator given a series of image samples
+    """
+    bins = np.linspace(0, image_size,bins)
+    dd_dists = []
+    rr_dists = []
+    dr_dists = []
+    
+    for sample in point_coords:
+        sample = np.array(sample)
+        random_sample = generate_random_coords(image_size, len(sample)*rel_random_n)
+        
+        # Calculate distances
+        dd_dists.extend(find_pair_distances(sample, sample))
+        rr_dists.extend(find_pair_distances(random_sample, random_sample))
+        dr_dists.extend(find_pair_distances(sample, random_sample))
+    
+    dd, edges, _ = plt.hist(dd_dists, bins=bins)
+    rr, edges, _ = plt.hist(rr_dists, bins=bins)
+    dr, edges, _ = plt.hist(dr_dists, bins=bins)
+    
+    dd_mean = dd/len(dd_dists)
+    rr_mean = rr/len(rr_dists)
+    dr_mean = dr/len(dr_dists)
+
+    corr = (dd_mean-2*dr_mean+rr_mean)/rr_mean
+    
+    return corr, edges
