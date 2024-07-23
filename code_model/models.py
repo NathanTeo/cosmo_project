@@ -146,7 +146,6 @@ class Discriminator_v3(nn.Module):
             nn.InstanceNorm2d(conv_size, affine=True), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(conv_dropout)
         )
 
-
     def forward(self, x):
         x = self.cnn(x)
         x = self.classifier(x)

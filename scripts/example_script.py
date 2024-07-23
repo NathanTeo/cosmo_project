@@ -71,4 +71,4 @@ if __name__ == "__main__":
     if state == 'train':
         run_training(training_params, generation_params, training_restart)
     elif state == 'test':
-        run_testing(training_params, generation_params)
+        run_testing(training_params, generation_params, testing_params, testing_restart)
