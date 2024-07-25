@@ -173,7 +173,7 @@ def count_blobs(imgs_peak_vals, generation_blob_number):
     
     return imgs_peak_counts, imgs_total_blob_counts
     
-def plot_min_num_peaks(ax, imgs, peak_nums, title):
+def plot_min_num_peaks(ax, imgs, peak_nums, title=None):
     """
     Plot the image with the minimum number of peaks
     """
@@ -181,9 +181,34 @@ def plot_min_num_peaks(ax, imgs, peak_nums, title):
     min_peak_idx = np.argmin(peak_nums)
 
     ax.imshow(imgs[min_peak_idx])
-    ax.set_title(f"{title}\n{min_num_peaks}")
+    ax.set_title(f"{title}\ncounts: {min_num_peaks}")
     
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.axis('off')
+
     return min_num_peaks
+
+def plot_extremum_num_blobs(subfig, imgs, blob_nums, extremum='min', k=3, title=None):
+    """
+    Plot the image with the minimum number of blobs
+    """
+    axs = subfig.subplots(k)
+    
+    if extremum=='min':
+        min_idxs = np.argpartition(blob_nums, k)[:k]
+    elif extremum=='max':
+        min_idxs = np.argpartition(blob_nums, -k)[-k:]
+
+    for ax, idx in zip(axs, min_idxs):
+        ax.imshow(imgs[idx])
+        ax.set_title(f"counts: {blob_nums[idx]}")
+    
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.axis('off')
+    
+    subfig.suptitle(title, y=0.92)
 
 def plot_peak_grid(subfig, imgs, imgs_coords, imgs_peak_values, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None):
     """
@@ -299,7 +324,7 @@ def stack_histograms(imgs, bins=np.arange(-0.1,1,0.05), mean=True, progress_bar=
         # Total histogram
         return stack, edges
 
-def plot_histogram_stack(ax, hist, edges, color, label=None, fill_color='r', fill=False):
+def plot_histogram_stack(ax, hist, edges, color, label=None, fill_color='r', fill=False, xlabel='counts', ylabel='pixel value'):
     """
     Plots histogram from histogram data, n (value for each bar) and edges (x values of each bar).
     """
@@ -315,8 +340,8 @@ def plot_histogram_stack(ax, hist, edges, color, label=None, fill_color='r', fil
     ax.plot(x, y, color=color, label=label)
     
     # Labels
-    ax.set_ylabel('counts')
-    ax.set_xlabel('pixel value')
+    ax.set_ylabel(xlabel)
+    ax.set_xlabel(ylabel)
     
     # Fill colour
     if fill:
@@ -381,13 +406,13 @@ def two_point_correlation(sample, image_size, bins=10, rel_random_n=5):
     """
     random_sample = generate_random_coords(image_size, len(sample)*rel_random_n)
     
-    dd_mean, edges = find_pair_hist(sample, sample, bins)
-    rr_mean, _ = find_pair_hist(random_sample, random_sample, bins)
-    dr_mean, _ = find_pair_hist(sample, random_sample, bins)
+    dd_norm, edges = find_pair_hist(sample, sample, bins)
+    rr_norm, _ = find_pair_hist(random_sample, random_sample, bins)
+    dr_norm, _ = find_pair_hist(sample, random_sample, bins)
     
-    return (dd_mean-2*dr_mean+rr_mean)/rr_mean, edges
+    return (dd_norm-2*dr_norm+rr_norm)/rr_norm, edges
 
-def stack_two_point_correlation(point_coords, image_size, bins=10, rel_random_n=5):
+def stack_two_point_correlation(point_coords, image_size, bins=10, rel_random_n=5, progress_bar=False):
     """
     Calculates the two point correlation using the Landy Szalay estimator given a series of image samples
     """
@@ -396,7 +421,7 @@ def stack_two_point_correlation(point_coords, image_size, bins=10, rel_random_n=
     rr_dists = []
     dr_dists = []
     
-    for sample in point_coords:
+    for sample in tqdm(point_coords, disable=not progress_bar):
         sample = np.array(sample)
         random_sample = generate_random_coords(image_size, len(sample)*rel_random_n)
         
@@ -409,10 +434,10 @@ def stack_two_point_correlation(point_coords, image_size, bins=10, rel_random_n=
     rr, edges, _ = plt.hist(rr_dists, bins=bins)
     dr, edges, _ = plt.hist(dr_dists, bins=bins)
     
-    dd_mean = dd/len(dd_dists)
-    rr_mean = rr/len(rr_dists)
-    dr_mean = dr/len(dr_dists)
+    dd_norm = dd/len(dd_dists)
+    rr_norm = rr/len(rr_dists)
+    dr_norm = dr/len(dr_dists)
 
-    corr = (dd_mean-2*dr_mean+rr_mean)/rr_mean
+    corr = (dd_norm-2*dr_norm+rr_norm)/rr_norm
     
     return corr, edges

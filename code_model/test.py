@@ -59,11 +59,13 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     which_checkpoint = testing_params['checkpoint']
     grid_row_num = testing_params['grid_row_num']
     plot_num = testing_params['plot_num']
-    gen_sample_num = testing_params['generator_sample_num']
+    subset_sample_num = testing_params['subset_sample_num']
     loss_zoom_bounds = testing_params['loss_zoom_bounds']
     min_distance = testing_params['peak_min_distance']
     threshold_abs = testing_params['peak_threshold_abs']
     filter_sd = testing_params['peak_filter_sd']
+    blob_threshold_rel = testing_params['blob_threshold_rel']
+    testing_seed = testing_params['seed']
     
     """Paths"""
     root_path = training_params['root_path']
@@ -81,7 +83,7 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
         os.makedirs(output_save_path)
         
     """Initialize seed"""
-    torch.manual_seed(training_seed)
+    torch.manual_seed(testing_seed)
     
     """Load data"""
     real_imgs = np.load(f'{root_path}/{data_path}/{data_file_name}')
@@ -122,10 +124,9 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
         np.save(f'{output_save_path}/{which_checkpoint}.npy', gen_imgs)
 
     """Plot generated images"""
-    # Get images
-    real_imgs_subset = real_imgs[:grid_row_num**2]
-    
-    for n in tqdm(range(plot_num), desc='Plotting'):        
+    for n in tqdm(range(plot_num), desc='Plotting'):
+        # Get images
+        real_imgs_subset = real_imgs[n*(grid_row_num**2):(n+1)*(grid_row_num**2)]
         gen_imgs_subset = gen_imgs[n*(grid_row_num**2):(n+1)*(grid_row_num**2)]
         
         # Plotting grid of images
@@ -216,19 +217,22 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
         # Save plot
         plt.savefig(f'{plot_save_path}/counts-imgs_{model_name}_{n}.png')
         plt.close()
-        
+    
+    """Testing sample subset"""
+    real_imgs_subset = real_imgs[:subset_sample_num]
+    gen_imgs_subset = gen_imgs[:subset_sample_num]
     
     """Stacking"""
     # Stack images
     print('stacking...')
-    stacked_real_img = stack_imgs(real_imgs)
-    stacked_gen_img = stack_imgs(gen_imgs)
+    stacked_real_img = stack_imgs(real_imgs_subset)
+    stacked_gen_img = stack_imgs(gen_imgs_subset)
     
     # Plotting
     fig, axs = plt.subplots(1, 2)
     
-    plot_stacked_imgs(axs[0], stacked_real_img, title=f"real\n{real_sample_num} samples")
-    plot_stacked_imgs(axs[1], stacked_gen_img, title=f"generated\n{gen_sample_num} samples")
+    plot_stacked_imgs(axs[0], stacked_real_img, title=f"real\n{subset_sample_num} samples")
+    plot_stacked_imgs(axs[1], stacked_gen_img, title=f"generated\n{subset_sample_num} samples")
     
     # Format
     fig.suptitle('Stacked Image')
@@ -238,21 +242,19 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     plt.savefig(f'{plot_save_path}/stacked_{model_name}.png')
     plt.close()
     
-    """Mean number of peaks"""
+    """Number of peaks statistics"""
     # Count blobs
     print('counting blobs...')
-    real_imgs_subset = real_imgs[:int(real_sample_num/10)]
-    gen_imgs_subset = gen_imgs[:int(gen_sample_num/10)]
-     
+    
     real_blob_coords, real_blob_nums, real_peak_vals = imgs_blob_finder(
         real_imgs_subset, 
-        blob_size=blob_size, min_peak_threshold=(1/blob_num)*0.7,
+        blob_size=blob_size, min_peak_threshold=(1/blob_num)*blob_threshold_rel,
         filter_sd=filter_sd,
         progress_bar=True
         )
     gen_blob_coords, gen_blob_nums, gen_peak_vals = imgs_blob_finder(
         gen_imgs_subset, 
-        blob_size=blob_size, min_peak_threshold=(1/blob_num)*0.7,
+        blob_size=blob_size, min_peak_threshold=(1/blob_num)*blob_threshold_rel,
         filter_sd=filter_sd,
         progress_bar=True
         )
@@ -260,52 +262,95 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     real_indv_peak_counts, real_img_blob_counts = count_blobs(real_peak_vals, generation_params['blob_num'])
     gen_indv_peak_counts, gen_img_blob_counts = count_blobs(gen_peak_vals, generation_params['blob_num'])
     
-    print(f'mean number of real peaks: {np.mean(real_img_blob_counts)}')
-    print(f'mean number of generated peaks: {np.mean(gen_img_blob_counts)}')
+    'Mean'
+    real_blob_num_mean = np.mean(real_img_blob_counts)
+    gen_blob_num_mean = np.mean(gen_img_blob_counts)
+    print(f'mean number of real peaks: {real_blob_num_mean}')
+    print(f'mean number of generated peaks: {gen_blob_num_mean}')
     
+    'Histogram'
     # Create figure
-    fig, axs = plt.subplots(1,2)
+    fig = plt.figure()
     
     # Plot
-    plot_min_num_peaks(axs[0], real_imgs_subset, real_img_blob_counts, title='real')
-    plot_min_num_peaks(axs[1], gen_imgs_subset, gen_img_blob_counts, title='generated')        
+    plt.hist(real_img_blob_counts, bins=np.arange(4.5,14.5,1), 
+             histtype='step', label='real', color=(1,0,0,0.8))
+    plt.hist(gen_img_blob_counts, bins=np.arange(4.5,14.5,1), 
+             histtype='step', label='generated', color=(0,0,1,0.8))
+    
+    plt.axvline(real_blob_num_mean, color=(1,0,0,0.5), linestyle='dashed', linewidth=1)
+    plt.axvline(gen_blob_num_mean, color=(0,0,1,0.5), linestyle='dashed', linewidth=1)
     
     # Format
-    fig.suptitle("Minimum number of peaks, {}")
-    if real_sample_num==gen_sample_num:
-        fig.suptitle(f"Minimum number of peaks, {int(real_sample_num/10)} samples")
-    else:
-        fig.suptitle(f"number of samples not equal")
+    min_ylim, max_ylim = plt.ylim()
+    plt.text(real_blob_num_mean*1.05, max_ylim*0.9, 'Mean: {:.2f}'.format(real_blob_num_mean), color=(1,0,0,1))
+    plt.text(gen_blob_num_mean*1.05, max_ylim*0.8, 'Mean: {:.2f}'.format(gen_blob_num_mean), color=(0,0,1,1))    
+    plt.ylabel('counts')
+    plt.xlabel('number of blobs')
+    plt.suptitle(f"{subset_sample_num} samples")
+    plt.legend()
+    plt.tight_layout()
+    
+    # Save
+    plt.savefig(f'{plot_save_path}/histogram-number-blobs_{model_name}.png')
+    plt.close()    
+    
+    'Extreme number of blobs'
+    # Create figure
+    fig = plt.figure(figsize=(3,5))
+    subfig = fig.subfigures(1, 2, wspace=0.2)
+    
+    # Plot
+    plot_extremum_num_blobs(subfig[0], real_imgs_subset, real_img_blob_counts, extremum='min', title='real')
+    plot_extremum_num_blobs(subfig[1], gen_imgs_subset, gen_img_blob_counts, extremum='min', title='generated')  
+    
+    # Format
+    fig.suptitle(f"Min blob count, {subset_sample_num} samples")
     plt.tight_layout()
     
     # Save
     plt.savefig(f'{plot_save_path}/min-peak_{model_name}.png')
     plt.close()
+
+    # Create figure
+    fig = plt.figure(figsize=(3,5))
+    subfig = fig.subfigures(1, 2, wspace=0.2)
+    
+    # Plot
+    plot_extremum_num_blobs(subfig[0], real_imgs_subset, real_img_blob_counts, extremum='max', title='real')
+    plot_extremum_num_blobs(subfig[1], gen_imgs_subset, gen_img_blob_counts, extremum='max', title='generated')  
+    
+    # Format
+    fig.suptitle(f"Max blobs count, {subset_sample_num} samples")
+    plt.tight_layout()
+    
+    # Save
+    plt.savefig(f'{plot_save_path}/max-peak_{model_name}.png')
+    plt.close()
     
     """2-point correlation"""
-    real_corrs, edges = stack_two_point_correlation(real_blob_coords, image_size)
-    gen_corrs, _ = stack_two_point_correlation(gen_blob_coords, image_size)
+    print('calculating 2 point correlation...')
+    real_corrs, edges = stack_two_point_correlation(real_blob_coords, image_size, bins=20, progress_bar=True)
+    gen_corrs, _ = stack_two_point_correlation(gen_blob_coords, image_size, bins=20, progress_bar=True)
     
     # Create figure
     fig, ax = plt.subplots()
     
     # Plot
     plot_histogram_stack(ax, real_corrs, edges, color=(1,0,0,0.5), label='real')
-    plot_histogram_stack(ax, gen_corrs, edges, color=(0,0,1,0.5), label='generated')
+    plot_histogram_stack(ax, gen_corrs, edges, color=(0,0,1,0.5), label='generated',
+                         xlabel='2-point correlation', ylabel='pair distance')
     
     # Format
-    if real_sample_num==gen_sample_num:
-        fig.suptitle(f"2 point correlation, {int(real_sample_num/10)} samples")
-    else:
-        fig.suptitle(f"number of samples not equal")
+    fig.suptitle(f"2 point correlation, {subset_sample_num} samples")
     plt.tight_layout()
-    plt.legend()
+    plt.legend(loc='lower right')
     
     # Save
     plt.savefig(f'{plot_save_path}/2-pt-corr_{model_name}.png')
     plt.close() 
     
-    """Histograms"""
+    """Pixel image histograms"""
     'Single histogram'
     histogram_num = 20
     gen_imgs_subset = gen_imgs[:histogram_num]
@@ -339,17 +384,14 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     plot_histogram_stack(ax, *gen_hist_stack, color=(0,0,1,0.8), label='generated')
     
     # Format
-    if real_sample_num==gen_sample_num:
-        fig.suptitle(f"Stacked histogram of pixel values, {real_sample_num} samples")
-    else:
-        fig.suptitle(f"number of samples not equal\n{real_sample_num} real samples | {gen_sample_num} generated samples")
+    fig.suptitle(f"Stacked histogram of pixel values, {subset_sample_num} samples")
     plt.tight_layout()
     
     # Save
     plt.savefig(f'{plot_save_path}/histogram-stack_{model_name}.png')
     plt.close() 
     
-    'Stack image histogram'
+    'Stacked image histogram'
     # Create figure
     fig = plt.figure()
     
@@ -360,10 +402,7 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     # Format
     plt.ylabel('counts')
     plt.xlabel('stacked pixel value')
-    if real_sample_num==gen_sample_num:
-        plt.suptitle(f"stack of {real_sample_num} samples")
-    else:
-        plt.suptitle(f"number of samples not equal\n{real_sample_num} real samples | {gen_sample_num} generated samples")
+    plt.suptitle(f"stack of {subset_sample_num} samples")
     plt.legend()
     plt.tight_layout()
     
@@ -383,9 +422,9 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
         # Plot
         fig, ax1 = plt.subplots()
         
-        ax1.plot(epochs, g_losses, color='C0')
+        ax1.plot(epochs, g_losses, color='C0', linewidth=0.7)
         ax2 = ax1.twinx() 
-        ax2.plot(epochs, d_losses, color='C1')
+        ax2.plot(epochs, d_losses, color='C1', linewidth=0.7)
 
         
         # Format
