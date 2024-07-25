@@ -190,13 +190,13 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
         # Gaussian elimination and blob counting
         real_blob_coords, real_blob_nums, real_peak_vals = imgs_blob_finder(
             real_imgs_subset, 
-            blob_size=blob_size, min_peak_threshold=(1/blob_num)*0.7,
+            blob_size=blob_size, min_peak_threshold=(1/blob_num)*blob_threshold_rel,
             filter_sd=filter_sd,
             progress_bar=False
             )
         gen_blob_coords, gen_blob_nums, gen_peak_vals = imgs_blob_finder(
             gen_imgs_subset, 
-            blob_size=blob_size, min_peak_threshold=(1/blob_num)*0.7,
+            blob_size=blob_size, min_peak_threshold=(1/blob_num)*blob_threshold_rel,
             filter_sd=filter_sd,
             progress_bar=False
             )
