@@ -15,6 +15,7 @@ testing_restart = True
 
 generation_params = {
         'blob_num': 1,
+        'distribution': 'uniform',
         'blob_size': 5,
         'image_size': 28,
         'sample_num': 100,

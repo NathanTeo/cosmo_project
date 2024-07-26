@@ -28,6 +28,7 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     lr = training_params['lr']
 
     blob_num = generation_params['blob_num']
+    data_distribution = generation_params['distribution']
     generation_seed = generation_params['seed']
     blob_size = generation_params['blob_size']
     real_sample_num = generation_params['sample_num']
@@ -70,7 +71,7 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     """Paths"""
     root_path = training_params['root_path']
     data_path = f'data/{blob_num}_blob'
-    data_file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{real_sample_num}-sd{generation_seed}-ns{int(gen_noise)}.npy'
+    data_file_name = f'bn{blob_num}{data_distribution[0]}-is{image_size}-bs{blob_size}-sn{real_sample_num}-sd{generation_seed}-ns{int(gen_noise)}.npy'
     chkpt_path = f'checkpoints/{blob_num}_blob/{model_name}'
     log_path = f'logs/{model_name}'    
     plot_save_path = f'{root_path}/plots/{model_name}/images'
