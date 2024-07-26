@@ -59,7 +59,7 @@ testing_params = {
     'loss_zoom_bounds': (-1,1), # Implement Auto?
     'peak_min_distance': 1, 
     'peak_threshold_abs': 0.02,
-    'peak_filter_sd': 2,
+    'peak_filter_sd': 1,
     'blob_threshold_rel': 0.7
 }
 

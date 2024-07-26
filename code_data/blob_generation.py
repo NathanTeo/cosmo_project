@@ -13,10 +13,10 @@ import os
 from tqdm.auto import tqdm
 
 """Params"""
-image_size = 28
+image_size = 64
 seed = 70
 blob_size = 5
-sample_num = 10000
+sample_num = 50000
 blob_num = 10
 pad = 0
 noise = False
@@ -79,6 +79,8 @@ for i in tqdm(range(sample_num)):
     
     # Add sample to list
     samples.append(sample)
+
+print('Completed!')
 
 # Save samples
 np.save(f'{save_path}/{file_name}', samples)

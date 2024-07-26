@@ -9,16 +9,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Params
-blob_num = 1
+blob_num = 10
 generation_seed = 70
-sample_num = 10000
-image_size = 28
+sample_num = 50000
+image_size = 64
 blob_size = 5
 noise = False
 
 root_path = "C:/Users/Idiot/Desktop/Research/OFYP/cosmo_project"
 data_dir=f'{root_path}/Data/{blob_num}_blob'
-file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{noise}'
+file_name = f'bn{blob_num}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{int(noise)}'
 
 # Load samples
 samples = np.load(f'{data_dir}/{file_name}.npy')
