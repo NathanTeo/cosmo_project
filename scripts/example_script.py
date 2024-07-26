@@ -15,10 +15,10 @@ testing_restart = True
 
 generation_params = {
         'blob_num': 1,
-        'blob_size':5,
+        'blob_size': 5,
         'image_size': 28,
         'sample_num': 100,
-        'seed':70,
+        'seed': 70,
         'noise': False
         }
 

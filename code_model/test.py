@@ -46,13 +46,13 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     max_epochs = training_params['max_epochs']
     avail_gpus = training_params['avail_gpus']
     
-    model_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
-        gan_version,
-        gen_version, dis_version,
-        blob_num, blob_size, int(np.log10(real_sample_num)), image_size,
-        training_seed, str(lr)[2:],
-        latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
-        str(training_noise[1])[2:] if training_noise is not None else '_'
+    model_name = '{}-g{}-d{}-bn{}-bs{}-sn1e{}-is{}-ts{}-lr1e{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
+    gan_version,
+    gen_version, dis_version,
+    blob_num, blob_size, int(np.log10(real_sample_num)), image_size,
+    training_seed, int(np.log10(lr)),
+    latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
+    str(training_noise[1])[2:] if training_noise is not None else '_'
     )
     training_params['model_name'] = model_name
     
