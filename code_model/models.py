@@ -228,7 +228,7 @@ class Discriminator_v5(nn.Module):
             *self._conv_block(conv_size, conv_size*2, self.norm_img_size),
             *self._conv_block(conv_size*2, conv_size*4, self.norm_img_size),
             *self._conv_block(conv_size*4, conv_size*8, self.norm_img_size),
-            *self._conv_block(conv_size*8, conv_size*16, self.norm_img_size),
+            *self._conv_block(conv_size*8, conv_size*8, self.norm_img_size),
             
             nn.Flatten(),
         )
