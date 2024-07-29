@@ -291,7 +291,7 @@ def plot_stacked_imgs(ax, stacked_img, title):
     ax.imshow(stacked_img)
     ax.set_title(title)
 
-def plot_histogram(ax, imgs, color, bins=None):
+def plot_pixel_histogram(ax, imgs, color, bins=None):
     """
     Plot individual image histograms on the same axes.
     """
@@ -441,3 +441,11 @@ def stack_two_point_correlation(point_coords, image_size, bins=10, rel_random_n=
     corr = (dd_norm-2*dr_norm+rr_norm)/rr_norm
     
     return corr, edges
+
+def find_total_fluxes(samples, progress_bar=False):
+    """Returns an array of total image flux for an array of image samples"""
+    fluxes = []
+    for sample in tqdm(samples, disable=not progress_bar):
+        fluxes.append(sample.sum())
+    
+    return fluxes

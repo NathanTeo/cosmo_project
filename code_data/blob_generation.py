@@ -80,13 +80,20 @@ print('Completed!')
 np.save(f'{save_path}/{file_name}', samples)
 
 """Plots"""
-plt.title(f'num of blobs: {blob_num} | image size: {image_size} | blob size: {blob_size}')
-plt.imshow(sample)
-plt.colorbar()
-plt.savefig(f'{save_path}/sample_{file_name}')
-plt.close()
+if distribution=='uniform':
+    plt.title(f'num of blobs: {blob_num} | image size: {image_size} | blob size: {blob_size}')
+    plt.imshow(sample)
+    plt.colorbar()
+    plt.savefig(f'{save_path}/sample_{file_name}')
+    plt.close()
 
-if distribution!='uniform':
+elif distribution=='poisson':
+    plt.title(f'mean num of blobs: {blob_num} | image size: {image_size} | blob size: {blob_size}')
+    plt.imshow(sample)
+    plt.colorbar()
+    plt.savefig(f'{save_path}/sample_{file_name}')
+    plt.close()
+    
     fig = plt.figure()
     fig.suptitle(f'num of blobs: {blob_num} | image size: {image_size} | blob size: {blob_size}')
     plt.hist(sample_counts)

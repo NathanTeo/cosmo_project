@@ -42,10 +42,10 @@ def run_training(training_params, generation_params, training_restart=False):
         max_epochs = training_params['max_epochs']
         avail_gpus = training_params['avail_gpus']
 
-        model_name = '{}-g{}-d{}-bn{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
+        model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
         gan_version,
         gen_version, dis_version,
-        blob_num, blob_size, "{:.0g}".format(sample_num), image_size,
+        blob_num, data_distribution[0], blob_size, "{:.0g}".format(sample_num), image_size,
         training_seed, "{:.0g}".format(lr),
         latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
         str(training_noise[1])[2:] if training_noise is not None else '_'
@@ -75,8 +75,9 @@ def run_training(training_params, generation_params, training_restart=False):
         checkpoint_callback = ModelCheckpoint(
                 monitor = 'g_loss',
                 dirpath = f'{root_path}/{chkpt_path}',
-                filename = 'min',
-                save_top_k = 3,  # Save only the top 1 checkpoint
+                filename = '{}',
+                every_n_epochs=20,
+                save_top_k = -1,
                 save_last = True,
                 enable_version_counter=False
         )

@@ -47,10 +47,10 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     max_epochs = training_params['max_epochs']
     avail_gpus = training_params['avail_gpus']
     
-    model_name = '{}-g{}-d{}-bn{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
+    model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
     gan_version,
     gen_version, dis_version,
-    blob_num, blob_size, "{:.0g}".format(real_sample_num), image_size,
+    blob_num, data_distribution[0], blob_size, "{:.0g}".format(real_sample_num), image_size,
     training_seed, "{:.0g}".format(lr),
     latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
     str(training_noise[1])[2:] if training_noise is not None else '_'
@@ -243,7 +243,7 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     plt.savefig(f'{plot_save_path}/stacked_{model_name}.png')
     plt.close()
     
-    """Number of peaks statistics"""
+    """Number of blobs statistics"""
     # Count blobs
     print('counting blobs...')
     
@@ -329,6 +329,31 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     plt.savefig(f'{plot_save_path}/max-peak_{model_name}.png')
     plt.close()
     
+    'Total flux histogram'
+    # Find flux
+    real_img_fluxes = find_total_fluxes(real_imgs_subset, progress_bar=True)
+    gen_img_fluxes = find_total_fluxes(gen_imgs_subset, progress_bar=True)
+    
+    # Create figure
+    fig = plt.figure()
+    
+    # Plot
+    plt.hist(real_img_fluxes, 
+             histtype='step', label='real', color=(1,0,0,0.8))
+    plt.hist(gen_img_fluxes, 
+             histtype='step', label='generated', color=(0,0,1,0.8))
+    
+    # Format   
+    plt.ylabel('counts')
+    plt.xlabel('total flux')
+    plt.suptitle(f"{subset_sample_num} samples")
+    plt.legend()
+    plt.tight_layout()
+    
+    # Save
+    plt.savefig(f'{plot_save_path}/histogram-total-flux_{model_name}.png')
+    plt.close()
+    
     """2-point correlation"""
     print('calculating 2 point correlation...')
     real_corrs, edges = stack_two_point_correlation(real_blob_coords, image_size, bins=20, progress_bar=True)
@@ -361,8 +386,8 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     fig, axs = plt.subplots(1,2)
     
     # Plot
-    plot_histogram(axs[0], real_imgs_subset, color=(1,0,0,0.5), bins=20)
-    plot_histogram(axs[1], gen_imgs_subset, color=(0,0,1,0.5), bins=20)
+    plot_pixel_histogram(axs[0], real_imgs_subset, color=(1,0,0,0.5), bins=20)
+    plot_pixel_histogram(axs[1], gen_imgs_subset, color=(0,0,1,0.5), bins=20)
     
     # Format
     fig.suptitle(f"Histogram of pixel values, {histogram_num} samples")
