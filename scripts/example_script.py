@@ -69,9 +69,11 @@ import sys
 sys.path.append(f"{training_params['root_path']}")
 from code_model.train import *
 from code_model.test import *
+from code_model.plot_metric_logs import *
 
 if __name__ == "__main__":
     if state == 'train':
         run_training(training_params, generation_params, training_restart)
     elif state == 'test':
         run_testing(training_params, generation_params, testing_params, testing_restart)
+        run_plot_logs(training_params, generation_params, testing_params, testing_restart)

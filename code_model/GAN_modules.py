@@ -75,8 +75,9 @@ class GAN_utils():
         return [], []
     
     def _add_noise(self, imgs, mean=0, std_dev=0.05):
+        """Adds gaussian noise to a series of image samples"""
         return imgs + (std_dev)*torch.randn(*imgs.size(), device=self.device) + torch.Tensor([mean]).type_as(imgs)
-        
+
 class GapAwareScheduler():
     """
     Dynamic gap aware learning rate update method.
@@ -518,22 +519,33 @@ class CWGAN(pl.LightningModule, GAN_utils):
         }
 
     def test_step(self, batch, batch_idx):
-        # Load real imgs
+        # Load real images
         if len(batch) == 2: # if label exists eg. MNIST dataset
             real_imgs, _ = batch
         else:
             real_imgs = batch
             
-        # Generate imgs
+        # Generate images
         z = torch.randn(real_imgs.shape[0], self.latent_dim)
         z = z.type_as(real_imgs)
         gen_imgs = self(z).cpu().detach().squeeze().numpy()
         
         self.test_output_list['gen_imgs'].extend(gen_imgs)
 
+    # Track generated output image samples
     def on_test_epoch_end(self):
         gen_imgs = self.test_output_list['gen_imgs']
-        self.outputs =  np.array(gen_imgs) 
+        self.outputs =  np.array(gen_imgs)
+    
+    # Get discriminator scores for an input image samples
+    def score_samples(self, samples, batch_size=128, progress_bar=False):
+        batched_samples = torch.split(torch.Tensor(samples, requires_grad=False), batch_size)
+        scores = np.array([])
+        
+        for batch in tqdm(batched_samples, desc='scoring', disable=not progress_bar):
+            scores = np.append(scores, self.discriminator(batch).cpu().detach().numpy())
+        
+        return scores
 
 gans = {
     'CGAN': CGAN,
