@@ -331,6 +331,7 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     
     'Total flux histogram'
     # Find flux
+    print("calculating total flux...")
     real_img_fluxes = find_total_fluxes(real_imgs_subset, progress_bar=True)
     gen_img_fluxes = find_total_fluxes(gen_imgs_subset, progress_bar=True)
     

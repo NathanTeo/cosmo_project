@@ -73,12 +73,12 @@ def run_training(training_params, generation_params, training_restart=False):
 
         # Checkpoint
         checkpoint_callback = ModelCheckpoint(
-                monitor = 'g_loss',
-                dirpath = f'{root_path}/{chkpt_path}',
-                filename = '{}',
+                monitor='g_loss',
+                dirpath=f'{root_path}/{chkpt_path}',
+                filename='epoch_{epoch:02d}',
                 every_n_epochs=20,
-                save_top_k = -1,
-                save_last = True,
+                save_top_k=-1,
+                save_last=True,
                 enable_version_counter=False
         )
 
