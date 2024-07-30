@@ -15,7 +15,7 @@ class BlobDataModule(pl.LightningDataModule):
     """
     Pytorch Lightning data module for loading and transforming the real sample gaussian blobs
     """
-    def __init__(self, data_file, batch_size, num_workers, train_split=0.8):
+    def __init__(self, data_file, batch_size, num_workers, train_split=0.8, truncate_ratio=None):
         super().__init__()
         
         # Parameters
@@ -26,6 +26,8 @@ class BlobDataModule(pl.LightningDataModule):
         self.train_split = train_split
         
         self.num_samples = len(np.load(data_file))
+        
+        self.truncate_ratio = truncate_ratio
 
         # Transformations
         self.transform = transforms.Compose(
@@ -37,6 +39,10 @@ class BlobDataModule(pl.LightningDataModule):
     def setup(self, stage=None):
         # Load data
         samples = np.load(self.data_file)
+        
+        if self.truncate_ratio is not None:
+            samples = samples[:int(self.truncate_ratio*len(samples))]
+        
         self.samples = torch.unsqueeze(torch.tensor(samples), 1).float()
         
         # Assign train/val datasets
@@ -46,13 +52,6 @@ class BlobDataModule(pl.LightningDataModule):
         # Assign test dataset
         if stage == "test" or stage is None:
             self.inputData_test = self.samples
-    
-    def truncate(self, ratio, stage=None):
-        if stage == 'fit' or stage is None:
-            self.inputData_train = self.inputData_train[:int(ratio*len(self.inputData_train))]
-            self.inputData_train = self.inputData_val[:int(ratio*len(self.inputData_val))]
-        if stage == 'test' or stage is None:
-            self.inputData_test = self.inputData_test[:int(ratio*len(self.inputData_test))]
     
     def len(self):
         # Returns length of data (number of samples)
@@ -72,7 +71,7 @@ class BlobDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         # Initiates and returns data loader for testing
-        return DataLoader(self.inputData_test, batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(self.inputData_test, batch_size=self.batch_size, num_workers=self.num_workers, persistent_workers=True)
     
 
 class MNISTDataModule(pl.LightningDataModule):

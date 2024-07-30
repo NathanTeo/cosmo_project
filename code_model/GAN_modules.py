@@ -539,7 +539,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
     
     # Get discriminator scores for an input image samples
     def score_samples(self, samples, batch_size=128, progress_bar=False):
-        batched_samples = torch.split(torch.Tensor(samples, requires_grad=False), batch_size)
+        batched_samples = torch.split(torch.unsqueeze(torch.Tensor(samples), 1), batch_size)
         scores = np.array([])
         
         for batch in tqdm(batched_samples, desc='scoring', disable=not progress_bar):

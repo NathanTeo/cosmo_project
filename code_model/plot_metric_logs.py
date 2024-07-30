@@ -139,26 +139,25 @@ def run_plot_logs(training_params, generation_params, testing_params, testing_re
     torch.manual_seed(testing_seed)
     
     # Load data
-    ratio = 0.02
+    ratio = 1000/real_sample_num # temporary, change this!
     
     real_imgs = np.load(f'{root_path}/{data_path}/{data_file_name}')
     data = BlobDataModule(
         data_file=f'{root_path}/{data_path}/{data_file_name}',
-        batch_size=batch_size, num_workers=num_workers
+        batch_size=batch_size, num_workers=num_workers, 
+        truncate_ratio=ratio
         )
     
     real_imgs_subset = real_imgs[:int(len(real_imgs)*ratio)]
-    data.setup(stage='test')
-    data.truncate(ratio=ratio, stage='test')
     
     # Load models
     filenames = os.listdir(chkpt_path)
     filenames.remove('last.ckpt')
-    print(filenames)
-    epochs = [int(file[6:]) for file in filenames]
+    
+    epochs = [int(file[6:-5]) for file in filenames]
     
     models = [gans[gan_version].load_from_checkpoint(
-        f'{root_path}/{chkpt_path}/{file}.ckpt',
+        f'{root_path}/{chkpt_path}/{file}',
         **training_params
         ) for file in filenames]
     
@@ -170,11 +169,14 @@ def run_plot_logs(training_params, generation_params, testing_params, testing_re
     # Generate images
     trainer = pl.Trainer()
     
+    print('generating images, last model...')
     trainer.test(last_model, data)
     last_gen_imgs = last_model.outputs
     
+    print('generating images, earlier models...')
     models_gen_imgs = []
-    for model in models:
+    for epoch, model in zip(epochs, models):
+        print(f'epoch {epoch}')
         trainer.test(model, data)
         models_gen_imgs.append(model.outputs)
     
@@ -182,22 +184,26 @@ def run_plot_logs(training_params, generation_params, testing_params, testing_re
     
     'Calculate model scores for last generator with epoch, check how discriminator evolves'
     # Score
+    print('scoring last generator with earlier models...')
     d_evo_models_gen_scores = []
     d_evo_models_real_scores = []
-    for model in models:
+    for epoch, model in zip(epochs, models):
+        print(f'epoch {epoch}')
         d_evo_models_gen_scores.append(model.score_samples(last_gen_imgs, progress_bar=True))
         d_evo_models_real_scores.append(model.score_samples(real_imgs_subset, progress_bar=True))
     
     # Loss
     d_evo_loss = [
-        -(torch.mean(real_score) - torch.mean(gen_score))
+        -(np.mean(real_score) - np.mean(gen_score))
         for real_score, gen_score in zip(d_evo_models_real_scores, d_evo_models_gen_scores)
         ]
     
     'Calculate model scores for last discriminator with epoch, check how generator evolves'
     # Score
+    print('scoring ealier generators with last model...')
     g_evo_models_gen_scores = []
-    for gen_imgs in models_gen_imgs:
+    for epoch, gen_imgs in zip(epochs, models_gen_imgs):
+        print(f'epoch {epoch}')
         g_evo_models_gen_scores.append(last_model.score_samples(gen_imgs, progress_bar=True))
         
     # Loss
