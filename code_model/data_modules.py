@@ -49,10 +49,10 @@ class BlobDataModule(pl.LightningDataModule):
     
     def truncate(self, ratio, stage=None):
         if stage == 'fit' or stage is None:
-            self.inputData_train = self.inputData_train[:ratio*len(self.inputData_train)]
-            self.inputData_train = self.inputData_val[:ratio*len(self.inputData_val)]
+            self.inputData_train = self.inputData_train[:int(ratio*len(self.inputData_train))]
+            self.inputData_train = self.inputData_val[:int(ratio*len(self.inputData_val))]
         if stage == 'test' or stage is None:
-            self.inputData_test = self.inputData_test[:ratio*len(self.inputData_test)]
+            self.inputData_test = self.inputData_test[:int(ratio*len(self.inputData_test))]
     
     def len(self):
         # Returns length of data (number of samples)

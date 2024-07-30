@@ -19,7 +19,7 @@ from code_model.data_modules import *
 from code_model.GAN_modules import *
 from code_model.plotting_utils import *
 
-def run_plot_logs(training_params, generation_params, testing_params, testing_restart=False):
+def run_plot_logs(training_params, generation_params, testing_params, testing_restart=False):    
     """Initialize variables"""
     gan_version = training_params['gan_version']
     gen_version = training_params['generator_version']
@@ -47,10 +47,10 @@ def run_plot_logs(training_params, generation_params, testing_params, testing_re
     max_epochs = training_params['max_epochs']
     avail_gpus = training_params['avail_gpus']
     
-    model_name = '{}-g{}-d{}-bn{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
+    model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
     gan_version,
     gen_version, dis_version,
-    blob_num, blob_size, "{:.0g}".format(real_sample_num), image_size,
+    blob_num, data_distribution[0], blob_size, "{:.0g}".format(real_sample_num), image_size,
     training_seed, "{:.0g}".format(lr),
     latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
     str(training_noise[1])[2:] if training_noise is not None else '_'
@@ -82,7 +82,11 @@ def run_plot_logs(training_params, generation_params, testing_params, testing_re
 
     if not os.path.exists(output_save_path):
         os.makedirs(output_save_path)
-
+        
+    if not testing_restart and os.path.isfile(f'{plot_save_path}/losses-zm_{model_name}.png'):
+        print('losses already plotted, skipping step')
+        return
+    
     """Logged losses"""
     # Load loss
     losses = np.load(f'{root_path}/{log_path}/losses.npz')
@@ -135,7 +139,7 @@ def run_plot_logs(training_params, generation_params, testing_params, testing_re
     torch.manual_seed(testing_seed)
     
     # Load data
-    ratio = 0.1
+    ratio = 0.02
     
     real_imgs = np.load(f'{root_path}/{data_path}/{data_file_name}')
     data = BlobDataModule(
@@ -143,11 +147,14 @@ def run_plot_logs(training_params, generation_params, testing_params, testing_re
         batch_size=batch_size, num_workers=num_workers
         )
     
-    real_imgs_subset = real_imgs[:len(real_imgs)*ratio]
-    data.truncate(ratio=ratio)
+    real_imgs_subset = real_imgs[:int(len(real_imgs)*ratio)]
+    data.setup(stage='test')
+    data.truncate(ratio=ratio, stage='test')
     
     # Load models
-    filenames = os.listdir(chkpt_path).remove('last.ckpt')
+    filenames = os.listdir(chkpt_path)
+    filenames.remove('last.ckpt')
+    print(filenames)
     epochs = [int(file[6:]) for file in filenames]
     
     models = [gans[gan_version].load_from_checkpoint(
