@@ -28,8 +28,8 @@ training_params = {
         'generator_version': 2,
         'discriminator_version': 1,
         'random_seed': 40,
-        'avail_gpus': min(1, torch.cuda.device_count()),
-        'num_workers': int(os.cpu_count() / 2),
+        'avail_gpus': torch.cuda.device_count(),
+        'num_workers': int(os.cpu_count() / 2), # cpu count is the number of threads, num workers is the number of cores?
         'image_size': generation_params['image_size'], 
         'batch_size': 32,
         'lr': 0.0005,

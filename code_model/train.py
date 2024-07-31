@@ -97,12 +97,21 @@ def run_training(training_params, generation_params, training_restart=False):
                 model = gans[gan_version](**training_params)
                 
                 # Initialize trainer
-                trainer = pl.Trainer(
-                        max_epochs=max_epochs,
-                        logger=wandb_logger,
-                        callbacks=[checkpoint_callback],
-                        log_every_n_steps=data.num_training_batches()
-                )
+                if avail_gpus<2:
+                        trainer = pl.Trainer(
+                                max_epochs=max_epochs,
+                                logger=wandb_logger,
+                                callbacks=[checkpoint_callback],
+                                log_every_n_steps=data.num_training_batches(),
+                        )
+                elif avail_gpus>=2: # DDP for multi gpu 
+                        trainer = pl.Trainer(
+                                max_epochs=max_epochs,
+                                logger=wandb_logger,
+                                callbacks=[checkpoint_callback],
+                                log_every_n_steps=data.num_training_batches(),
+                                devices=avail_gpus, strategy='ddp'
+                        )
                 
                 # Train
                 if training_restart:
