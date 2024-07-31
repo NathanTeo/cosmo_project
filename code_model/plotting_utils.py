@@ -189,7 +189,8 @@ def plot_min_num_peaks(ax, imgs, peak_nums, title=None):
 
     return min_num_peaks
 
-def plot_extremum_num_blobs(subfig, imgs, blob_nums, extremum='min', k=3, title=None):
+def plot_extremum_num_blobs(subfig, imgs, imgs_coords, imgs_peak_counts, blob_nums,
+                            extremum='min', k=3, title=None):
     """
     Plot the image with the minimum number of blobs
     """
@@ -203,11 +204,21 @@ def plot_extremum_num_blobs(subfig, imgs, blob_nums, extremum='min', k=3, title=
     for ax, idx in zip(axs, min_idxs):
         ax.imshow(imgs[idx])
         ax.set_title(f"counts: {blob_nums[idx]}")
-    
+        
+        coords = np.array(imgs_coords[idx])
+        coords_x = coords[:, 1]
+        coords_y = coords[:, 0]
+        peak_counts = imgs_peak_counts[idx]
+        
+        ax.scatter(coords_x, coords_y, c='r', marker='x', alpha=0.5)
+        
+        for k in range(len(peak_counts)):    
+            ax.annotate('{}'.format(peak_counts[k]), (coords_x[k], coords_y[k]))
+
         ax.set_xticks([])
         ax.set_yticks([])
         ax.axis('off')
-    
+        
     subfig.suptitle(title, y=0.92)
 
 def plot_peak_grid(subfig, imgs, imgs_coords, imgs_peak_values, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None):

@@ -302,8 +302,16 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     subfig = fig.subfigures(1, 2, wspace=0.2)
     
     # Plot
-    plot_extremum_num_blobs(subfig[0], real_imgs_subset, real_img_blob_counts, extremum='min', title='real')
-    plot_extremum_num_blobs(subfig[1], gen_imgs_subset, gen_img_blob_counts, extremum='min', title='generated')  
+    plot_extremum_num_blobs(
+        subfig[0], real_imgs_subset,
+        real_blob_coords, real_indv_peak_counts, real_img_blob_counts,
+        extremum='min', title='real'
+        )
+    plot_extremum_num_blobs(
+        subfig[1], gen_imgs_subset,
+        gen_blob_coords, gen_indv_peak_counts, gen_img_blob_counts,
+        extremum='min', title='generated'
+        )  
     
     # Format
     fig.suptitle(f"Min blob count, {subset_sample_num} samples")
@@ -318,8 +326,16 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     subfig = fig.subfigures(1, 2, wspace=0.2)
     
     # Plot
-    plot_extremum_num_blobs(subfig[0], real_imgs_subset, real_img_blob_counts, extremum='max', title='real')
-    plot_extremum_num_blobs(subfig[1], gen_imgs_subset, gen_img_blob_counts, extremum='max', title='generated')  
+    plot_extremum_num_blobs(
+        subfig[0], real_imgs_subset,
+        real_blob_coords, real_indv_peak_counts, real_img_blob_counts,
+        extremum='max', title='real'
+        )
+    plot_extremum_num_blobs(
+        subfig[1], gen_imgs_subset,
+        gen_blob_coords, gen_indv_peak_counts, gen_img_blob_counts,
+        extremum='max', title='generated'
+        )  
     
     # Format
     fig.suptitle(f"Max blobs count, {subset_sample_num} samples")
