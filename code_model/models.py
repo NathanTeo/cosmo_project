@@ -514,6 +514,52 @@ class Generator_v6(nn.Module):
         x = self.linear(x)
         x = self.upsample(x)
         return torch.tanh(x)
+    
+class Generator_v7(nn.Module):
+    """
+    Generator that uses nearest neighbour to upsample
+    """
+    def __init__(self, **training_params):
+        super().__init__()
+        
+        # Params
+        latent_dim = training_params['latent_dim']
+        upsamp_size = training_params['generator_upsamp_size']
+        image_size = training_params['image_size']
+        gen_img_w = training_params['generator_img_w']
+        
+        # Pass latent space input into linear layer and reshape
+        self.linear = nn.Sequential(
+            nn.Linear(latent_dim, gen_img_w*gen_img_w*upsamp_size),
+            nn.ReLU(inplace=True),
+            
+            nn.Unflatten(1, (upsamp_size, gen_img_w, gen_img_w))
+        )
+        
+        # Upsample
+        final_kernel_size = int(gen_img_w*(2**4) - image_size + 1)
+        
+        self.upsample = nn.Sequential(
+            self._upsamp_block(gen_img_w, upsamp_size, int(upsamp_size/2)),
+            self._upsamp_block(gen_img_w*2, int(upsamp_size/2), int(upsamp_size/4)),
+            self._upsamp_block(gen_img_w*4, int(upsamp_size/4), int(upsamp_size/8)),
+            self._upsamp_block(gen_img_w*8, int(upsamp_size/8), 10),
+            
+            nn.Conv2d(10, 1, kernel_size=final_kernel_size-2),
+        )
+        
+    def _upsamp_block(self, img_w, upsamp_size_input, upsamp_size_output):
+        # Upsample block
+        return nn.Sequential(
+            nn.Upsample(size=(img_w*2, img_w*2), mode='nearest'),
+            nn.Conv2d(upsamp_size_input, upsamp_size_output, 3, 1),
+            nn.BatchNorm2d(upsamp_size_output), nn.LeakyReLU(0.2, inplace=True)
+        )
+
+    def forward(self, x):
+        x = self.linear(x)
+        x = self.upsample(x)
+        return torch.tanh(x)
 
 """All models"""
 models = {
@@ -523,6 +569,7 @@ models = {
     'gen_v4': Generator_v4,
     'gen_v5': Generator_v5,
     'gen_v6': Generator_v6,
+    'gen_v7': Generator_v7,
     'dis_v1': Discriminator_v1,
     'dis_v2': Discriminator_v2,
     'dis_v3': Discriminator_v3,
