@@ -14,7 +14,7 @@ import wandb
 from typing import Any, Dict
 
 import code_model.models as models
-from code_model.plotting_utils import *
+from code_model.testers.plotting_utils import *
 
 class GAN_utils():
     """
