@@ -12,12 +12,12 @@ import os
 from tqdm.auto import tqdm
 
 """Params"""
-image_size = 28
+image_size = 40
 seed = 70
-blob_size = 5
-sample_num = 1000
-blob_num = 10
-distribution = 'poisson'
+blob_size = 0
+sample_num = 50000
+blob_num = 5
+distribution = 'uniform'
 pad = 0
 noise = False
 noise_scale = 0.05
@@ -52,11 +52,11 @@ samples = []
 sample_counts = []
 for i in tqdm(range(sample_num)):
     if distribution=='uniform':
-        sample = create_sample(pos, blob_num, blob_size, generation_matrix_size)
+        sample = create_blob_sample(pos, blob_num, blob_size, generation_matrix_size)
     elif distribution=='poisson':
         current_blob_num = np.random.poisson(blob_num)
         sample_counts.append(current_blob_num)
-        sample = create_sample(pos, current_blob_num, blob_size, generation_matrix_size)
+        sample = create_blob_sample(pos, current_blob_num, blob_size, generation_matrix_size)
             
     # Add noise
     if noise==True:

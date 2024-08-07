@@ -70,7 +70,7 @@ class testDataset():
         self.root_path = training_params['root_path']
         self.data_path = 'data'
         self.data_file_name = f'bn{self.blob_num}{self.data_distribution[0]}-is{self.image_size}-bs{self.blob_size}-sn{self.real_sample_num}-sd{self.generation_seed}-ns{int(self.gen_noise)}.npy'
-        self.chkpt_path = f'checkpoints/{self.blob_num}_blob/{self.model_name}'
+        self.chkpt_path = f'checkpoints/{self.model_name}'
         self.log_path = f'logs/{self.model_name}'    
         self.plot_save_path = f'{self.root_path}/plots/{self.model_name}/images'
         self.output_save_path = f'{self.root_path}/plots/{self.model_name}/model_output'
@@ -105,7 +105,7 @@ class testDataset():
     def load_models(self, gans):
         """Load models"""
         # Get checkpoints of models to be tested
-        filenames = os.listdir(self.chkpt_path)
+        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
         self.filenames = [filenames[int(len(filenames)/4)], filenames[int(len(filenames)/2)], 'last.ckpt']
         
         self.model_epochs = [int(file[6:-5]) for file in self.filenames[:-1]]
@@ -386,7 +386,7 @@ class blobTester(testDataset):
         # Format
         plt.ylabel('counts')
         plt.xlabel('number of blobs')
-        plt.suptitle(f"{self.subset_sample_num} samples")
+        plt.suptitle(f"Histogram of number of blobs, {self.subset_sample_num} samples")
         plt.legend()
         plt.tight_layout()
 
@@ -564,6 +564,34 @@ class blobTester(testDataset):
         self.blob_num_stats()
         self.two_point_correlation()
         self.pixel_stats()
+        
+class pointTester(testDataset):
+    """
+    Run tests for blob data
+    """
+    def __init__(self, *args):
+        if type(args[0]) is testDataset:
+            self.__dict__ = args[0].__dict__.copy()
+        else:
+            super().__init__(*args)
+            
+    def images(self):
+        """Plot generated images - grid of images, marginal sums, blob coordinates"""
+        for n in tqdm(range(self.plot_num), desc='Plotting'):
+            # Get images
+            real_imgs_subset = self.real_imgs[n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)]
+            gen_imgs_subset = self.all_gen_imgs[-1][n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)] # Only use last model for this section
+            
+            # Plotting grid of images
+            fig = plt.figure(figsize=(6,3))
+            subfig = fig.subfigures(1, 2, wspace=0.2)
+            
+            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_num, title='Real Imgs')
+            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs')
+            
+            # Save plot
+            plt.savefig(f'{self.plot_save_path}/gen-imgs_{self.model_name}_{n}.png')
+            plt.close()
 
 class logsPlotter(testDataset):
     def __init__(self, *args):        
