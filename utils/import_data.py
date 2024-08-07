@@ -1,8 +1,14 @@
+"""
+Author: Nathan Teo
+
+Copies run data from compiled data folder to run folder.
+"""
+
 import sys
 import os
 import platform
 
-run = input('run folder:\n')
+run = input('run folder: ')
 
 sys.path.append(f'./cosmo_runs/{run}')
 

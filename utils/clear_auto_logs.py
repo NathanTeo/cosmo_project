@@ -1,3 +1,9 @@
+"""
+Author: Nathan Teo
+
+Removes unwanted logs
+"""
+
 import shutil
 
 to_remove = [
