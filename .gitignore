@@ -8,7 +8,8 @@
 # Virtual env
 venv/
 
-# Data folders
+# Depreciated
+terminal_archive/
 data/
 lightning_logs/
 logs/
@@ -18,8 +19,5 @@ check_functions/
 checkpoints/
 wandb/
 scripts/*
-job_scripts/
-terminal_archive/
-
 # Exceptions
 !scripts/example_script.py

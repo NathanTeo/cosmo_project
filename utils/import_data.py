@@ -2,7 +2,7 @@ import sys
 import os
 import platform
 
-run = 'bug_finder'
+run = input('run folder:\n')
 
 sys.path.append(f'./cosmo_runs/{run}')
 
