@@ -1,5 +1,6 @@
 import sys
 import os
+import platform
 
 run = 'bug_finder'
 root_path = "/Users/Idiot/Desktop/Research/OFYP/cosmo"
