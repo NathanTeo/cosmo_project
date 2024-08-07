@@ -68,7 +68,7 @@ class testDataset():
         
         """Paths"""
         self.root_path = training_params['root_path']
-        self.data_path = f'data/{self.blob_num}_blob'
+        self.data_path = 'data'
         self.data_file_name = f'bn{self.blob_num}{self.data_distribution[0]}-is{self.image_size}-bs{self.blob_size}-sn{self.real_sample_num}-sd{self.generation_seed}-ns{int(self.gen_noise)}.npy'
         self.chkpt_path = f'checkpoints/{self.blob_num}_blob/{self.model_name}'
         self.log_path = f'logs/{self.model_name}'    

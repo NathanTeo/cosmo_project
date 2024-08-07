@@ -3,6 +3,8 @@ Author: Nathan Teo
 
 This script is executed to train or test the model.
 All tunable parameters are listed in the dictionaries.
+
+NOTE: This script should be in a seperate 'run' folder
 """
 
 import os 
@@ -12,6 +14,8 @@ import torch
 state = 'train'
 training_restart = True
 testing_restart = True
+
+project_path = "/home/nteo/projects/def-douglas/nteo/cosmo_project"
 
 generation_params = {
         'blob_num': 1,
@@ -48,7 +52,7 @@ training_params = {
         'discriminator_linear_size': 16,
         'linear_dropout': 0.2,
         'conv_dropout': 0.2,
-        'root_path': "Users/..."
+        'root_path':"Users/..." 
 }
 
 testing_params = {
