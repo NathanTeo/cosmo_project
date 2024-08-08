@@ -70,10 +70,10 @@ class testDataset():
         self.root_path = training_params['root_path']
         self.data_path = 'data'
         self.data_file_name = f'bn{self.blob_num}{self.data_distribution[0]}-is{self.image_size}-bs{self.blob_size}-sn{self.real_sample_num}-sd{self.generation_seed}-ns{int(self.gen_noise)}.npy'
-        self.chkpt_path = f'checkpoints/{self.model_name}'
-        self.log_path = f'logs/{self.model_name}'    
-        self.plot_save_path = f'{self.root_path}/plots/{self.model_name}/images'
-        self.output_save_path = f'{self.root_path}/plots/{self.model_name}/model_output'
+        self.chkpt_path = f'checkpoints'
+        self.log_path = f'logs'    
+        self.plot_save_path = f'{self.root_path}/plots/images'
+        self.output_save_path = f'{self.root_path}/plots/model_output'
         
         if not os.path.exists(self.plot_save_path):
             os.makedirs(self.plot_save_path)

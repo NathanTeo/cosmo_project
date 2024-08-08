@@ -55,12 +55,15 @@ def run_training(training_params, generation_params, training_restart=False):
         root_path = training_params['root_path']
         data_path = 'data'
         data_file_name = f'bn{blob_num}{data_distribution[0]}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{int(gen_noise)}.npy'
-        chkpt_path = f'checkpoints/{model_name}'
+        chkpt_path = 'checkpoints'
         training_params['model_name'] = model_name
         
         # folder for logging imgs
-        if not os.path.exists(f'{root_path}/logs/{model_name}'):
-                os.makedirs(f'{root_path}/logs/{model_name}/images')
+        if training_restart:
+                os.system(f'rm -r /{root_path}/logs')
+                os.system(f'rm -r /{root_path}/checkpoints')
+        if not os.path.exists(f'{root_path}/logs'):
+                os.makedirs(f'{root_path}/logs/images')
         
         """Initialize callbacks"""
         # Logger

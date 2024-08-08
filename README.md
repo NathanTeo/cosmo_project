@@ -15,17 +15,5 @@ Contains all code that runs training or testing. All code is imported to scripts
 3. code_data:
 Code used to generate real images for model training.
 
-4. data:
-Contains real images as npy files. Created when data is generated.
-
-5. checkpoints:
-Contains saved models. Created when trianing is initiated.
-
-6. logs:
-Contains logged training data --- plots and losses. Created when training is initiated.
-
-7. lightning_logs:
-Contains logged training data to be viewed from tensorboard. Created when training is initiated.
-
-8. plots:
-Contains output from model testing. Created when model is tested.
+4. utils
+QOL scripts to handle standard/often used commands

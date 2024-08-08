@@ -53,12 +53,12 @@ class GAN_utils():
         plt.tight_layout()
         
         # Save plots
-        plt.savefig(f'{self.root_path}/logs/{self.log_folder}/images/image_epoch{self.current_epoch}.png')
+        plt.savefig(f'{self.root_path}/logs/images/image_epoch{self.current_epoch}.png')
         plt.close('all')
     
     def _log_losses(self, epoch_g_losses, epoch_d_losses):
         # Log save file
-        filename = f'{self.root_path}/logs/{self.log_folder}/losses.npz'
+        filename = f'{self.root_path}/logs/losses.npz'
         
         # Logging
         if self.current_epoch == 0:
@@ -336,7 +336,6 @@ class CWGAN(pl.LightningModule, GAN_utils):
         self.gp_lambda = training_params['gp_lambda']
         self.epoch_start_g_train = training_params['epoch_start_g_train']
         self.discriminator_train_freq = training_params['discriminator_train_freq']
-        self.log_folder = training_params['model_name']
         self.noise = training_params['noise']     
         
         gen_version = training_params['generator_version']
