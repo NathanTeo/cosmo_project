@@ -71,7 +71,7 @@ class testDataset():
         self.data_path = 'data'
         self.data_file_name = f'bn{self.blob_num}{self.data_distribution[0]}-is{self.image_size}-bs{self.blob_size}-sn{self.real_sample_num}-sd{self.generation_seed}-ns{int(self.gen_noise)}.npy'
         self.chkpt_path = 'checkpoints'
-        self.log_path = 'logs'    
+        self.log_path = 'logs'
         self.plot_save_path = f'{self.root_path}/plots/images'
         self.output_save_path = f'{self.root_path}/plots/model_output'
         
@@ -198,7 +198,7 @@ class blobTester(testDataset):
             plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs')
             
             # Save plot
-            plt.savefig(f'{self.plot_save_path}/gen-imgs_{self.model_name}_{n}.png')
+            plt.savefig(f'{self.plot_save_path}/gen-imgs_{n}_{self.model_name}.png')
             plt.close()
 
             # Plotting marginal sums
@@ -217,7 +217,7 @@ class blobTester(testDataset):
             plt.tight_layout()
             
             # Save plot
-            plt.savefig(f'{self.plot_save_path}/marg-sums_{self.model_name}_{n}.png')
+            plt.savefig(f'{self.plot_save_path}/marg-sums_{n}_{self.model_name}.png')
             plt.close()
             
             """# Peak detection
@@ -248,7 +248,7 @@ class blobTester(testDataset):
             fig.text(.5, .03, 'number of peaks labelled above image', ha='center')
             
             # Save plot
-            plt.savefig(f'{plot_save_path}/peak-imgs_{model_name}_{n}.png')
+            plt.savefig(f'{plot_save_path}/peak-imgs_{n}_{model_name}.png')
             plt.close()"""
             
             # Gaussian elimination and blob counting
@@ -279,7 +279,7 @@ class blobTester(testDataset):
             fig.text(.5, .03, 'number of blobs labelled above image', ha='center')
             
             # Save plot
-            plt.savefig(f'{self.plot_save_path}/counts-imgs_{self.model_name}_{n}.png')
+            plt.savefig(f'{self.plot_save_path}/counts-imgs_{n}_{self.model_name}.png')
             plt.close()
 
     def stack(self):
@@ -602,7 +602,7 @@ class logsPlotter(testDataset):
     
     def load_models(self, gans):
         # Load models
-        filenames = os.listdir(self.chkpt_path)
+        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
         filenames.remove('last.ckpt')
         
         self.epochs = [int(file[6:-5]) for file in filenames]
