@@ -12,6 +12,6 @@ run = input('run folder: ')
 source = '/home/nteo/scratch/cosmo_runs'
 dest = '/home/nteo/projects/def-douglas/nteo/cosmo_runs'
 
-os.system(f'rsync -a {source}/{run}/ {dest}/{run} --info=progress2 --delete' )
+os.system(f'rsync -a {source}/{run}/ {dest}/{run} --info=progress2 --delete')
 
 print("folder synced")
