@@ -63,15 +63,19 @@ def plot_extremum_num_blobs(subfig, imgs, imgs_coords, imgs_peak_counts, blob_nu
         ax.set_title(f"counts: {blob_nums[idx]}")
         
         coords = np.array(imgs_coords[idx])
-        coords_x = coords[:, 1]
-        coords_y = coords[:, 0]
-        peak_counts = imgs_peak_counts[idx]
         
-        ax.scatter(coords_x, coords_y, c='r', marker='x', alpha=0.5)
+        if coords.size: 
+            coords_x = coords[:, 1]
+            coords_y = coords[:, 0]
+            peak_counts = imgs_peak_counts[idx]
+            
+            ax.scatter(coords_x, coords_y, c='r', marker='x', alpha=0.5)
+            
+            for k in range(len(peak_counts)):    
+                ax.annotate('{}'.format(peak_counts[k]), (coords_x[k], coords_y[k]))
+        else:
+            pass # If there are no peaks detected 
         
-        for k in range(len(peak_counts)):    
-            ax.annotate('{}'.format(peak_counts[k]), (coords_x[k], coords_y[k]))
-
         ax.set_xticks([])
         ax.set_yticks([])
         ax.axis('off')

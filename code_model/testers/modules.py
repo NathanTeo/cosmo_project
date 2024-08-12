@@ -105,7 +105,8 @@ class testDataset():
     def load_models(self, gans):
         """Load models"""
         # Get checkpoints of models to be tested
-        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}').sort()
+        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
+        filenames.sort()
         self.filenames = [filenames[int(len(filenames)/4)], filenames[int(len(filenames)/2)], 'last.ckpt']
         
         self.model_epochs = [int(file[6:-5]) for file in self.filenames[:-1]]
@@ -364,13 +365,13 @@ class blobTester(testDataset):
         fig = plt.figure()
 
         # Plot
-        plt.hist(self.real_img_blob_counts, bins=np.arange(4.5,14.5,1), 
+        plt.hist(self.real_img_blob_counts, bins=np.arange(self.blob_num-4.5,self.blob_num+4.5,1), 
                     histtype='step', label='real', color=(self.real_color,0.8))
         plt.axvline(self.real_blob_num_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1)
 
 
         for i, blob_counts in enumerate(self.all_gen_img_blob_counts):
-            plt.hist(blob_counts, bins=np.arange(4.5,14.5,1), 
+            plt.hist(blob_counts, bins=np.arange((self.blob_num-4.5,self.blob_num+4.5,1)), 
                     histtype='step', label=f'epoch {self.model_epochs[i]}',
                     color=(self.gen_color,0.2+0.3*i), linewidth=set_linewidth(i, len(self.models))
                     )
@@ -602,7 +603,8 @@ class logsPlotter(testDataset):
     
     def load_models(self, gans):
         # Load models
-        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}').sort()
+        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
+        filenames.sort()
         filenames.remove('last.ckpt')
         
         self.epochs = [int(file[6:-5]) for file in filenames]
@@ -709,19 +711,19 @@ class logsPlotter(testDataset):
         # Loss
         g_evo_loss = [-np.mean(gen_scores) for gen_scores in g_evo_models_gen_scores]
         
-        'Sort'
-        epochs_sorted = np.sort(self.epochs)
-        g_evo_loss = g_evo_loss[np.argsort(self.epochs)]
-        d_evo_loss = d_evo_loss[np.argsort(self.epochs)]
+        # 'Sort'
+        # epochs_sorted = np.sort(self.epochs)
+        # g_evo_loss = g_evo_loss[np.argsort(self.epochs)]
+        # d_evo_loss = d_evo_loss[np.argsort(self.epochs)]
         
         'Plot'
         # Create figure
         fig, ax1 = plt.subplots()
 
         # Plot
-        ax1.plot(epochs_sorted, g_evo_loss, color='C0', linewidth=0.7)
+        ax1.plot(self.epochs, g_evo_loss, color='C0', linewidth=0.7)
         ax2 = ax1.twinx() 
-        ax2.plot(epochs_sorted, d_evo_loss, color='C1', linewidth=0.7)
+        ax2.plot(self.epochs, d_evo_loss, color='C1', linewidth=0.7)
 
         # Format
         ax1.set_xlabel('epochs')
