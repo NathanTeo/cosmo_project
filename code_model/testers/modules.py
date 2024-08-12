@@ -105,7 +105,7 @@ class testDataset():
     def load_models(self, gans):
         """Load models"""
         # Get checkpoints of models to be tested
-        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
+        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}').sort()
         self.filenames = [filenames[int(len(filenames)/4)], filenames[int(len(filenames)/2)], 'last.ckpt']
         
         self.model_epochs = [int(file[6:-5]) for file in self.filenames[:-1]]
@@ -134,8 +134,8 @@ class testDataset():
                 # Retest model
                 print('Retesting model...')
                 trainer = pl.Trainer()
-                for i, (model, filename) in enumerate(zip(self.models, self.filenames)):
-                    print(f'generating images, model {i+1}/{len(self.models)}')
+                for model, filename, epoch in zip(self.models, self.filenames, self.model_epochs):
+                    print(f'generating images, epoch {epoch}')
                     trainer.test(model, self.data)
                     self.all_gen_imgs.append(model.outputs)
                 
@@ -149,8 +149,8 @@ class testDataset():
         except FileNotFoundError:
             # Test model if no saved outputs are found
             trainer = pl.Trainer()
-            for i, (model, filename) in enumerate(zip(self.models, self.filenames)):
-                print(f'testing model {i+1}/{len(self.models)}')
+            for model, filename, epoch in zip(self.models, self.filenames, self.model_epochs):
+                print(f'generating images, epoch {epoch}')
                 trainer.test(model, self.data)
                 self.all_gen_imgs.append(model.outputs)
             
@@ -602,7 +602,7 @@ class logsPlotter(testDataset):
     
     def load_models(self, gans):
         # Load models
-        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
+        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}').sort()
         filenames.remove('last.ckpt')
         
         self.epochs = [int(file[6:-5]) for file in filenames]
@@ -709,13 +709,19 @@ class logsPlotter(testDataset):
         # Loss
         g_evo_loss = [-np.mean(gen_scores) for gen_scores in g_evo_models_gen_scores]
         
+        'Sort'
+        epochs_sorted = np.sort(self.epochs)
+        g_evo_loss = g_evo_loss[np.argsort(self.epochs)]
+        d_evo_loss = d_evo_loss[np.argsort(self.epochs)]
+        
         'Plot'
+        # Create figure
         fig, ax1 = plt.subplots()
 
-        ax1.plot(self.epochs, g_evo_loss, color='C0', linewidth=0.7)
+        # Plot
+        ax1.plot(epochs_sorted, g_evo_loss, color='C0', linewidth=0.7)
         ax2 = ax1.twinx() 
-        ax2.plot(self.epochs, d_evo_loss, color='C1', linewidth=0.7)
-
+        ax2.plot(epochs_sorted, d_evo_loss, color='C1', linewidth=0.7)
 
         # Format
         ax1.set_xlabel('epochs')
