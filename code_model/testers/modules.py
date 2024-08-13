@@ -371,7 +371,7 @@ class blobTester(testDataset):
 
 
         for i, blob_counts in enumerate(self.all_gen_img_blob_counts):
-            plt.hist(blob_counts, bins=np.arange((self.blob_num-4.5,self.blob_num+4.5,1)), 
+            plt.hist(blob_counts, bins=np.arange(self.blob_num-4.5,self.blob_num+4.5,1), 
                     histtype='step', label=f'epoch {self.model_epochs[i]}',
                     color=(self.gen_color,0.2+0.3*i), linewidth=set_linewidth(i, len(self.models))
                     )
