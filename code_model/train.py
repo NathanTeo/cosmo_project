@@ -58,12 +58,16 @@ def run_training(training_params, generation_params, training_restart=False):
         chkpt_path = 'checkpoints'
         training_params['model_name'] = model_name
         
-        # folder for logging imgs
+        # Folder for backup
         if training_restart:
                 os.system(f'rm -r /{root_path}/logs')
                 os.system(f'rm -r /{root_path}/checkpoints')
         if not os.path.exists(f'{root_path}/logs'):
                 os.makedirs(f'{root_path}/logs/images')
+        
+        # Folder for backup
+        if not os.path.exists(f'{root_path}/backup'):
+                os.makedirs(f'{root_path}/backup')
         
         """Initialize callbacks"""
         # Logger

@@ -6,8 +6,8 @@ Simulations of CMB foregrounds are an key resource in understanding and removing
 This repository contains code for training a GAN model to generate N gaussian blobs.
 
 Main Folders
-1. scripts:
-Contains parameters for model training/testing. Run file to start model training/testing.
+1. job_scripts:
+Run command for interactive session on SLURM. (scripts for submitting jobs should be in a separate folder that contains all files for that run)
 
 2. code_model:
 Contains all code that runs training or testing. All code is imported to scripts and does not need to be run. Model architecture, GAN training module, plotting tools can be found here.
@@ -15,5 +15,5 @@ Contains all code that runs training or testing. All code is imported to scripts
 3. code_data:
 Code used to generate real images for model training.
 
-4. utils
+4. utils:
 QOL scripts to handle standard/often used commands

@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import wandb
 from typing import Any, Dict
+import shutil
 
 import code_model.models as models
 from code_model.testers.plotting_utils import *
@@ -77,6 +78,10 @@ class GAN_utils():
     def _add_noise(self, imgs, mean=0, std_dev=0.05):
         """Adds gaussian noise to a series of image samples"""
         return imgs + (std_dev)*torch.randn(*imgs.size(), device=self.device) + torch.Tensor([mean]).type_as(imgs)
+    
+    def _backup(self):
+        shutil.copytree(f'{self.root}/checkpoints', f'{self.root}/backup/checkpoints', dirs_exist_ok=True)
+        shutil.copytree(f'{self.root}/logs', f'{self.root}/backup/logs', dirs_exist_ok=True)
 
 class GapAwareScheduler():
     """
@@ -511,6 +516,9 @@ class CWGAN(pl.LightningModule, GAN_utils):
         # Log sampled images
         grid = torchvision.utils.make_grid(gen_sample_imgs)
         wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
+        
+        # Backup
+        self._backup()
     
     def on_test_epoch_start(self):
         self.test_output_list = {
