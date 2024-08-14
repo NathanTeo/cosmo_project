@@ -80,8 +80,8 @@ class GAN_utils():
         return imgs + (std_dev)*torch.randn(*imgs.size(), device=self.device) + torch.Tensor([mean]).type_as(imgs)
     
     def _backup(self):
-        shutil.copytree(f'{self.root}/checkpoints', f'{self.root}/backup/checkpoints', dirs_exist_ok=True)
-        shutil.copytree(f'{self.root}/logs', f'{self.root}/backup/logs', dirs_exist_ok=True)
+        shutil.copytree(f'{self.root_path}/checkpoints', f'{self.root_path}/backup/checkpoints', dirs_exist_ok=True)
+        shutil.copytree(f'{self.root_path}/logs', f'{self.root_path}/backup/logs', dirs_exist_ok=True)
 
 class GapAwareScheduler():
     """
@@ -546,7 +546,7 @@ class CWGAN(pl.LightningModule, GAN_utils):
     
     # Get discriminator scores for an input image samples
     def score_samples(self, samples, batch_size=128, progress_bar=False):
-        batched_samples = torch.split(torch.unsqueeze(torch.Tensor(samples), 1), batch_size)
+        batched_samples = torch.split(torch.unsqueeze(torch.tensor(samples, device=self.device, dtype=torch.float), 1), batch_size)
         scores = np.array([])
         
         for batch in tqdm(batched_samples, desc='scoring', disable=not progress_bar):

@@ -703,10 +703,6 @@ class logsPlotter(testDataset):
             ]
         
         'Loss as generator evolves'
-        # Score
-        print('scoring ealier generators with last model...')
-        self.get_scores()
-            
         # Loss
         g_evo_loss = [-np.mean(gen_scores) for gen_scores in self.g_evo_models_gen_scores]
         
