@@ -9,7 +9,7 @@ import numpy as np
 
 from code_model.testers.eval_utils import *
 
-def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None):
+def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None, vmin=-0.2, vmax=1.2):
     """
     Plot a grid of sample images in a subfigure/figure
     """
@@ -19,7 +19,7 @@ def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subpl
     # Plot sample images in grid
     for i in range(grid_row_num):
         for j in range(grid_row_num):
-            axs[i, j].imshow(imgs[(grid_row_num)*i+j], interpolation='none')
+            axs[i, j].imshow(imgs[(grid_row_num)*i+j], interpolation='none', vmin=vmin, vmax=vmax)
             axs[i, j].set_xticks([])
             axs[i, j].set_yticks([])
             axs[i, j].axis('off')
@@ -30,14 +30,14 @@ def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subpl
     subfig.subplots_adjust(wspace=wspace, hspace=hspace)         
     subfig.suptitle(title, y=0.95)
     
-def plot_min_num_peaks(ax, imgs, peak_nums, title=None):
+def plot_min_num_peaks(ax, imgs, peak_nums, title=None, vmin=-0.2, vmax=1.2):
     """
     Plot the image with the minimum number of peaks
     """
     min_num_peaks = np.min(peak_nums)
     min_peak_idx = np.argmin(peak_nums)
 
-    ax.imshow(imgs[min_peak_idx])
+    ax.imshow(imgs[min_peak_idx], vmin=vmin, vmax=vmax)
     ax.set_title(f"{title}\ncounts: {min_num_peaks}")
     
     ax.set_xticks([])
@@ -47,7 +47,7 @@ def plot_min_num_peaks(ax, imgs, peak_nums, title=None):
     return min_num_peaks
 
 def plot_extremum_num_blobs(subfig, imgs, imgs_coords, imgs_peak_counts, blob_nums,
-                            extremum='min', k=3, title=None):
+                            extremum='min', k=3, title=None, vmin=-0.2, vmax=1.2):
     """
     Plot the image with the minimum number of blobs
     """
@@ -59,7 +59,7 @@ def plot_extremum_num_blobs(subfig, imgs, imgs_coords, imgs_peak_counts, blob_nu
         min_idxs = np.argpartition(blob_nums, -k)[-k:]
 
     for ax, idx in zip(axs, min_idxs):
-        ax.imshow(imgs[idx])
+        ax.imshow(imgs[idx], vmin=vmin, vmax=vmax)
         ax.set_title(f"counts: {blob_nums[idx]}")
         
         coords = np.array(imgs_coords[idx])
@@ -82,7 +82,8 @@ def plot_extremum_num_blobs(subfig, imgs, imgs_coords, imgs_peak_counts, blob_nu
         
     subfig.suptitle(title, y=0.92)
 
-def plot_peak_grid(subfig, imgs, imgs_coords, imgs_peak_values, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None):
+def plot_peak_grid(subfig, imgs, imgs_coords, imgs_peak_values, 
+                   grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None, vmin=-0.2, vmax=1.2):
     """
     Plot a grid of images with detected peaks in a subfigure/figure
     """
@@ -100,7 +101,7 @@ def plot_peak_grid(subfig, imgs, imgs_coords, imgs_peak_values, grid_row_num, ti
             peak_values = imgs_peak_values[(grid_row_num)*i+j]
             
             # Plot
-            axs[i, j].imshow(img, interpolation='none')
+            axs[i, j].imshow(img, interpolation='none', vmin=vmin, vmax=vmax)
             axs[i, j].scatter(coords_x, coords_y, c='r', marker='x', alpha=0.5)
             axs[i, j].set_xticks([])
             axs[i, j].set_yticks([])
@@ -135,11 +136,11 @@ def plot_marginal_sums(marginal_sums, subfig, grid_row_num, title):
     # Format
     subfig.suptitle(title, y=0.95)
 
-def plot_stacked_imgs(ax, stacked_img, title):
+def plot_stacked_imgs(ax, stacked_img, title, vmin=-0.2, vmax=1.2):
     """
     Plot stacked image
     """
-    ax.imshow(stacked_img)
+    ax.imshow(stacked_img, vmin=vmin, vmax=vmax)
     ax.set_title(title)
 
 def plot_pixel_histogram(ax, imgs, color, bins=None):
