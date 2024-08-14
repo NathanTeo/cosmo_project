@@ -517,8 +517,9 @@ class CWGAN(pl.LightningModule, GAN_utils):
         grid = torchvision.utils.make_grid(gen_sample_imgs)
         wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
         
-        # Backup
-        self._backup()
+        # Backup every 20 epochs
+        if ((self.current_epoch+1)%20)==0:
+            self._backup()
     
     def on_test_epoch_start(self):
         self.test_output_list = {
