@@ -17,7 +17,7 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     
     # plot losses
     logs_plotter = logsPlotter(dataset)
-    logs_plotter.plot(BlobDataModule, gans, testing_restart)
+    logs_plotter.plot_logs(BlobDataModule, gans, testing_restart)
     
     # test dataset
     if generation_params['blob_size']>0:

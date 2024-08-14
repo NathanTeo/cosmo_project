@@ -618,23 +618,6 @@ class logsPlotter(testDataset):
             f'{self.root_path}/{self.chkpt_path}/last.ckpt',
             **self.training_params
             )
-    
-    def generate_images(self):
-        # Generate images
-        trainer = pl.Trainer()
-        
-        print('generating images, last model...')
-        trainer.test(self.last_model, self.data)
-        self.last_gen_imgs = self.last_model.outputs
-        
-        print('generating images, earlier models...')
-        models_gen_imgs = []
-        for epoch, model in zip(self.epochs, self.models):
-            print(f'epoch {epoch}')
-            trainer.test(model, self.data)
-            models_gen_imgs.append(model.outputs)
-        
-        self.models_gen_imgs = np.array(models_gen_imgs)
 
     def loss(self):
         """Logged losses"""
@@ -683,38 +666,49 @@ class logsPlotter(testDataset):
         plt.savefig(f'{self.plot_save_path}/losses-zm_{self.model_name}.png')
         plt.close()
 
-    def loss_wrt_last_model(self):        
-        'Calculate model scores for last generator with epoch, check how discriminator evolves'
-        # Score
+    def score_models(self):
+        trainer = pl.Trainer()
+        
         print('scoring last generator with earlier models...')
-        d_evo_models_gen_scores = []
-        d_evo_models_real_scores = []
+        
+        trainer.test(self.last_model, self.data)
+        last_gen_imgs = self.last_model.outputs
+        
+        self.d_evo_models_gen_scores = []
+        self.d_evo_models_real_scores = []
         for epoch, model in zip(self.epochs, self.models):
             print(f'epoch {epoch}')
-            d_evo_models_gen_scores.append(model.score_samples(self.last_gen_imgs, progress_bar=True))
-            d_evo_models_real_scores.append(model.score_samples(self.real_imgs_subset, progress_bar=True))
+            self.d_evo_models_gen_scores.append(model.score_samples(last_gen_imgs, progress_bar=True))
+            self.d_evo_models_real_scores.append(model.score_samples(self.real_imgs_subset, progress_bar=True))
         
+        print('scoring ealier generators with last model...')
+        self.g_evo_models_gen_scores = []
+        for epoch, model in zip(self.epochs, self.models):
+            print(f'epoch {epoch}')
+            trainer.test(model, self.data)
+            self.g_evo_models_gen_scores.append(
+                self.last_model.score_samples(np.array(model.outputs),
+                                              progress_bar=True)
+                )
+            model.outputs = None # Clear vram
+
+    def loss_wrt_last_model(self):
+        self.score_models()
+        
+        'Loss as discriminator evolves'
         # Loss
         d_evo_loss = [
             -(np.mean(real_score) - np.mean(gen_score))
-            for real_score, gen_score in zip(d_evo_models_real_scores, d_evo_models_gen_scores)
+            for real_score, gen_score in zip(self.d_evo_models_real_scores, self.d_evo_models_gen_scores)
             ]
         
-        'Calculate model scores for last discriminator with epoch, check how generator evolves'
+        'Loss as generator evolves'
         # Score
         print('scoring ealier generators with last model...')
-        g_evo_models_gen_scores = []
-        for epoch, gen_imgs in zip(self.epochs, self.models_gen_imgs):
-            print(f'epoch {epoch}')
-            g_evo_models_gen_scores.append(self.last_model.score_samples(gen_imgs, progress_bar=True))
+        self.get_scores()
             
         # Loss
-        g_evo_loss = [-np.mean(gen_scores) for gen_scores in g_evo_models_gen_scores]
-        
-        # 'Sort'
-        # epochs_sorted = np.sort(self.epochs)
-        # g_evo_loss = g_evo_loss[np.argsort(self.epochs)]
-        # d_evo_loss = d_evo_loss[np.argsort(self.epochs)]
+        g_evo_loss = [-np.mean(gen_scores) for gen_scores in self.g_evo_models_gen_scores]
         
         'Plot'
         # Create figure
@@ -738,13 +732,12 @@ class logsPlotter(testDataset):
         plt.savefig(f'{self.plot_save_path}/losses-wrt-last_{self.model_name}.png')
         plt.close()
         
-    def plot(self, dataModule, gans, testing_restart=False):
+    def plot_logs(self, dataModule, gans, testing_restart=False):
         if not testing_restart and os.path.isfile(f'{self.plot_save_path}/losses_{self.model_name}.png'):
             print('losses already plotted, skipping step')
             return
         else:
             self.load_data(dataModule)
             self.load_models(gans)
-            self.generate_images()
             self.loss()
             self.loss_wrt_last_model()
