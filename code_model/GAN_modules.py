@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import wandb
 from typing import Any, Dict
-import shutil
+import os
 
 import code_model.models as models
 from code_model.testers.plotting_utils import *
@@ -80,8 +80,9 @@ class GAN_utils():
         return imgs + (std_dev)*torch.randn(*imgs.size(), device=self.device) + torch.Tensor([mean]).type_as(imgs)
     
     def _backup(self):
-        shutil.copytree(f'{self.root_path}/checkpoints', f'{self.root_path}/backup/checkpoints', dirs_exist_ok=True)
-        shutil.copytree(f'{self.root_path}/logs', f'{self.root_path}/backup/logs', dirs_exist_ok=True)
+        os.system(f'rsync -a {self.root_path}/checkpoints {self.root_path}/backup/checkpoints --delete')
+        os.system(f'rsync -a {self.root_path}/logs {self.root_path}/backup/logs --delete')
+        print('checkpoints and logs backed up')
 
 class GapAwareScheduler():
     """

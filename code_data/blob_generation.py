@@ -52,11 +52,11 @@ samples = []
 sample_counts = []
 for i in tqdm(range(sample_num)):
     if distribution=='uniform':
-        sample = create_blob_sample(pos, blob_num, blob_size, generation_matrix_size)
+        sample = create_blob_sample(pos, generation_matrix_size, blob_num, blob_size)
     elif distribution=='poisson':
         current_blob_num = np.random.poisson(blob_num)
         sample_counts.append(current_blob_num)
-        sample = create_blob_sample(pos, current_blob_num, blob_size, generation_matrix_size)
+        sample = create_blob_sample(pos, generation_matrix_size, current_blob_num, blob_size)
             
     # Add noise
     if noise==True:

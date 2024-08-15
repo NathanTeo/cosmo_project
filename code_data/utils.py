@@ -5,7 +5,7 @@ import numpy as np
 def normalize_2d(matrix):
     return (matrix-np.min(matrix))/(np.max(matrix)-np.min(matrix)) 
 
-def create_blob_sample(pos, blob_num, blob_size, generation_matrix_size):
+def create_blob_sample(pos, generation_matrix_size, blob_num, blob_size, blob_amplitude=1):
     for j in range(blob_num):
         # Random coordinate for blob
         mean_coords = [random.randint(0, generation_matrix_size-1), random.randint(0, generation_matrix_size-1)]
@@ -13,13 +13,13 @@ def create_blob_sample(pos, blob_num, blob_size, generation_matrix_size):
             # Add first blob to image
             sample = multivariate_normal(mean_coords, [[blob_size, 0], [0, blob_size]]).pdf(pos)
             # Normalize
-            sample = normalize_2d(sample)
+            sample = normalize_2d(sample)*blob_amplitude
         
         if j!=0:
             # Add subsequent single blob to image
             sample_next = multivariate_normal(mean_coords, [[blob_size, 0], [0, blob_size]]).pdf(pos)
             # Normalize
-            sample_next = normalize_2d(sample_next)
+            sample_next = normalize_2d(sample_next)*blob_amplitude
             sample = np.add(sample, sample_next)
     
     return sample

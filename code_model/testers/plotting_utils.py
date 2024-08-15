@@ -9,7 +9,7 @@ import numpy as np
 
 from code_model.testers.eval_utils import *
 
-def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None, vmin=-0.2, vmax=1.2):
+def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None, vmin=-0.05, vmax=None):
     """
     Plot a grid of sample images in a subfigure/figure
     """
@@ -30,7 +30,7 @@ def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subpl
     subfig.subplots_adjust(wspace=wspace, hspace=hspace)         
     subfig.suptitle(title, y=0.95)
     
-def plot_min_num_peaks(ax, imgs, peak_nums, title=None, vmin=-0.2, vmax=1.2):
+def plot_min_num_peaks(ax, imgs, peak_nums, title=None, vmin=-0.05, vmax=None):
     """
     Plot the image with the minimum number of peaks
     """
@@ -47,7 +47,7 @@ def plot_min_num_peaks(ax, imgs, peak_nums, title=None, vmin=-0.2, vmax=1.2):
     return min_num_peaks
 
 def plot_extremum_num_blobs(subfig, imgs, imgs_coords, imgs_peak_counts, blob_nums,
-                            extremum='min', k=3, title=None, vmin=-0.2, vmax=1.2):
+                            extremum='min', k=3, title=None, vmin=-0.05, vmax=None):
     """
     Plot the image with the minimum number of blobs
     """
@@ -83,7 +83,7 @@ def plot_extremum_num_blobs(subfig, imgs, imgs_coords, imgs_peak_counts, blob_nu
     subfig.suptitle(title, y=0.92)
 
 def plot_peak_grid(subfig, imgs, imgs_coords, imgs_peak_values, 
-                   grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None, vmin=-0.2, vmax=1.2):
+                   grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None, vmin=-0.05, vmax=None):
     """
     Plot a grid of images with detected peaks in a subfigure/figure
     """
@@ -136,7 +136,7 @@ def plot_marginal_sums(marginal_sums, subfig, grid_row_num, title):
     # Format
     subfig.suptitle(title, y=0.95)
 
-def plot_stacked_imgs(ax, stacked_img, title, vmin=-0.2, vmax=1.2):
+def plot_stacked_imgs(ax, stacked_img, title, vmin=-0.05, vmax=None):
     """
     Plot stacked image
     """
