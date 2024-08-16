@@ -67,7 +67,8 @@ def run_training(training_params, generation_params, training_restart=False):
         
         # Folder for backup
         if not os.path.exists(f'{root_path}/backup'):
-                os.makedirs(f'{root_path}/backup')
+                os.makedirs(f'{root_path}/backup/checkpoints')
+                os.makedirs(f'{root_path}/backup/logs')
         
         """Initialize callbacks"""
         # Logger
@@ -80,7 +81,7 @@ def run_training(training_params, generation_params, training_restart=False):
 
         # Checkpoint
         checkpoint_callback = ModelCheckpoint(
-                monitor='g_loss',
+                monitor=None,
                 dirpath=f'{root_path}/{chkpt_path}',
                 filename='{epoch:04d}',
                 every_n_epochs=20,

@@ -80,9 +80,9 @@ class GAN_utils():
         return imgs + (std_dev)*torch.randn(*imgs.size(), device=self.device) + torch.Tensor([mean]).type_as(imgs)
     
     def _backup(self):
-        os.system(f'rsync -a {self.root_path}/checkpoints {self.root_path}/backup/checkpoints --delete')
-        os.system(f'rsync -a {self.root_path}/logs {self.root_path}/backup/logs --delete')
-        print('checkpoints and logs backed up')
+        os.system(f'rsync -a {self.root_path}/checkpoints/ {self.root_path}/backup/checkpoints --delete')
+        os.system(f'rsync -a {self.root_path}/logs/ {self.root_path}/backup/logs --delete')
+        print('\ncheckpoints and logs backed up')
 
 class GapAwareScheduler():
     """

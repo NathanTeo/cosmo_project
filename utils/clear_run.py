@@ -16,7 +16,7 @@ while counter<max_count:
     if confirm=='y':
         root = f'/home/nteo/projects/def-douglas/nteo/cosmo_runs/{run}'
 
-        os.system(f'rm -r {root}/checkpoints {root}/logs {root}/plots')
+        os.system(f'rm -r {root}/checkpoints {root}/logs {root}/plots {root}/backup')
 
         print("history cleared")
         break

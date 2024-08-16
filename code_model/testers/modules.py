@@ -169,8 +169,10 @@ class testDataset():
     
     def prep_data(self, dataModule, gans, testing_restart=False):
         """Run all steps to prepare data"""
+        print('loading data and models...')
         self.load_data(dataModule)
         self.load_models(gans)
+        print('loading complete')
         self.generate_images(testing_restart)
         self.truncate()
         
@@ -601,19 +603,7 @@ class logsPlotter(testDataset):
         else:
             super().__init__(*args)
     
-    def load_models(self, gans):
-        # Load models
-        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
-        filenames.sort()
-        filenames.remove('last.ckpt')
-        
-        self.epochs = [int(file[6:-5]) for file in filenames]
-        
-        self.models = [gans[self.gan_version].load_from_checkpoint(
-            f'{self.root_path}/{self.chkpt_path}/{file}',
-            **self.training_params
-            ) for file in filenames]
-        
+    def load_last_model(self, gans):
         self.last_model = gans[self.gan_version].load_from_checkpoint(
             f'{self.root_path}/{self.chkpt_path}/last.ckpt',
             **self.training_params
@@ -632,7 +622,6 @@ class logsPlotter(testDataset):
         ax1.plot(epochs, g_losses, color='C0', linewidth=0.7)
         ax2 = ax1.twinx() 
         ax2.plot(epochs, d_losses, color='C1', linewidth=0.7)
-
 
         # Format
         ax1.set_xlabel('epochs')
@@ -666,34 +655,54 @@ class logsPlotter(testDataset):
         plt.savefig(f'{self.plot_save_path}/losses-zm_{self.model_name}.png')
         plt.close()
 
-    def score_models(self):
+    def score_models(self, gans):
+        # Load models
+        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
+        filenames.sort()
+        filenames.remove('last.ckpt')
+        
+        self.epochs = [int(file[6:-5]) for file in filenames]
+        
         trainer = pl.Trainer()
         
-        print('scoring last generator with earlier models...')
+        # Score
+        print('scoring...')
         
+        print('generating imgs, last model...')
         trainer.test(self.last_model, self.data)
         last_gen_imgs = self.last_model.outputs
         
         self.d_evo_models_gen_scores = []
         self.d_evo_models_real_scores = []
-        for epoch, model in zip(self.epochs, self.models):
+        self.g_evo_models_gen_scores = []
+        
+        for epoch, file in zip(self.epochs, filenames):
+            print('--------------')
             print(f'epoch {epoch}')
+            print('--------------')
+
+            model = gans[self.gan_version].load_from_checkpoint(
+                f'{self.root_path}/{self.chkpt_path}/{file}',
+                **self.training_params
+            )
+            
+            print('scoring imgs, last model...')
             self.d_evo_models_gen_scores.append(model.score_samples(last_gen_imgs, progress_bar=True))
             self.d_evo_models_real_scores.append(model.score_samples(self.real_imgs_subset, progress_bar=True))
-        
-        print('scoring ealier generators with last model...')
-        self.g_evo_models_gen_scores = []
-        for epoch, model in zip(self.epochs, self.models):
-            print(f'epoch {epoch}')
+
+            print('generating imgs, earlier models...')
             trainer.test(model, self.data)
+            
+            print('scoring imgs, earlier models...')
             self.g_evo_models_gen_scores.append(
                 self.last_model.score_samples(np.array(model.outputs),
                                               progress_bar=True)
                 )
             model.outputs = None # Clear vram
 
-    def loss_wrt_last_model(self):
-        self.score_models()
+    def loss_wrt_last_model(self, gans):
+        self.load_last_model(gans)
+        self.score_models(gans)
         
         'Loss as discriminator evolves'
         # Loss
@@ -734,6 +743,5 @@ class logsPlotter(testDataset):
             return
         else:
             self.load_data(dataModule)
-            self.load_models(gans)
             self.loss()
-            self.loss_wrt_last_model()
+            self.loss_wrt_last_model(gans)

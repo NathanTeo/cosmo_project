@@ -11,6 +11,8 @@ from code_model.testers.eval_utils import *
 from code_model.testers.modules import *
 
 def run_testing(training_params, generation_params, testing_params, testing_restart=False):
+    print('test.py checkpoint reached')
+    
     # prepare dataset of real and generated images
     dataset = testDataset(generation_params, training_params, testing_params)
     dataset.prep_data(BlobDataModule, gans, testing_restart)
