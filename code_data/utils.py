@@ -22,7 +22,10 @@ def create_blob_sample(pos, generation_matrix_size, blob_num, blob_size, blob_am
             sample_next = normalize_2d(sample_next)*blob_amplitude
             sample = np.add(sample, sample_next)
     
-    return sample
+    if blob_num==0:
+        return np.zeros((28,28))
+    else:
+        return sample
 
 def create_point_sample(point_num, image_size):
     coords = np.random.randint(28, size=(point_num, 2))
