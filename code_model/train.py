@@ -11,12 +11,12 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 import wandb
 
-from code_model.GAN_modules import *
+from code_model.models import *
 from code_model.data_modules import *
 
 def run_training(training_params, generation_params, training_restart=False):
         """Initialize Params"""
-        gan_version = training_params['gan_version']
+        model_version = training_params['model_version']
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
         training_seed = training_params['random_seed']
@@ -43,7 +43,7 @@ def run_training(training_params, generation_params, training_restart=False):
         avail_gpus = training_params['avail_gpus']
 
         model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
-        gan_version,
+        model_version,
         gen_version, dis_version,
         blob_num, data_distribution[0], blob_size, "{:.0g}".format(sample_num), image_size,
         training_seed, "{:.0g}".format(lr),
@@ -102,7 +102,7 @@ def run_training(training_params, generation_params, training_restart=False):
                         )
                 
                 # Load model
-                model = gans[gan_version](**training_params)
+                model = model_dict[model_version](**training_params)
                 
                 # Initialize trainer
                 if avail_gpus<2:

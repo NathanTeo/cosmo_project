@@ -20,7 +20,7 @@ class testDataset():
         """Initialize variables"""
         self.training_params = training_params
         
-        self.gan_version = training_params['gan_version']
+        self.model_version = training_params['model_version']
         self.gen_version = training_params['generator_version']
         self.dis_version = training_params['discriminator_version']
         self.training_seed = training_params['random_seed']
@@ -47,7 +47,7 @@ class testDataset():
         self.avail_gpus = training_params['avail_gpus']
         
         self.model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
-        self.gan_version,
+        self.model_version,
         self.gen_version, self.dis_version,
         self.blob_num, self.data_distribution[0], self.blob_size, "{:.0g}".format(self.real_sample_num), self.image_size,
         self.training_seed, "{:.0g}".format(self.lr),
@@ -102,7 +102,7 @@ class testDataset():
             truncate_ratio=self.subset_sample_num/self.real_sample_num
             )
     
-    def load_models(self, gans):
+    def load_models(self, model_dict):
         """Load models"""
         # Get checkpoints of models to be tested
         filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
@@ -112,7 +112,7 @@ class testDataset():
         self.model_epochs = [int(file[6:-5]) for file in self.filenames[:-1]]
         self.model_epochs.append(self.epoch_last)
         
-        self.models = [gans[self.gan_version].load_from_checkpoint(
+        self.models = [model_dict[self.model_version].load_from_checkpoint(
             f'{self.root_path}/{self.chkpt_path}/{file}',
             **self.training_params
             ) for file in filenames]
@@ -167,11 +167,11 @@ class testDataset():
         self.real_imgs_subset = self.real_imgs[:self.subset_sample_num]
         self.all_gen_imgs_subset = [gen_imgs[:self.subset_sample_num] for gen_imgs in self.all_gen_imgs]
     
-    def prep_data(self, dataModule, gans, testing_restart=False):
+    def prep_data(self, dataModule, model_dict, testing_restart=False):
         """Run all steps to prepare data"""
         print('loading data and models...')
         self.load_data(dataModule)
-        self.load_models(gans)
+        self.load_models(model_dict)
         print('loading complete')
         self.generate_images(testing_restart)
         self.truncate()
@@ -603,8 +603,8 @@ class logsPlotter(testDataset):
         else:
             super().__init__(*args)
     
-    def load_last_model(self, gans):
-        self.last_model = gans[self.gan_version].load_from_checkpoint(
+    def load_last_model(self, model_dict):
+        self.last_model = model_dict[self.model_version].load_from_checkpoint(
             f'{self.root_path}/{self.chkpt_path}/last.ckpt',
             **self.training_params
             )
@@ -645,7 +645,7 @@ class logsPlotter(testDataset):
         plt.xlabel('epoch')
         plt.ylabel('loss')
         plt.title('Model Loss')
-        if self.gan_version=='CWGAN':
+        if self.model_version=='CWGAN':
             plt.axhline(y=0, color='r', alpha=0.2, linestyle='dashed')
         plt.ylim(*self.loss_zoom_bounds)
         plt.legend()
@@ -655,7 +655,7 @@ class logsPlotter(testDataset):
         plt.savefig(f'{self.plot_save_path}/losses-zm_{self.model_name}.png')
         plt.close()
 
-    def score_models(self, gans):
+    def score_models(self, model_dict):
         # Load models
         filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
         filenames.sort()
@@ -681,7 +681,7 @@ class logsPlotter(testDataset):
             print(f'epoch {epoch}')
             print('--------------')
 
-            model = gans[self.gan_version].load_from_checkpoint(
+            model = model_dict[self.model_version].load_from_checkpoint(
                 f'{self.root_path}/{self.chkpt_path}/{file}',
                 **self.training_params
             )
@@ -700,9 +700,9 @@ class logsPlotter(testDataset):
                 )
             model.outputs = None # Clear vram
 
-    def loss_wrt_last_model(self, gans):
-        self.load_last_model(gans)
-        self.score_models(gans)
+    def loss_wrt_last_model(self, model_dict):
+        self.load_last_model(model_dict)
+        self.score_models(model_dict)
         
         'Loss as discriminator evolves'
         # Loss
@@ -737,11 +737,11 @@ class logsPlotter(testDataset):
         plt.savefig(f'{self.plot_save_path}/losses-wrt-last_{self.model_name}.png')
         plt.close()
         
-    def plot_logs(self, dataModule, gans, testing_restart=False):
+    def plot_logs(self, dataModule, model_dict, testing_restart=False):
         if not testing_restart and os.path.isfile(f'{self.plot_save_path}/losses_{self.model_name}.png'):
             print('losses already plotted, skipping step')
             return
         else:
             self.load_data(dataModule)
             self.loss()
-            self.loss_wrt_last_model(gans)
+            self.loss_wrt_last_model(model_dict)

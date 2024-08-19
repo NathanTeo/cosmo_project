@@ -8,7 +8,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --gres=gpu:v100l:1
 
-run=cwgan_3a
+run=cwgan_1g
 
 mkdir -p /home/nteo/scratch/cosmo_runs/$run
 rsync -a /home/nteo/projects/def-douglas/nteo/cosmo_runs/$run/ /home/nteo/scratch/cosmo_runs/$run
