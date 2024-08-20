@@ -366,14 +366,22 @@ class blobTester(testDataset):
         # Create figure
         fig = plt.figure()
 
+        # Bins for histogram
+        concat_blob_counts = self.real_img_blob_counts
+        for blob_counts in self.all_gen_img_blob_counts: 
+            concat_blob_counts = np.concatenate([concat_blob_counts, blob_counts])
+        
+        min = np.min(concat_blob_counts)
+        max = np.max(concat_blob_counts)
+        
         # Plot
-        plt.hist(self.real_img_blob_counts, bins=np.arange(self.blob_num-4.5,self.blob_num+4.5,1), 
+        plt.hist(self.real_img_blob_counts, bins=np.arange(min-1,max+1,1), 
                     histtype='step', label='real', color=(self.real_color,0.8))
         plt.axvline(self.real_blob_num_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1)
 
 
         for i, blob_counts in enumerate(self.all_gen_img_blob_counts):
-            plt.hist(blob_counts, bins=np.arange(self.blob_num-4.5,self.blob_num+4.5,1), 
+            plt.hist(blob_counts, bins=np.arange(min-1,max+1,1),
                     histtype='step', label=f'epoch {self.model_epochs[i]}',
                     color=(self.gen_color,0.2+0.3*i), linewidth=set_linewidth(i, len(self.models))
                     )
