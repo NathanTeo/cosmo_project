@@ -317,7 +317,7 @@ class blobTester(testDataset):
         plt.hist(stacked_gen_img.ravel(), histtype='step', label='generated', color=(self.gen_color,0.8))
 
         # Format
-        plt.ylabel('counts')
+        plt.ylabel('image count')
         plt.xlabel('stacked pixel value')
         plt.suptitle(f"stack of {self.subset_sample_num} samples")
         plt.legend()
@@ -395,8 +395,8 @@ class blobTester(testDataset):
                     'Mean: {:.2f}'.format(self.all_gen_blob_num_mean[-1]), color=(self.gen_color,1))
 
         # Format
-        plt.ylabel('counts')
-        plt.xlabel('number of blobs')
+        plt.ylabel('image count')
+        plt.xlabel('blob count')
         plt.suptitle(f"Histogram of number of blobs, {self.subset_sample_num} samples")
         plt.legend()
         plt.tight_layout()
@@ -473,9 +473,9 @@ class blobTester(testDataset):
                     )
 
         # Format   
-        plt.ylabel('counts')
+        plt.ylabel('image count')
         plt.xlabel('total flux')
-        plt.suptitle(f"{self.subset_sample_num} samples")
+        plt.suptitle(f"Histogram of total flux, {self.subset_sample_num} samples")
         plt.legend()
         plt.tight_layout()
 
@@ -507,10 +507,11 @@ class blobTester(testDataset):
                 )
 
         # Format
-        fig.suptitle(f"2 point correlation, {self.subset_sample_num} samples")
+        fig.suptitle(f"2-point correlation, {self.subset_sample_num} samples")
         plt.xlabel('pair distance')
         plt.ylabel('2-point correlation')
         plt.tight_layout()
+        
         plt.legend(loc='lower right')
 
         # Save
@@ -557,7 +558,7 @@ class blobTester(testDataset):
                 )
 
         # Format
-        plt.ylabel('counts')
+        plt.ylabel('image count')
         plt.xlabel('pixel value')
         fig.suptitle(f"Stacked histogram of pixel values, {self.subset_sample_num} samples")
         plt.legend()
@@ -604,7 +605,7 @@ class pointTester(testDataset):
             plt.savefig(f'{self.plot_save_path}/gen-imgs_{self.model_name}_{n}.png')
             plt.close()
 
-class logsPlotter(testDataset):
+class ganLogsPlotter(testDataset):
     def __init__(self, *args):        
         if type(args[0]) is testDataset:
             self.__dict__ = args[0].__dict__.copy()
@@ -753,3 +754,7 @@ class logsPlotter(testDataset):
             self.load_data(dataModule)
             self.loss()
             self.loss_wrt_last_model(model_dict)
+
+class diffLogsPlotter(testDataset):
+    def __init__(self):
+        pass

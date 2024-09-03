@@ -94,8 +94,12 @@ elif distribution=='poisson':
     plt.savefig(f'{save_path}/sample_{file_name}')
     plt.close()
     
+    bins = np.arange(np.min(sample_counts)-1, np.max(sample_counts)+1, 1)
+    
     fig = plt.figure()
     fig.suptitle(f'num of blobs: {blob_num} | image size: {image_size} | blob size: {blob_size}')
-    plt.hist(sample_counts)
+    plt.hist(sample_counts, bins=bins)
+    plt.xlabel('blob counts')
+    plt.ylabel('image counts')
     plt.savefig(f'{save_path}/distr_{file_name}')
     plt.close()

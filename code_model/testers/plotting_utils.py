@@ -150,12 +150,12 @@ def plot_pixel_histogram(ax, imgs, color, bins=None):
     for img in imgs:
         ax.hist(img.ravel(), histtype='step', log=True, color=color, bins=bins)
     
-    ax.set_ylabel('counts')
+    ax.set_ylabel('image count')
     ax.set_xlabel('pixel value')
 
 def plot_histogram_stack(ax, hist, edges, 
                          color, linewidth=1, fill_color='r', fill=False,
-                         label=None):
+                         label=None, logscale=True):
     """
     Plots histogram from histogram data, n (value for each bar) and edges (x values of each bar).
     """
@@ -169,6 +169,9 @@ def plot_histogram_stack(ax, hist, edges,
     
     # Plot
     ax.plot(x, y, color=color, label=label, linewidth=linewidth)
+    
+    if logscale:
+        ax.set_yscale('log')
     
     # Fill colour
     if fill:
