@@ -12,94 +12,35 @@ import os
 from tqdm.auto import tqdm
 
 """Params"""
-image_size = 28
-seed = 70
-blob_size = 5
-sample_num = 50000
-blob_num = 10
-distribution = 'poisson'
-pad = 0
-noise = False
-noise_scale = 0.05
+params = {
+    'image_size': 28,
+    'seed': 70,
+    'blob_size': 5,
+    'sample_num': 50000,
+    'blob_num': 10,
+    'num_distribution': 'poisson',
+    'pad': 0,
+    'noise': 0
+}
+
 root_path = "C:/Users/Idiot/Desktop/Research/OFYP/cosmo"
-save_path = f"{root_path}/cosmo_data/{blob_num}_blob"
-file_name = f'bn{blob_num}{distribution[0]}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{seed}-ns{int(noise)}'
+save_path = f"{root_path}/cosmo_data/{params['blob_num']}_blob"
 
 import sys
 sys.path.append(f'{root_path}/cosmo_project')
 
 from code_data.utils import *
 
-"Initialize"
-# Initialize random seed
-random.seed(seed)
-
 # Create save directory
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 
-# Padding
-if pad == 'auto':
-    pad = blob_size 
-generation_matrix_size = image_size + pad*2
+"""Create dataset"""
+dataset = blobDataset(**params)
+dataset.generate()
+dataset.save(save_path)
 
-"""Create blob"""
-x, y = np.mgrid[0:generation_matrix_size:1, 0:generation_matrix_size:1]
-pos = np.dstack((x, y))
-
-# Create samples
-samples = []
-sample_counts = []
-for i in tqdm(range(sample_num)):
-    if distribution=='uniform':
-        sample = create_blob_sample(pos, generation_matrix_size, blob_num, blob_size)
-    elif distribution=='poisson':
-        current_blob_num = np.random.poisson(blob_num)
-        sample_counts.append(current_blob_num)
-        sample = create_blob_sample(pos, generation_matrix_size, current_blob_num, blob_size)
-            
-    # Add noise
-    if noise==True:
-        noise_img = np.random.normal(0, noise_scale, (image_size, image_size))
-        sample = np.add(sample, noise_img)
-        
-    # Unpad
-    pad_sample = sample
-    if pad != 0:
-        sample = sample[pad:-pad,pad:-pad]
-    
-    # Rescale
-    sample = sample/blob_num
-    
-    # Add sample to list
-    samples.append(sample)
-
-print('Completed!')
-
-# Save samples
-np.save(f'{save_path}/{file_name}', samples)
-
-"""Plots"""
-if distribution=='uniform':
-    plt.title(f'num of blobs: {blob_num} | image size: {image_size} | blob size: {blob_size}')
-    plt.imshow(sample)
-    plt.colorbar()
-    plt.savefig(f'{save_path}/sample_{file_name}')
-    plt.close()
-
-elif distribution=='poisson':
-    plt.title(f'mean num of blobs: {blob_num} | image size: {image_size} | blob size: {blob_size}')
-    plt.imshow(sample)
-    plt.colorbar()
-    plt.savefig(f'{save_path}/sample_{file_name}')
-    plt.close()
-    
-    bins = np.arange(np.min(sample_counts)-1, np.max(sample_counts)+1, 1)
-    
-    fig = plt.figure()
-    fig.suptitle(f'num of blobs: {blob_num} | image size: {image_size} | blob size: {blob_size}')
-    plt.hist(sample_counts, bins=bins)
-    plt.xlabel('blob counts')
-    plt.ylabel('image counts')
-    plt.savefig(f'{save_path}/distr_{file_name}')
-    plt.close()
+"""Plot"""
+dataset.plot_example(dataset.samples[0], save_path)
+if params['num_distribution']!='uniform':
+    dataset.plot_distribution(save_path)
