@@ -18,7 +18,11 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     dataset.prep_data(BlobDataModule, model_dict, testing_restart)
     
     # plot losses
-    logs_plotter = logsPlotter(dataset)
+    if 'GAN' in training_params['model_version']:
+        logs_plotter = ganLogsPlotter(dataset)
+    elif 'Diffusion' in training_params['model_version']:
+        logs_plotter = diffLogsPlotter(dataset)
+    
     logs_plotter.plot_logs(BlobDataModule, model_dict, testing_restart)
     
     # test dataset

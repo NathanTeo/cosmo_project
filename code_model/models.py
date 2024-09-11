@@ -17,7 +17,7 @@ import os
 import code_model.networks as networks
 from code_model.testers.plotting_utils import *
 
-class GAN_utils():
+class ganUtils():
     """
     Utilities that are useful in the GAN modules.
     Contains plotting and logging functions that are common.
@@ -132,7 +132,7 @@ class GapAwareScheduler():
         self.__dict__.update(state_dict)
         
 
-class CGAN(pl.LightningModule, GAN_utils):
+class CGAN(pl.LightningModule, ganUtils):
     """
     Pytorch Lightning module for training a GAN using JS divergence
     """
@@ -327,7 +327,7 @@ class CGAN(pl.LightningModule, GAN_utils):
         gen_imgs = self.test_output_list['gen_imgs']
         self.outputs =  np.array(gen_imgs) 
 
-class CWGAN(pl.LightningModule, GAN_utils):
+class CWGAN(pl.LightningModule, ganUtils):
     """
     Pytorch Lightning module for training a GAN using Wasserstein distance
     """
@@ -368,10 +368,12 @@ class CWGAN(pl.LightningModule, GAN_utils):
     
     # Generate Image
     def forward(self, z):
+        """Generate image if model is called"""
         return self.generator(z)
 
     # Calculate gradient penalty
     def gradient_penalty(self, discriminator, real, fake):
+        """Calculate gradient penalty"""
         batch_size, c, h, w = real.size()
         
         # Interpolate image
@@ -556,7 +558,172 @@ class CWGAN(pl.LightningModule, GAN_utils):
         
         return scores
 
+class Diffusion(pl.LightningModule):
+    def __init__(self, **training_params):
+        super().__init__()
+        
+        self.unet_version = training_params['unet_version']
+        
+        self.img_size = training_params['img_size']
+        self.input_channels = training_params['input_channels']
+        self.noise_steps = training_params['noise_steps']
+        
+        self.betas = self.cosine_schedule()
+        self.alphas = 1. - self.betas
+        self.alpha_hats = torch.cumprod(self.alphas, dim=0)
+        
+        self.network = networks.network_dict[f'UNet_v{self.unet_version}']
+        
+        self.epoch_losses = []
+    
+    def cosine_schedule(self, s=0.008):
+        """Prepares cosine scheduler for adding noise"""
+        def f(t):
+            return torch.cos((t / self.noise_steps + s) / (1 + s) * 0.5 * torch.pi) ** 2
+        x = torch.linspace(0, self.noise_steps, self.noise_steps + 1)
+        alpha_cumprod = f(x) / f(torch.tensor([0]))
+        betas = 1 - alpha_cumprod[1:] / alpha_cumprod[:-1]
+        betas = torch.clip(betas, 0.0001, 0.999)
+        return betas
+    
+    def add_noise(self, x, t):
+        """Adds gaussian noise to images"""
+        sqrt_alpha_hats = torch.sqrt(self.alpha_hats[t])[:,None,None,None]
+        sqrt_one_minus_alpha_hats = torch.sqrt(1. - self.alpha_hats[t])[:,None,None,None]
+        noise = torch.randn_like(x)
+        
+        return sqrt_alpha_hats*x + sqrt_one_minus_alpha_hats*noise, noise
+
+    def sample_timesteps(self, n):
+        """Return randomly sampled timesteps"""
+        return torch.randint(low=1, high=self.noise_steps, size=(n,))
+    
+    def sample(self, model, n):
+        """Return n sampled noised image at all timesteps"""
+        model.eval()
+        with torch.no_grad():
+            x = torch.randn((n, self.input_channels, self.img_size, self.img_size), device=self.device)
+            for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
+                t = (torch.ones(n, device=self.device)*i).long()
+                predicted_noise = model(x, t)
+                alphas = self.alpha[t][:,None,None,None]
+                alpha_hats = self.alpha_hats[t][:,None,None,None]
+                betas = self.beta[t][:,None,None,None]
+                if i>1:
+                    noise = torch.randn_like(x)
+                else:
+                    noise = torch.zeros_like(x)
+                x = 1/torch.sqrt(alphas) * (x - ((1-alphas) / (torch.sqrt(1-alpha_hats))) * predicted_noise) + torch.sqrt(betas) * noise
+        model.train()
+        x = x.clamp(-1, 1)
+        return x
+    
+    def loss_fn(gt, pred):
+        """Loss function"""
+        return torch.nn.MSELoss(gt, pred)
+        
+    def training_step(self, batch, batch_idx):
+        # Load real imgs
+        if len(batch) == 2: # if label exists eg. MNIST dataset
+            real_imgs, _ = batch
+        else:
+            real_imgs = batch
+            
+        real_imgs.requires_grad_()
+        
+        t = self.sample_timesteps(real_imgs.shape[0])
+        x_t, noise = self.add_noise(real_imgs, t)
+        predicted_noise = self.network(x_t, t)
+        loss = self.loss_fn(noise, predicted_noise)
+        
+        # Log loss
+        self.epoch_losses.append(loss)
+        
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(self.network.parameters(), lr=self.lr)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.99)
+        return [optimizer], [scheduler]
+    
+    def get_lr(self, optimizer):
+        for param_group in optimizer.param_groups:
+            return param_group['lr']
+    
+    # Method is run at the end of each training epoch
+    def on_train_epoch_end(self):
+        WORK
+        # Generate samples
+        # z = self.validation_z.type_as(self.generator.linear[0].weight)
+        # gen_sample_imgs = self(z)[:9]
+        
+        # Plot
+        self._plot_imgs(gen_sample_imgs, self.real_sample_imgs)
+        
+        # Log losses
+        self.epoch_losses = self._log_losses(self.epoch_losses)
+
+        # Log sampled images
+        grid = torchvision.utils.make_grid(gen_sample_imgs)
+        wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
+        
+        # Backup every 20 epochs
+        if ((self.current_epoch+1)%20)==0:
+            self._backup()
+    
+    def on_test_epoch_start(self):
+        self.test_output_list = {
+            'gen_imgs': []
+        }
+
+    def test_step(self, batch, batch_idx):
+        # Load real images
+        if len(batch) == 2: # if label exists eg. MNIST dataset
+            real_imgs, _ = batch
+        else:
+            real_imgs = batch
+        
+        WORK
+        # Generate images
+        z = torch.randn(real_imgs.shape[0], self.latent_dim)
+        z = z.type_as(real_imgs)
+        gen_imgs = self(z).cpu().detach().squeeze().numpy()
+        
+        self.test_output_list['gen_imgs'].extend(gen_imgs)
+
+    # Track generated output image samples
+    def on_test_epoch_end(self):
+        WORK
+        gen_imgs = self.test_output_list['gen_imgs']
+        self.outputs =  np.array(gen_imgs)
+
+    def _plot_imgs():
+        WORK
+        pass
+    
+    def _log_losses(self, losses_epoch):
+        # Log save file
+        filename = f'{self.root_path}/logs/losses.npz'
+        
+        # Logging
+        if self.current_epoch == 0:
+            epochs = [0] # Current epoch is 0
+            losses = [np.mean(losses_epoch)]
+            np.savez(filename, epochs=epochs, losses=losses)
+        else:
+            f = np.load(filename, allow_pickle=True)
+            epochs = np.append(f['epochs'], self.current_epoch)
+            losses = np.append(f['losses'], np.mean(losses_epoch))
+            np.savez(filename, epochs=epochs, losses=losses)
+        
+        return [] # For resetting epoch_losses
+    
+    def _backup(self):
+        os.system(f'rsync -a {self.root_path}/checkpoints/ {self.root_path}/backup/checkpoints --delete')
+        os.system(f'rsync -a {self.root_path}/logs/ {self.root_path}/backup/logs --delete')
+        print('\ncheckpoints and logs backed up')
+    
 model_dict = {
     'CGAN': CGAN,
-    'CWGAN': CWGAN
+    'CWGAN': CWGAN,
+    'Diffusion': Diffusion
 }
