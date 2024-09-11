@@ -628,7 +628,14 @@ class Diffusion(pl.LightningModule):
             real_imgs, _ = batch
         else:
             real_imgs = batch
-            
+ 
+        # Log real imgs
+        if batch_idx==0:
+            sample_imgs = real_imgs[:9]
+            grid = torchvision.utils.make_grid(sample_imgs)
+            wandb.log({"real_images": wandb.Image(grid, caption="real_images")})
+            self.real_sample_imgs = sample_imgs       
+           
         real_imgs.requires_grad_()
         
         t = self.sample_timesteps(real_imgs.shape[0])
@@ -651,10 +658,8 @@ class Diffusion(pl.LightningModule):
     
     # Method is run at the end of each training epoch
     def on_train_epoch_end(self):
-        WORK
         # Generate samples
-        # z = self.validation_z.type_as(self.generator.linear[0].weight)
-        # gen_sample_imgs = self(z)[:9]
+        gen_sample_imgs = self.sample(self.network, n=9)
         
         # Plot
         self._plot_imgs(gen_sample_imgs, self.real_sample_imgs)
@@ -682,23 +687,40 @@ class Diffusion(pl.LightningModule):
         else:
             real_imgs = batch
         
-        WORK
         # Generate images
-        z = torch.randn(real_imgs.shape[0], self.latent_dim)
-        z = z.type_as(real_imgs)
-        gen_imgs = self(z).cpu().detach().squeeze().numpy()
+        gen_imgs = self.sample(self.network, n=real_imgs.shape[0]).cpu().detach().squeeze().numpy()
         
         self.test_output_list['gen_imgs'].extend(gen_imgs)
 
     # Track generated output image samples
     def on_test_epoch_end(self):
-        WORK
         gen_imgs = self.test_output_list['gen_imgs']
         self.outputs =  np.array(gen_imgs)
 
-    def _plot_imgs():
-        WORK
-        pass
+    def _plot_imgs(self, real_imgs, gen_imgs):        
+        # Reshape and send sample images to cpu 
+        real_imgs = real_imgs.cpu().detach()[:,0,:,:]
+        gen_imgs = gen_imgs.cpu().detach()[:,0,:,:]
+        
+        # Plotting grid of images
+        fig = plt.figure(figsize=(8,5))
+        subfig = fig.subfigures(1, 2, wspace=0.2)
+        
+        plot_img_grid(
+            subfig[0], real_imgs, 3, 
+            title='Real Imgs', wspace=.1, hspace=.1
+            )
+        plot_img_grid(
+            subfig[1], gen_imgs, 3,
+            title='Generated Imgs', wspace=.1, hspace=.1
+            )
+        
+        fig.suptitle(f'Epoch {self.current_epoch}')
+        plt.tight_layout()
+        
+        # Save plots
+        plt.savefig(f'{self.root_path}/logs/images/image_epoch{self.current_epoch}.png')
+        plt.close('all')
     
     def _log_losses(self, losses_epoch):
         # Log save file

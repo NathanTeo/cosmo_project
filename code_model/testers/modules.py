@@ -46,14 +46,23 @@ class testDataset():
         self.max_epochs = training_params['max_epochs']
         self.avail_gpus = training_params['avail_gpus']
         
-        self.model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
-        self.model_version,
-        self.gen_version, self.dis_version,
-        self.blob_num, self.data_distribution[0], self.blob_size, "{:.0g}".format(self.real_sample_num), self.image_size,
-        self.training_seed, "{:.0g}".format(self.lr),
-        self.latent_dim, self.gen_img_w, self.gen_upsamp, self.dis_conv, self.dis_lin,
-        str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
-        )
+        if 'GAN' in self.model_version:
+            self.model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
+                self.model_version,
+                self.gen_version, self.dis_version,
+                self.blob_num, self.data_distribution[0], self.blob_size, "{:.0g}".format(self.real_sample_num), self.image_size,
+                self.training_seed, "{:.0g}".format(self.lr),
+                self.latent_dim, self.gen_img_w, self.gen_upsamp, self.dis_conv, self.dis_lin,
+                str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
+            )
+        elif 'Diffusion' in self.model_version.contains('Diffusion'):
+             self.model_name = '{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
+                self.model_version,
+                self.blob_num, self.data_distribution[0], self.blob_size, "{:.0g}".format(self.real_sample_num), self.image_size,
+                self.training_seed, "{:.0g}".format(self.lr),
+                self.latent_dim, self.gen_img_w, self.gen_upsamp, self.dis_conv, self.dis_lin,
+                str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
+            )
         self.training_params['model_name'] = self.model_name
         
         self.grid_row_num = testing_params['grid_row_num']
@@ -89,6 +98,7 @@ class testDataset():
         """Plotting style"""
         self.real_color = 'black'
         self.gen_color = 'red'
+        self.alphas = [0.2, 0.4, 1.0]
         
         """Initialize seed"""
         torch.manual_seed(self.testing_seed)
@@ -122,13 +132,15 @@ class testDataset():
         self.all_gen_imgs = []
         try:
             if not testing_restart:
-                # Use saved outputs
+                # Load saved outputs if available
                 print('Model output found')
                 for filename in self.filenames:
                     self.all_gen_imgs.append(np.load(
                         '{}/{}_{:.0g}.npy'.format(
-                            self.output_save_path, filename[:-5], self.subset_sample_num
-                            )))
+                            self.output_save_path,
+                            filename[:-5],
+                            self.subset_sample_num
+                    )))
                 print('Model output loaded')
                 return self.all_gen_imgs
             else:
@@ -138,6 +150,8 @@ class testDataset():
                 for model, filename, epoch in zip(self.models, self.filenames, self.model_epochs):
                     print(f'generating images, epoch {epoch}')
                     trainer.test(model, self.data)
+                    
+                    # Add outputs to list
                     self.all_gen_imgs.append(model.outputs)
                 
                     # Save outputs
@@ -153,6 +167,8 @@ class testDataset():
             for model, filename, epoch in zip(self.models, self.filenames, self.model_epochs):
                 print(f'generating images, epoch {epoch}')
                 trainer.test(model, self.data)
+                
+                # Add outputs to list
                 self.all_gen_imgs.append(model.outputs)
             
                 # Save outputs
@@ -388,11 +404,10 @@ class blobTester(testDataset):
                     histtype='step', label='real', color=(self.real_color,0.8))
         plt.axvline(self.real_blob_num_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1)
 
-
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
             plt.hist(blob_counts, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}',
-                    color=(self.gen_color,0.2+0.3*i), linewidth=set_linewidth(i, len(self.models))
+                    color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models))
                     )
 
         plt.axvline(self.all_gen_blob_num_mean[-1], color=(self.gen_color,0.5), linestyle='dashed', linewidth=1) # Only label mean for last model
@@ -478,7 +493,7 @@ class blobTester(testDataset):
         for i, fluxes in enumerate(all_gen_img_fluxes):
             plt.hist(fluxes, 
                     histtype='step', label=f'epoch {self.model_epochs[i]}', 
-                    color=(self.gen_color,0.2+0.3*i), linewidth=set_linewidth(i, len(self.models))
+                    color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models))
                     )
 
         # Format   
@@ -512,7 +527,7 @@ class blobTester(testDataset):
         for i, corrs in enumerate(all_gen_corrs):
             plot_histogram_stack(
                 ax, corrs, edges,
-                color=(self.gen_color,0.2+0.3*i), linewidth=set_linewidth(i, len(self.models)), 
+                color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models)), 
                 label=f'epoch {self.model_epochs[i]}', logscale=False
                 )
 
@@ -564,7 +579,7 @@ class blobTester(testDataset):
         for i, hist_stack in enumerate(all_gen_hist_stack):
             plot_histogram_stack(
                 ax, *hist_stack,
-                color=(self.gen_color,0.2+0.3*i), linewidth=set_linewidth(i, len(self.models)),
+                color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models)),
                 label=f'epoch {self.model_epochs[i]}'
                 )
 
@@ -772,5 +787,29 @@ class ganLogsPlotter(testDataset):
             self.loss_wrt_last_model(model_dict)
 
 class diffLogsPlotter(testDataset):
-    def __init__(self):
-        pass
+    def __init__(self, *args):        
+        if type(args[0]) is testDataset:
+            self.__dict__ = args[0].__dict__.copy()
+        else:
+            super().__init__(*args)   
+    
+    def loss(self):
+        """Logged losses"""
+        # Load loss
+        losses = self.losses['losses']
+        epochs = self.losses['epochs']
+
+        # Plot
+        fig, ax = plt.subplots()
+
+        ax.plot(epochs, losses, color='C0', linewidth=0.7)
+
+        # Format
+        ax.set_xlabel('epochs')
+        ax.set_ylabel('loss')
+
+        fig.tight_layout()
+
+        # Save plot
+        plt.savefig(f'{self.plot_save_path}/losses_{self.model_name}.png')
+        plt.close()

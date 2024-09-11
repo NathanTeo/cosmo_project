@@ -75,10 +75,7 @@ def generate_random_coords(image_size, n):
     """
     Generate n number of random 2D coordinates within the range of the image size
     """
-    coords = []
-    for _ in range(n):
-        coords.append([random.randint(0, image_size-1), random.randint(0, image_size-1)])
-    return np.array(coords)
+    return np.random.rand(n, 2)*image_size
 
 def find_pair_distances(sample_1, sample_2):
     """
@@ -135,6 +132,7 @@ def stack_two_point_correlation(point_coords, image_size, bins=10, rel_random_n=
     
     for sample in tqdm(point_coords, disable=not progress_bar):
         sample = np.array(sample)
+        random_sample_size = len(sample)*rel_random_n + 1 # +1 to prevent 0 case
         random_sample = generate_random_coords(image_size, len(sample)*rel_random_n)
         
         # Calculate distances
