@@ -388,11 +388,10 @@ class blobTester(testDataset):
                     histtype='step', label='real', color=(self.real_color,0.8))
         plt.axvline(self.real_blob_num_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1)
 
-
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
             plt.hist(blob_counts, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}',
-                    color=(self.gen_color,0.2+0.3*i), linewidth=set_linewidth(i, len(self.models))
+                    color=(self.gen_color,0.2+0.4*i), linewidth=set_linewidth(i, len(self.models))
                     )
 
         plt.axvline(self.all_gen_blob_num_mean[-1], color=(self.gen_color,0.5), linestyle='dashed', linewidth=1) # Only label mean for last model
