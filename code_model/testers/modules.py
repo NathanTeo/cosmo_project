@@ -185,6 +185,8 @@ class blobTester(testDataset):
             self.__dict__ = args[0].__dict__.copy()
         else:
             super().__init__(*args)
+        
+        self.blob_amplitude = 1/self.blob_num
     
     def images(self):
         """Plot generated images - grid of images, marginal sums, blob coordinates"""
@@ -222,61 +224,22 @@ class blobTester(testDataset):
             # Save plot
             plt.savefig(f'{self.plot_save_path}/marg-sums_{n}_{self.model_name}.png')
             plt.close()
+           
+            # Fitting blobs
+            counter = blobCounter(blob_size=self.blob_size, blob_amplitude=self.blob_amplitude)
             
-            """# Peak detection
-            real_peaks_coords, real_peak_nums, real_peak_vals = imgs_peak_finder(
-                real_imgs_subset, 
-                min_distance=min_distance, threshold_abs=threshold_abs,
-                filter_sd=filter_sd,
-                progress_bar=False
-                )
-            gen_peaks_coords, gen_peak_nums, gen_peak_vals = imgs_peak_finder(
-                gen_imgs_subset, 
-                min_distance=min_distance, threshold_abs=threshold_abs,
-                filter_sd=filter_sd,
-                progress_bar=False
-                )
+            counter.load_samples(real_imgs_subset)
+            real_blob_coords, real_blob_counts = counter.count(progress_bar=False)
             
-            real_indv_peak_counts, real_img_blob_counts = count_blobs(real_peak_vals, generation_params['blob_num'])
-            gen_indv_peak_counts, gen_img_blob_counts = count_blobs(gen_peak_vals, generation_params['blob_num'])
+            counter.load_samples(gen_imgs_subset)
+            gen_blob_coords, gen_img_blob_counts = counter.count(progress_bar=False)
 
             fig = plt.figure(figsize=(6,3))
             subfig = fig.subfigures(1, 2, wspace=0.2)
             
-            plot_peak_grid(subfig[0], real_imgs_subset, real_peaks_coords, real_indv_peak_counts, grid_row_num, 
-                            title='real imgaes', subplot_titles=real_peak_nums)
-            plot_peak_grid(subfig[1], gen_imgs_subset, gen_peaks_coords, gen_indv_peak_counts, grid_row_num, 
-                            title='generated imgaes', subplot_titles=gen_peak_nums)
-            
-            fig.text(.5, .03, 'number of peaks labelled above image', ha='center')
-            
-            # Save plot
-            plt.savefig(f'{plot_save_path}/peak-imgs_{n}_{model_name}.png')
-            plt.close()"""
-            
-            # Gaussian elimination and blob counting
-            real_blob_coords, real_blob_nums, real_peak_vals = imgs_blob_finder(
-                real_imgs_subset, 
-                blob_size=self.blob_size, min_peak_threshold=(1/self.blob_num)*self.blob_threshold_rel,
-                filter_sd=self.filter_sd,
-                progress_bar=False
-                )
-            gen_blob_coords, gen_blob_nums, gen_peak_vals = imgs_blob_finder(
-                gen_imgs_subset, 
-                blob_size=self.blob_size, min_peak_threshold=(1/self.blob_num)*self.blob_threshold_rel,
-                filter_sd=self.filter_sd,
-                progress_bar=False
-                )
-            
-            real_indv_peak_counts, real_img_blob_counts = count_blobs(real_peak_vals, self.blob_num)
-            gen_indv_peak_counts, gen_img_blob_counts = count_blobs(gen_peak_vals, self.blob_num)
-
-            fig = plt.figure(figsize=(6,3))
-            subfig = fig.subfigures(1, 2, wspace=0.2)
-            
-            plot_peak_grid(subfig[0], real_imgs_subset, real_blob_coords, real_indv_peak_counts, self.grid_row_num, 
-                            title='real imgaes', subplot_titles=real_img_blob_counts)
-            plot_peak_grid(subfig[1], gen_imgs_subset, gen_blob_coords, gen_indv_peak_counts, self.grid_row_num, 
+            plot_peak_grid(subfig[0], real_imgs_subset, real_blob_coords, self.grid_row_num, 
+                            title='real imgaes', subplot_titles=real_blob_counts)
+            plot_peak_grid(subfig[1], gen_imgs_subset, gen_blob_coords, self.grid_row_num, 
                             title='generated imgaes', subplot_titles=gen_img_blob_counts)
             
             fig.text(.5, .03, 'number of blobs labelled above image', ha='center')
@@ -327,8 +290,8 @@ class blobTester(testDataset):
         plt.savefig(f'{self.plot_save_path}/stack-histogram-img_{self.model_name}.png')
         plt.close()
 
-    def count_blobs(self):
-        """Count blobs"""
+    def count_blobs_fast(self):
+        """Count blobs only using gaussian decomp"""
         print('counting blobs...')
 
         # Real
@@ -338,7 +301,7 @@ class blobTester(testDataset):
             filter_sd=self.filter_sd,
             progress_bar=True
             )
-        self.real_indv_peak_counts, self.real_img_blob_counts = count_blobs(self.real_peak_vals, self.blob_num)
+        self.real_indv_peak_counts, self.real_blob_counts = count_blobs_from_peaks(self.real_peak_vals, self.blob_num)
 
         # Generated
         self.all_gen_blob_coords, self.all_gen_blob_nums, self.all_gen_peak_vals = map(
@@ -351,15 +314,59 @@ class blobTester(testDataset):
             )
         
         # Count
-        self.all_gen_indv_peak_counts, self.all_gen_img_blob_counts = map(
-            list, zip(*[count_blobs(peak_vals, self.blob_num) for peak_vals in self.all_gen_peak_vals]))
+        self.all_gen_indv_peak_counts, self.all_gen_blob_counts = map(
+            list, zip(*[count_blobs_from_peaks(peak_vals, self.blob_num) for peak_vals in self.all_gen_peak_vals]))
 
         # Find mean number of blobs
-        self.real_blob_num_mean = np.mean(self.real_img_blob_counts)
-        self.all_gen_blob_num_mean = [np.mean(blob_counts) for blob_counts in self.all_gen_img_blob_counts]
+        self.real_blob_num_mean = np.mean(self.real_blob_counts)
+        self.all_gen_blob_num_mean = [np.mean(blob_counts) for blob_counts in self.all_gen_blob_counts]
         print(f'mean number of real peaks: {self.real_blob_num_mean}')
         print(f'mean number of generated peaks: {self.all_gen_blob_num_mean[-1]}')
 
+    def count_blobs(self):
+        """Count blobs by fitting"""
+        print('counting blobs...')
+        
+        # Initialize counter
+        counter = blobCounter(blob_size=self.blob_size, blob_amplitude=self.blob_amplitude)
+        
+        # Count blobs for real images
+        counter.load_samples(self.real_imgs_subset)
+        self.real_blob_coords, self.real_blob_counts = counter.count()
+
+        # Count blobs for generated images
+        self.all_gen_blob_coords, self.all_gen_blob_counts = [], []
+        for subset in self.all_gen_imgs_subset:
+            counter.load_samples(subset)
+            coords, counts = counter.count()       
+            self.all_gen_blob_coords.append(coords)
+            self.all_gen_blob_counts.append(counts)
+        
+        # Find mean
+        self.real_blob_num_mean = np.mean(self.real_blob_counts)
+        self.all_gen_blob_num_mean = [np.mean(counts) for counts in self.all_gen_blob_counts]
+    
+    def save_counts(self):
+        """Save counts"""
+        np.savez('{}/counts.npz'.format(self.output_save_path), 
+                 gen_counts = self.all_gen_blob_counts,
+                 gen_coords = np.array(self.all_gen_blob_coords, dtype=object),
+                 real_counts = self.real_blob_counts,
+                 real_coords = np.array(self.real_blob_coords, dtype=object)
+        )
+        
+    def load_counts(self):
+        """Load counts"""
+        file = np.load('{}/counts.npz'.format(self.output_save_path), allow_pickle=True)
+        
+        self.all_gen_blob_counts = file['gen_counts']
+        self.all_gen_blob_coords = file['gen_coords'].tolist()
+        self.real_blob_counts = file['real_counts']
+        self.real_blob_coords = file['real_coords'].tolist()
+        
+        self.real_blob_num_mean = np.mean(self.real_blob_counts)
+        self.all_gen_blob_num_mean = [np.mean(counts) for counts in self.all_gen_blob_counts] 
+     
     def blob_num_stats(self):
         """Number of blob analysis"""
         'Histogram'
@@ -367,21 +374,23 @@ class blobTester(testDataset):
         fig = plt.figure()
 
         # Bins for histogram
-        concat_blob_counts = self.real_img_blob_counts
-        for blob_counts in self.all_gen_img_blob_counts: 
+        concat_blob_counts = self.real_blob_counts
+        for blob_counts in self.all_gen_blob_counts: 
             concat_blob_counts = np.concatenate([concat_blob_counts, blob_counts])
         
         min = np.min(concat_blob_counts)
         max = np.max(concat_blob_counts)
         
-        # Plot
-        plt.hist(self.real_img_blob_counts, bins=np.arange(min-1,max+1,1), 
+        bins = np.arange(min-1.5, max+1.5,1)
+        
+        # Plot histogram
+        plt.hist(self.real_blob_counts, bins=bins, 
                     histtype='step', label='real', color=(self.real_color,0.8))
         plt.axvline(self.real_blob_num_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1)
 
 
-        for i, blob_counts in enumerate(self.all_gen_img_blob_counts):
-            plt.hist(blob_counts, bins=np.arange(min-1,max+1,1),
+        for i, blob_counts in enumerate(self.all_gen_blob_counts):
+            plt.hist(blob_counts, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}',
                     color=(self.gen_color,0.2+0.3*i), linewidth=set_linewidth(i, len(self.models))
                     )
@@ -413,12 +422,12 @@ class blobTester(testDataset):
         # Plot
         plot_extremum_num_blobs(
             subfig[0], self.real_imgs_subset,
-            self.real_blob_coords, self.real_indv_peak_counts, self.real_img_blob_counts,
+            self.real_blob_coords, self.real_blob_counts,
             extremum='min', title='real'
             )
         plot_extremum_num_blobs(
             subfig[1], self.all_gen_imgs_subset[-1],
-            self.all_gen_blob_coords[-1], self.all_gen_indv_peak_counts[-1], self.all_gen_img_blob_counts[-1],
+            self.all_gen_blob_coords[-1], self.all_gen_blob_counts[-1],
             extremum='min', title='generated'
             )  # Only perform for last model
 
@@ -437,12 +446,12 @@ class blobTester(testDataset):
         # Plot
         plot_extremum_num_blobs(
             subfig[0], self.real_imgs_subset,
-            self.real_blob_coords, self.real_indv_peak_counts, self.real_img_blob_counts,
+            self.real_blob_coords, self.real_blob_counts,
             extremum='max', title='real'
             )
         plot_extremum_num_blobs(
             subfig[1], self.all_gen_imgs_subset[-1],
-            self.all_gen_blob_coords[-1], self.all_gen_indv_peak_counts[-1], self.all_gen_img_blob_counts[-1],
+            self.all_gen_blob_coords[-1], self.all_gen_blob_counts[-1],
             extremum='max', title='generated'
             )  
 
@@ -497,16 +506,18 @@ class blobTester(testDataset):
         fig, ax = plt.subplots()
 
         # Plot
-        plot_histogram_stack(ax, real_corrs, edges, color=(self.real_color,0.8), label='real')
-
+        plot_histogram_stack(ax, real_corrs, edges, color=(self.real_color,0.8), label='real', logscale=False)
+        
+            
         for i, corrs in enumerate(all_gen_corrs):
             plot_histogram_stack(
                 ax, corrs, edges,
                 color=(self.gen_color,0.2+0.3*i), linewidth=set_linewidth(i, len(self.models)), 
-                label=f'epoch {self.model_epochs[i]}'
+                label=f'epoch {self.model_epochs[i]}', logscale=False
                 )
 
         # Format
+        ax.set_ylim(-1, 1)
         fig.suptitle(f"2-point correlation, {self.subset_sample_num} samples")
         plt.xlabel('pair distance')
         plt.ylabel('2-point correlation')
@@ -572,7 +583,12 @@ class blobTester(testDataset):
         """Run all testing methods"""
         self.images()
         self.stack()
-        self.count_blobs()
+        if os.path.exists(f'{self.output_save_path}/counts.npz'):
+            print('previous counts found, loading counts...')
+            self.load_counts()
+        else:
+            self.count_blobs()
+            self.save_counts()
         self.blob_num_stats()
         self.two_point_correlation()
         self.pixel_stats()
