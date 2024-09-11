@@ -568,11 +568,13 @@ class Diffusion(pl.LightningModule):
         self.input_channels = training_params['input_channels']
         self.noise_steps = training_params['noise_steps']
         
+        self.scheduler_params = training_params['scheduler_params']
+        
         self.betas = self.cosine_schedule()
         self.alphas = 1. - self.betas
         self.alpha_hats = torch.cumprod(self.alphas, dim=0)
         
-        self.network = networks.network_dict[f'UNet_v{self.unet_version}']
+        self.network = networks.network_dict[f'UNet_v{self.unet_version}'](**training_params)
         
         self.epoch_losses = []
     
@@ -646,10 +648,9 @@ class Diffusion(pl.LightningModule):
         # Log loss
         self.epoch_losses.append(loss)
         
-
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.network.parameters(), lr=self.lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.99)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, *self.scheduler_params)
         return [optimizer], [scheduler]
     
     def get_lr(self, optimizer):

@@ -69,10 +69,7 @@ class testDataset():
         self.plot_num = testing_params['plot_num']
         self.subset_sample_num = testing_params['subset_sample_num']
         self.loss_zoom_bounds = testing_params['loss_zoom_bounds']
-        self.min_distance = testing_params['peak_min_distance']
-        self.threshold_abs = testing_params['peak_threshold_abs']
-        self.filter_sd = testing_params['peak_filter_sd']
-        self.blob_threshold_rel = testing_params['blob_threshold_rel']
+        self.counting_params = testing_params['counting_params']
         self.testing_seed = testing_params['seed']
         
         """Paths"""
@@ -309,12 +306,14 @@ class blobTester(testDataset):
     def count_blobs_fast(self):
         """Count blobs only using gaussian decomp"""
         print('counting blobs...')
+        filter_sd = self.counting_params[0]
+        blob_threshold_rel = self.counting_params[1]
 
         # Real
         self.real_blob_coords, self.real_blob_nums, self.real_peak_vals = imgs_blob_finder(
             self.real_imgs_subset, 
-            blob_size=self.blob_size, min_peak_threshold=(1/self.blob_num)*self.blob_threshold_rel,
-            filter_sd=self.filter_sd,
+            blob_size=self.blob_size, min_peak_threshold=(1/self.blob_num)*blob_threshold_rel,
+            filter_sd=filter_sd,
             progress_bar=True
             )
         self.real_indv_peak_counts, self.real_blob_counts = count_blobs_from_peaks(self.real_peak_vals, self.blob_num)
@@ -323,8 +322,8 @@ class blobTester(testDataset):
         self.all_gen_blob_coords, self.all_gen_blob_nums, self.all_gen_peak_vals = map(
             list, zip(*[imgs_blob_finder(
                 subset, 
-                blob_size=self.blob_size, min_peak_threshold=(1/self.blob_num)*self.blob_threshold_rel,
-                filter_sd=self.filter_sd,
+                blob_size=self.blob_size, min_peak_threshold=(1/self.blob_num)*blob_threshold_rel,
+                filter_sd=filter_sd,
                 progress_bar=True
                 ) for subset in self.all_gen_imgs_subset])
             )
