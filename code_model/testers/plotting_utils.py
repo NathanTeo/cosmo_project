@@ -157,7 +157,7 @@ def plot_pixel_histogram(ax, imgs, color, bins=None):
     ax.set_xlabel('pixel value')
 
 def plot_histogram_stack(ax, hist, edges, 
-                         color, linewidth=1, fill_color='r', fill=False,
+                         color, linewidth=1, fill_color=None,
                          label=None, logscale=True):
     """
     Plots histogram from histogram data, n (value for each bar) and edges (x values of each bar).
@@ -177,7 +177,7 @@ def plot_histogram_stack(ax, hist, edges,
         ax.set_yscale('log')
     
     # Fill colour
-    if fill:
+    if fill_color is not None:
         ax.fill_between(x, 0, y, color=fill_color)
         
 def set_linewidth(current_iter, total_iter, minor=0.3, major=1.2):

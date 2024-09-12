@@ -95,7 +95,7 @@ class testDataset():
         """Plotting style"""
         self.real_color = 'black'
         self.gen_color = 'red'
-        self.alphas = [0.2, 0.4, 1.0]
+        self.alphas = [0.1, 0.3, 0.5]
         
         """Initialize seed"""
         torch.manual_seed(self.testing_seed)
@@ -406,7 +406,8 @@ class blobTester(testDataset):
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
             plt.hist(blob_counts, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}',
-                    color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models))
+                    color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                    fill=True
                     )
 
         plt.axvline(self.all_gen_blob_num_mean[-1], color=(self.gen_color,0.5), linestyle='dashed', linewidth=1) # Only label mean for last model
@@ -492,7 +493,8 @@ class blobTester(testDataset):
         for i, fluxes in enumerate(all_gen_img_fluxes):
             plt.hist(fluxes, 
                     histtype='step', label=f'epoch {self.model_epochs[i]}', 
-                    color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models))
+                    color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                    fill=True
                     )
 
         # Format   
@@ -579,6 +581,7 @@ class blobTester(testDataset):
             plot_histogram_stack(
                 ax, *hist_stack,
                 color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                fill_color=(self.gen_color,self.alphas[i]),
                 label=f'epoch {self.model_epochs[i]}'
                 )
 
