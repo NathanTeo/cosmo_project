@@ -48,7 +48,7 @@ class blobDataset():
         for i in tqdm(range(self.sample_num)):
             if self.num_distribution=='uniform':
                 # Create sample
-                centers = np.random.rand(self.blob_num,2)*self.generation_matrix_size
+                centers = np.random.rand(self.blob_num,2)*self.generation_matrix_size - 0.5
                 sample = self.create_blobs(centers)
             elif self.num_distribution=='poisson':
                 # Get number of blobs from poisson distribution
@@ -59,7 +59,7 @@ class blobDataset():
                 if current_blob_num==0:
                     sample = np.zeros((28,28))
                 else:
-                    centers = np.random.rand(current_blob_num,2)*self.generation_matrix_size
+                    centers = np.random.rand(current_blob_num,2)*self.generation_matrix_size - 0.5
                     sample = self.create_blobs(centers)
                     
             # Add noise

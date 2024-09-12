@@ -75,7 +75,7 @@ def generate_random_coords(image_size, n):
     """
     Generate n number of random 2D coordinates within the range of the image size
     """
-    return np.random.rand(n, 2)*image_size
+    return np.random.rand(n, 2)*image_size-0.5
 
 def find_pair_distances(sample_1, sample_2):
     """
@@ -416,7 +416,7 @@ class blobCounter():
                 coords = self._jitter(coords)
                 guess.extend(coords)
 
-        guess = np.array(guess).clip(0, 27)
+        guess = np.array(guess).clip(-0.5, self.image_size-0.5)
 
         return guess
 
@@ -464,17 +464,12 @@ class blobCounter():
             guess_transfm = np.concatenate(list(zip(*guess)))
 
             # Contraints and bounds
-            cons = []
-            def make_con(i):
-                def con(x):
-                    return x[i+1] - x[i]
-                return con
+            n = len(guess)
+            D = np.eye(n) - np.eye(n, k=-1)
+            cons = [{'type': 'ineq', 'fun': lambda x: D @ x[:n]}] 
+
+            bnds = np.array([(-0.5, self.image_size-0.5) for _ in guess_transfm])
             
-            for i in range(len(guess)-1):
-                cons.append({'type': 'ineq', 'fun': make_con(i)})
-
-            bnds = np.array([(0, 27) for _ in guess_transfm])
-
             # Minimize
             result = minimize(fit_objective, guess_transfm, args=(sample),
                             method=method, bounds=bnds, constraints=cons)
