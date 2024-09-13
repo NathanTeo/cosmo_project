@@ -5,20 +5,16 @@ This script generates and saves real samples for the GAN.
 The samples are saved in a single .npy file along with a single sample plot.
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-import random
 import os
-from tqdm.auto import tqdm
 
 """Params"""
 params = {
-    'image_size': 28,
+    'image_size': 32,
     'seed': 70,
     'blob_size': 5,
-    'sample_num': 50000,
+    'sample_num': 5000,
     'blob_num': 10,
-    'num_distribution': 'poisson',
+    'num_distribution': 'uniform',
     'pad': 0,
     'noise': 0
 }
