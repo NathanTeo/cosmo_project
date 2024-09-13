@@ -491,8 +491,8 @@ class blobTester(testDataset):
         'Total flux histogram'
         # Find flux
         print("calculating total flux...")
-        real_img_fluxes = find_total_fluxes(self.real_imgs_subset, progress_bar=True)
-        all_gen_img_fluxes = [find_total_fluxes(subset, progress_bar=True) for subset in self.all_gen_imgs_subset]
+        real_img_fluxes = find_total_fluxes(self.real_imgs_subset)
+        all_gen_img_fluxes = [find_total_fluxes(subset) for subset in self.all_gen_imgs_subset]
 
         # Create figure
         fig = plt.figure()

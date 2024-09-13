@@ -15,6 +15,8 @@ import time
 import concurrent.futures
 from scipy.optimize import minimize
 
+"""Ungrouped"""
+
 def marginal_sums(img):
     """
     Calculate marginal sums along x and y for sample images 
@@ -64,6 +66,18 @@ def normalize_2d(matrix):
     Normalized entire matrix to minimum and maximum of the matrix
     """
     return (matrix-np.min(matrix))/(np.max(matrix)-np.min(matrix))
+
+def find_total_fluxes(samples):
+    """Returns an array of total image flux for an array of image samples"""
+    samples = samples.reshape(samples.shape[0], -1)
+    return np.sum(samples, axis=1)
+
+def fourier_transform(samples, progress_bar=False):
+    """Performs a 2d FFT on the image"""
+    return [np.fft.fft2(sample) for sample in tqdm(samples, disable=not progress_bar)]
+
+
+"""2- point correlation"""
 
 def euclidean_dist(coord_1, coord_2):
     """
@@ -152,15 +166,10 @@ def stack_two_point_correlation(point_coords, image_size, bins=10, rel_random_n=
     
     return corr, edges
 
-def find_total_fluxes(samples, progress_bar=False):
-    """Returns an array of total image flux for an array of image samples"""
-    fluxes = []
-    for sample in tqdm(samples, disable=not progress_bar):
-        fluxes.append(sample.sum())
-    
-    return fluxes
 
-"""Depreciated"""
+
+"""Counting"""
+
 def create_circular_mask(h, w, center, radius=None):
     """
     Creates a circular mask on an image of size (h,w) at a specified coordinate
@@ -173,58 +182,6 @@ def create_circular_mask(h, w, center, radius=None):
 
     mask = dist_from_center <= radius
     return mask
-
-def find_local_peaks(img, min_distance=1, threshold_abs=0):
-    """
-    Returns coordinates of all local peaks of an image.
-    Minimum distance between peaks (size of mask) and absolute minimum threshold can be specified
-    """
-    # Create a temporary padded image so that mask can be iterated through each point
-    temp_canvas = np.pad(img, (min_distance,min_distance), mode='constant', constant_values=(0,0))
-    
-    # Find local peak coordinates
-    img_peak_coords = []
-    for i in range(img.shape[0]):
-        for j in range(img.shape[1]):
-            # Mask image to only find maximum of local region
-            mask = create_circular_mask(
-                temp_canvas.shape[1], temp_canvas.shape[0],
-                (j+min_distance,i+min_distance),
-                radius = min_distance
-                )
-            masked_canvas = temp_canvas.copy()
-            masked_canvas[~mask] = 0
-
-            # Coordinates of local maxima
-            canvas_peak_coord = np.unravel_index(masked_canvas.argmax(), masked_canvas.shape)
-            
-            # Record coordinates if the local maxima is the center of the mask and above absolute threshold
-            if canvas_peak_coord==(i+min_distance, j+min_distance):
-                if masked_canvas[canvas_peak_coord[0], canvas_peak_coord[1]]>=threshold_abs:
-                    img_peak_coords.append([coord-min_distance for coord in canvas_peak_coord])
-    
-    return np.array(img_peak_coords)
-
-def imgs_peak_finder(imgs, min_distance=3, threshold_abs=0.05, filter_sd = None, progress_bar=True):
-    """
-    Return coordinates of peaks for an array of images
-    """
-    peak_coords = []
-    peak_nums = []
-    peak_vals = []
-    
-    for img in tqdm(imgs, disable=(not progress_bar)):
-        # Smooth image to remove noise
-        if filter_sd is not None:    
-            img = gaussian_filter(img, filter_sd, mode='nearest')
-        
-        # Find and record peaks
-        img_peak_coords = find_local_peaks(img, min_distance=min_distance, threshold_abs=threshold_abs)
-        peak_coords.append(img_peak_coords)
-        peak_nums.append(len(img_peak_coords))
-        peak_vals.append([img[coord[0],coord[1]] for coord in img_peak_coords])
-        
-    return peak_coords, peak_nums, peak_vals
 
 def gaussian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=20):
     """Gaussian decomposition on a single image for blob counting and blob coordinates"""
@@ -633,3 +590,59 @@ class blobCounter():
         plt.title(f'{count} blobs counted')
         plt.show()
         plt.close()
+        
+
+
+"""Depreciated"""
+
+def find_local_peaks(img, min_distance=1, threshold_abs=0):
+    """
+    Returns coordinates of all local peaks of an image.
+    Minimum distance between peaks (size of mask) and absolute minimum threshold can be specified
+    """
+    # Create a temporary padded image so that mask can be iterated through each point
+    temp_canvas = np.pad(img, (min_distance,min_distance), mode='constant', constant_values=(0,0))
+    
+    # Find local peak coordinates
+    img_peak_coords = []
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
+            # Mask image to only find maximum of local region
+            mask = create_circular_mask(
+                temp_canvas.shape[1], temp_canvas.shape[0],
+                (j+min_distance,i+min_distance),
+                radius = min_distance
+                )
+            masked_canvas = temp_canvas.copy()
+            masked_canvas[~mask] = 0
+
+            # Coordinates of local maxima
+            canvas_peak_coord = np.unravel_index(masked_canvas.argmax(), masked_canvas.shape)
+            
+            # Record coordinates if the local maxima is the center of the mask and above absolute threshold
+            if canvas_peak_coord==(i+min_distance, j+min_distance):
+                if masked_canvas[canvas_peak_coord[0], canvas_peak_coord[1]]>=threshold_abs:
+                    img_peak_coords.append([coord-min_distance for coord in canvas_peak_coord])
+    
+    return np.array(img_peak_coords)
+
+def imgs_peak_finder(imgs, min_distance=3, threshold_abs=0.05, filter_sd = None, progress_bar=True):
+    """
+    Return coordinates of peaks for an array of images
+    """
+    peak_coords = []
+    peak_nums = []
+    peak_vals = []
+    
+    for img in tqdm(imgs, disable=(not progress_bar)):
+        # Smooth image to remove noise
+        if filter_sd is not None:    
+            img = gaussian_filter(img, filter_sd, mode='nearest')
+        
+        # Find and record peaks
+        img_peak_coords = find_local_peaks(img, min_distance=min_distance, threshold_abs=threshold_abs)
+        peak_coords.append(img_peak_coords)
+        peak_nums.append(len(img_peak_coords))
+        peak_vals.append([img[coord[0],coord[1]] for coord in img_peak_coords])
+        
+    return peak_coords, peak_nums, peak_vals
