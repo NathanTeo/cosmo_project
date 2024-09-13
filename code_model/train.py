@@ -17,8 +17,7 @@ from code_model.data_modules import *
 def run_training(training_params, generation_params, training_restart=False):
         """Initialize Params"""
         model_version = training_params['model_version']
-        gen_version = training_params['generator_version']
-        dis_version = training_params['discriminator_version']
+
         training_seed = training_params['random_seed']
         lr = training_params['lr']
 
@@ -30,27 +29,49 @@ def run_training(training_params, generation_params, training_restart=False):
         image_size = training_params['image_size']
         gen_noise = generation_params['noise']
 
-        latent_dim = training_params['latent_dim']
-        gen_img_w = training_params['generator_img_w']
-        gen_upsamp = training_params['generator_upsamp_size']
-        dis_conv = training_params['discriminator_conv_size']
-        dis_lin = training_params['discriminator_linear_size']
+        network_params = training_params['network_params']
         training_noise = training_params['noise']
-
         batch_size = training_params['batch_size']
         num_workers = training_params['num_workers']
         max_epochs = training_params['max_epochs']
         avail_gpus = training_params['avail_gpus']
 
-        model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
-        model_version,
-        gen_version, dis_version,
-        blob_num, data_distribution[0], blob_size, "{:.0g}".format(sample_num), image_size,
-        training_seed, "{:.0g}".format(lr),
-        latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
-        str(training_noise[1])[2:] if training_noise is not None else '_'
-        )
+
+        if 'GAN' in model_version:
+                gen_version = training_params['generator_version']
+                dis_version = training_params['discriminator_version']
+                
+                latent_dim = network_params['latent_dim']
+                gen_img_w = network_params['generator_img_w']
+                gen_upsamp = network_params['generator_upsamp_size']
+                dis_conv = network_params['discriminator_conv_size']
+                dis_lin = network_params['discriminator_linear_size']
         
+                model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
+                model_version,
+                gen_version, dis_version,
+                blob_num, data_distribution[0], blob_size, "{:.0g}".format(sample_num), image_size,
+                training_seed, "{:.0g}".format(lr),
+                latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
+                str(training_noise[1])[2:] if training_noise is not None else '_'
+                )
+        elif 'Diffusion' in model_version:
+                unet_version = training_params['unet_version']
+                
+                noise_steps = ['noise_steps']
+                time_dim = ['time_dim']
+                initial_size = ['ininial_size']
+        
+                model_name = '{}-n{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-st{}-td{}-sz{}-ns{}'.format(
+                model_version,
+                unet_version,
+                blob_num, data_distribution[0], blob_size, "{:.0g}".format(sample_num), image_size,
+                training_seed, "{:.0g}".format(lr),
+                noise_steps, time_dim, initial_size, 
+                str(training_noise[1])[2:] if training_noise is not None else '_'
+                )
+                
+                
         """Paths"""
         root_path = training_params['root_path']
         data_path = 'data'
@@ -64,6 +85,8 @@ def run_training(training_params, generation_params, training_restart=False):
                 os.system(f'rm -r /{root_path}/checkpoints')
         if not os.path.exists(f'{root_path}/logs'):
                 os.makedirs(f'{root_path}/logs/images')
+        if not os.path.exists(f'{root_path}/checkpoints'):
+                os.makedirs(f'{root_path}/checkpoints')
         
         # Folder for backup
         if not os.path.exists(f'{root_path}/backup'):

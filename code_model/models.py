@@ -141,7 +141,7 @@ class CGAN(pl.LightningModule, ganUtils):
         self.automatic_optimization = False
         
         # Initialize params
-        self.latent_dim = training_params['latent_dim']
+        self.latent_dim = training_params['network_params']['latent_dim']
         self.lr = training_params['lr']
         self.root_path = training_params['root_path']
         self.epoch_start_g_train = training_params['epoch_start_g_train']
@@ -165,7 +165,7 @@ class CGAN(pl.LightningModule, ganUtils):
         self.discriminator = networks.network_dict[f'dis_v{dis_version}'](**training_params)
 
         # Random noise
-        self.validation_z = torch.randn(9, training_params['latent_dim'])
+        self.validation_z = torch.randn(9, self.latent_dim)
         
         # initialize d_loss estimate with ideal V 
         self.d_loss_est = np.log10(4)
@@ -336,7 +336,7 @@ class CWGAN(pl.LightningModule, ganUtils):
         self.automatic_optimization = False
         
         # Initialize params
-        self.latent_dim = training_params['latent_dim']
+        self.latent_dim = training_params['network_params']['latent_dim']
         self.lr = training_params['lr']
         self.betas = training_params['betas']
         self.gp_lambda = training_params['gp_lambda']
@@ -352,7 +352,7 @@ class CWGAN(pl.LightningModule, ganUtils):
         self.sched_k1 = training_params['scheduler_params'][1]
         self.sched_alpha = training_params['scheduler_params'][2]
         self.sched_start_epoch = training_params['scheduler_params'][3]
-        
+         
         self.epoch_d_losses = []
         self.epoch_g_losses = []
         
@@ -361,7 +361,7 @@ class CWGAN(pl.LightningModule, ganUtils):
         self.discriminator = networks.network_dict[f'dis_v{dis_version}'](**training_params)
 
         # Random noise
-        self.validation_z = torch.randn(9, training_params['latent_dim'])
+        self.validation_z = torch.randn(9, self.latent_dim)
         
         # initialize d_loss estimate with ideal V 
         self.d_loss_est = 0 
@@ -563,18 +563,21 @@ class Diffusion(pl.LightningModule):
         super().__init__()
         
         self.unet_version = training_params['unet_version']
+        self.root_path = training_params['root_path']
         
-        self.img_size = training_params['img_size']
-        self.input_channels = training_params['input_channels']
-        self.noise_steps = training_params['noise_steps']
+        self.img_size = training_params['image_size']
+        self.input_channels = training_params['network_params']['input_channels']
+        self.noise_steps = training_params['network_params']['noise_steps']
         
+        self.lr = training_params['lr']
         self.scheduler_params = training_params['scheduler_params']
+        self.loss_fn = torch.nn.MSELoss()
         
         self.betas = self.cosine_schedule()
         self.alphas = 1. - self.betas
         self.alpha_hats = torch.cumprod(self.alphas, dim=0)
         
-        self.network = networks.network_dict[f'UNet_v{self.unet_version}'](**training_params)
+        self.network = networks.network_dict[f'unet_v{self.unet_version}'](**training_params)
         
         self.epoch_losses = []
     
@@ -608,9 +611,9 @@ class Diffusion(pl.LightningModule):
             for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
                 t = (torch.ones(n, device=self.device)*i).long()
                 predicted_noise = model(x, t)
-                alphas = self.alpha[t][:,None,None,None]
+                alphas = self.alphas[t][:,None,None,None]
                 alpha_hats = self.alpha_hats[t][:,None,None,None]
-                betas = self.beta[t][:,None,None,None]
+                betas = self.betas[t][:,None,None,None]
                 if i>1:
                     noise = torch.randn_like(x)
                 else:
@@ -619,10 +622,6 @@ class Diffusion(pl.LightningModule):
         model.train()
         x = x.clamp(-1, 1)
         return x
-    
-    def loss_fn(gt, pred):
-        """Loss function"""
-        return torch.nn.MSELoss(gt, pred)
         
     def training_step(self, batch, batch_idx):
         # Load real imgs
@@ -646,7 +645,9 @@ class Diffusion(pl.LightningModule):
         loss = self.loss_fn(noise, predicted_noise)
         
         # Log loss
-        self.epoch_losses.append(loss)
+        self.epoch_losses.append(loss.detach().numpy())
+        
+        return loss
         
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.network.parameters(), lr=self.lr)
@@ -663,7 +664,7 @@ class Diffusion(pl.LightningModule):
         gen_sample_imgs = self.sample(self.network, n=9)
         
         # Plot
-        self._plot_imgs(gen_sample_imgs, self.real_sample_imgs)
+        self._plot_imgs(self.real_sample_imgs, gen_sample_imgs)
         
         # Log losses
         self.epoch_losses = self._log_losses(self.epoch_losses)

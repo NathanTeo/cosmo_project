@@ -16,13 +16,15 @@ class Discriminator_v1(nn.Module):
     def __init__(self, **training_params):
         super().__init__()
         # Params
-        input_channels = training_params['input_channels']
-        conv_size = training_params['discriminator_conv_size']
-        conv_dropout = training_params['conv_dropout']
-        linear_size = training_params['discriminator_linear_size']
-        linear_dropout = training_params['linear_dropout']
-        image_size = training_params['image_size']
+        network_params = training_params['network_params']
         
+        input_channels = network_params['input_channels']
+        conv_size = network_params['discriminator_conv_size']
+        conv_dropout = network_params['conv_dropout']
+        linear_size = network_params['discriminator_linear_size']
+        linear_dropout = network_params['linear_dropout']
+        
+        image_size = training_params['image_size']
         self.model_version = training_params['model_version']
         
         # Simple CNN
@@ -63,11 +65,14 @@ class Discriminator_v2(nn.Module):
     def __init__(self, **training_params):
         super().__init__()
         # Params
-        input_channels = training_params['input_channels']
-        conv_size = training_params['discriminator_conv_size']
-        conv_dropout = training_params['conv_dropout']
-        linear_size = training_params['discriminator_linear_size']
-        linear_dropout = training_params['linear_dropout']
+        network_params = training_params['network_params']
+        
+        input_channels = network_params['input_channels']
+        conv_size = network_params['discriminator_conv_size']
+        conv_dropout = network_params['conv_dropout']
+        linear_size = network_params['discriminator_linear_size']
+        linear_dropout = network_params['linear_dropout']
+
         image_size = training_params['image_size']
         
         self.model_version = training_params['model_version']
@@ -110,11 +115,14 @@ class Discriminator_v3(nn.Module):
     def __init__(self, **training_params):
         super().__init__()
         # Params
-        input_channels = training_params['input_channels']
-        conv_size = training_params['discriminator_conv_size']
-        conv_dropout = training_params['conv_dropout']
-        linear_size = training_params['discriminator_linear_size']
-        linear_dropout = training_params['linear_dropout']
+        network_params = training_params['network_params']
+        
+        input_channels = network_params['input_channels']
+        conv_size = network_params['discriminator_conv_size']
+        conv_dropout = network_params['conv_dropout']
+        linear_size = network_params['discriminator_linear_size']
+        linear_dropout = network_params['linear_dropout']
+        
         image_size = training_params['image_size']
         
         self.model_version = training_params['model_version']
@@ -163,10 +171,13 @@ class Discriminator_v4(nn.Module):
     def __init__(self, **training_params):
         super().__init__()
         # Params
-        input_channels = training_params['input_channels']
-        conv_size = training_params['discriminator_conv_size']
-        linear_size = training_params['discriminator_linear_size']
-        linear_dropout = training_params['linear_dropout']
+        network_params = training_params['network_params']
+        
+        input_channels = network_params['input_channels']
+        conv_size = network_params['discriminator_conv_size']
+        linear_size = network_params['discriminator_linear_size']
+        linear_dropout = network_params['linear_dropout']
+
         image_size = training_params['image_size']
         
         self.model_version = training_params['model_version']
@@ -215,10 +226,13 @@ class Discriminator_v5(nn.Module):
     def __init__(self, **training_params):
         super().__init__()
         # Params
-        input_channels = training_params['input_channels']
-        conv_size = training_params['discriminator_conv_size']
-        linear_size = training_params['discriminator_linear_size']
-        linear_dropout = training_params['linear_dropout']
+        network_params = training_params['network_params']
+        
+        input_channels = network_params['input_channels']
+        conv_size = network_params['discriminator_conv_size']
+        linear_size = network_params['discriminator_linear_size']
+        linear_dropout = network_params['linear_dropout']
+        
         image_size = training_params['image_size']
         
         self.model_version = training_params['model_version']
@@ -271,10 +285,13 @@ class Generator_v1(nn.Module):
         super().__init__()
         
         # Params
-        latent_dim = training_params['latent_dim']
-        upsamp_size = training_params['generator_upsamp_size']
+        network_params = training_params['network_params']
+        
+        latent_dim = network_params['latent_dim']
+        upsamp_size = network_params['generator_upsamp_size']
+        gen_img_w = network_params['generator_img_w']
+        
         image_size = training_params['image_size']
-        gen_img_w = training_params['generator_img_w']
         
         # Pass latent space input into linear layer and reshape
         self.linear = nn.Sequential(
@@ -310,10 +327,13 @@ class Generator_v2(nn.Module):
         super().__init__()
         
         # Params
-        latent_dim = training_params['latent_dim']
-        upsamp_size = training_params['generator_upsamp_size']
+        network_params = training_params['network_params']
+        
+        latent_dim = network_params['latent_dim']
+        upsamp_size = network_params['generator_upsamp_size']
+        gen_img_w = network_params['generator_img_w']
+        
         image_size = training_params['image_size']
-        gen_img_w = training_params['generator_img_w']
         
         # Pass latent space input into linear layer and reshape
         self.linear = nn.Sequential(
@@ -349,10 +369,13 @@ class Generator_v3(nn.Module):
         super().__init__()
         
         # Params
-        latent_dim = training_params['latent_dim']
-        upsamp_size = training_params['generator_upsamp_size']
+        network_params = training_params['network_params']
+        
+        latent_dim = network_params['latent_dim']
+        upsamp_size = network_params['generator_upsamp_size']
+        gen_img_w = network_params['generator_img_w']
+        
         image_size = training_params['image_size']
-        gen_img_w = training_params['generator_img_w']
         
         # Pass latent space input into linear layer and reshape
         self.linear = nn.Sequential(
@@ -388,10 +411,13 @@ class Generator_v4(nn.Module):
         super().__init__()
         
         # Params
-        latent_dim = training_params['latent_dim']
-        upsamp_size = training_params['generator_upsamp_size']
+        network_params = training_params['network_params']
+        
+        latent_dim = network_params['latent_dim']
+        upsamp_size = network_params['generator_upsamp_size']
+        gen_img_w = network_params['generator_img_w']
+        
         image_size = training_params['image_size']
-        gen_img_w = training_params['generator_img_w']
         
         # Pass latent space input into linear layer and reshape
         self.linear = nn.Sequential(
@@ -432,10 +458,13 @@ class Generator_v5(nn.Module):
         super().__init__()
         
         # Params
-        latent_dim = training_params['latent_dim']
-        upsamp_size = training_params['generator_upsamp_size']
+        network_params = training_params['network_params']
+        
+        latent_dim = network_params['latent_dim']
+        upsamp_size = network_params['generator_upsamp_size']
+        gen_img_w = network_params['generator_img_w']
+        
         image_size = training_params['image_size']
-        gen_img_w = training_params['generator_img_w']
         
         # Pass latent space input into linear layer and reshape
         self.linear = nn.Sequential(
@@ -477,10 +506,13 @@ class Generator_v6(nn.Module):
         super().__init__()
         
         # Params
-        latent_dim = training_params['latent_dim']
-        upsamp_size = training_params['generator_upsamp_size']
+        network_params = training_params['network_params']
+        
+        latent_dim = network_params['latent_dim']
+        upsamp_size = network_params['generator_upsamp_size']
+        gen_img_w = network_params['generator_img_w']
+        
         image_size = training_params['image_size']
-        gen_img_w = training_params['generator_img_w']
         
         # Pass latent space input into linear layer and reshape
         self.linear = nn.Sequential(
@@ -523,10 +555,13 @@ class Generator_v7(nn.Module):
         super().__init__()
         
         # Params
-        latent_dim = training_params['latent_dim']
-        upsamp_size = training_params['generator_upsamp_size']
+        network_params = training_params['network_params']
+        
+        latent_dim = network_params['latent_dim']
+        upsamp_size = network_params['generator_upsamp_size']
+        gen_img_w = network_params['generator_img_w']
+        
         image_size = training_params['image_size']
-        gen_img_w = training_params['generator_img_w']
         
         # Pass latent space input into linear layer and reshape
         self.linear = nn.Sequential(
@@ -601,41 +636,83 @@ class SelfAttention(nn.Module):
     
     def forward(self, x):
         x = x.view(-1, self.channels, self.size*self.size).swapaxes(1,2)
-        x_in = self.ln(x)
+        x_ln = self.ln(x)
+        attention_value, _ = self.mha(x_ln, x_ln, x_ln)
         attention_value = attention_value + x
         attention_value = self.ff_self(attention_value) + attention_value
         return attention_value.swapaxes(2, 1).view(-1, self.channels, self.size, self.size)
+
+class Down(nn.Module):
+    def __init__(self, in_channels, out_channels, emb_dim=256):
+        super().__init__()
+        self.maxpool_conv = nn.Sequential(
+            nn.MaxPool2d(2),
+            DoubleConv(in_channels, in_channels, residual=True),
+            DoubleConv(in_channels, out_channels),
+        )
+        
+        self.emb_layer = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(emb_dim, out_channels),
+        )
     
+    def forward(self, x, t):
+        x = self.maxpool_conv(x)
+        emb = self.emb_layer(t)[:,:,None,None].repeat(1, 1, x.shape[-2], x.shape[-1])
+        return x + emb
+    
+class DoubleConv(nn.Module):
+    def __init__(self, in_channels, out_channels, mid_channels=None, residual=False):
+        super().__init__()
+        self.residual = residual
+        if not mid_channels:
+            mid_channels = out_channels
+        self.double_conv = nn.Sequential(
+            nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False),
+            nn.GroupNorm(1, mid_channels),
+            nn.GELU(),
+            nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.GroupNorm(1, out_channels),
+        )
+    
+    def forward(self, x):
+        if self.residual:
+            return F.gelu(x + self.double_conv(x))
+        else: 
+            return self.double_conv(x)
+
 'UNet'
 class UNet_v1(nn.Module):
     def __init__(self, **training_params):
         super().__init__()
-        self.time_dim = training_params['time_dim']
+        network_params = training_params['network_params']
+        image_size = training_params['image_size']
         
-        input_channels = training_params['input_channels']
-        initial_size = training_params['initial_size']
-        attention_size = training_params['attention_size']
+        self.time_dim = network_params['time_dim']
+        
+        input_channels = network_params['input_channels']
+        initial_size = network_params['initial_size']
         
         bot_size = initial_size * 8
         
         self.inc = DoubleConv(input_channels, initial_size)
-        self.down1 = Down(initial_size, initial_size*2)
-        self.sa1 = SelfAttention(initial_size*2, attention_size*4)
-        self.down2 = Down(initial_size*2, initial_size*4)
-        self.sa2 = SelfAttention(initial_size*4, attention_size*2)
-        self.down3 = Down(initial_size*4, initial_size*4)
-        self.sa3 = SelfAttention(initial_size*4, attention_size)        
+        self.down1 = Down(initial_size, initial_size*2, emb_dim=self.time_dim)
+        self.sa1 = SelfAttention(initial_size*2, int(image_size/2))
+        self.down2 = Down(initial_size*2, initial_size*4, emb_dim=self.time_dim)
+        self.sa2 = SelfAttention(initial_size*4, int(image_size/4))
+        self.down3 = Down(initial_size*4, initial_size*4, emb_dim=self.time_dim)
+        self.sa3 = SelfAttention(initial_size*4, int(image_size/8))        
 
         self.bot1 = DoubleConv(initial_size*4, bot_size)
         self.bot2 = DoubleConv(bot_size, bot_size)
         self.bot3 = DoubleConv(bot_size, initial_size*4)
         
-        self.up1 = Up(initial_size*8, initial_size*2)
-        self.sa4 = SelfAttention(initial_size*2, attention_size*2)
-        self.up2 = Up(initial_size*4, initial_size)
-        self.sa5 = SelfAttention(initial_size, attention_size*4)
-        self.up3 = Up(initial_size*2, initial_size)
-        self.sa6 = SelfAttention(initial_size, attention_size*8)
+        self.up1 = Up(initial_size*8, initial_size*2, emb_dim=self.time_dim)
+        self.sa4 = SelfAttention(initial_size*2, int(image_size/4))
+        self.up2 = Up(initial_size*4, initial_size, emb_dim=self.time_dim)
+        self.sa5 = SelfAttention(initial_size, int(image_size/2))
+        self.up3 = Up(initial_size*2, initial_size, emb_dim=self.time_dim)
+        self.sa6 = SelfAttention(initial_size, image_size)
         self.outc = nn.Conv2d(initial_size, input_channels, kernel_size=1)
         
     def pos_encoding(self, t, channels):
@@ -673,44 +750,7 @@ class UNet_v1(nn.Module):
         
         return output
         
-class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels, mid_channels=None, residual=False):
-        super().__init__()
-        self.residual = residual
-        if not mid_channels:
-            mid_channels = out_channels
-        self.double_conv = nn.Sequential(
-            nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False),
-            nn.GroupNorm(1, mid_channels),
-            nn.GELU(),
-            nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False),
-            nn.GroupNorm(1, out_channels),
-        )
-    
-    def forward(self, x):
-        if self.residual:
-            return F.gelu(x + self.double_conv(x))
-        else: 
-            return self.double_conv(x)
-        
-class Down(nn.Module):
-    def __init__(self, in_channels, out_channels, emb_dim=256):
-        super().__init__()
-        self.maxpool_conv = nn.Sequential(
-            nn.MaxPool2d(2),
-            DoubleConv(in_channels, in_channels, residual=True),
-            DoubleConv(in_channels, out_channels),
-        )
-        
-        self.emb_layer = nn.Sequential(
-            nn.SiLU(),
-            nn.Linear(emb_dim, out_channels),
-        )
-    
-    def forward(self, x, t):
-        x = self.maxpool_conv(x)
-        emb = self.emb_layer(t)[:,:,None,None].repeat(1, 1, x.shpae[-2], x.shape[-1])
-        return x + emb
+
     
 """Dictionary for all networks"""
 network_dict = {

@@ -21,8 +21,7 @@ class testDataset():
         self.training_params = training_params
         
         self.model_version = training_params['model_version']
-        self.gen_version = training_params['generator_version']
-        self.dis_version = training_params['discriminator_version']
+
         self.training_seed = training_params['random_seed']
         self.lr = training_params['lr']
 
@@ -34,33 +33,44 @@ class testDataset():
         self.image_size = training_params['image_size']
         self.gen_noise = generation_params['noise']
 
-        self.latent_dim = training_params['latent_dim']
-        self.gen_img_w = training_params['generator_img_w']
-        self.gen_upsamp = training_params['generator_upsamp_size']
-        self.dis_conv = training_params['discriminator_conv_size']
-        self.dis_lin = training_params['discriminator_linear_size']
+        network_params = training_params['network_params']
         self.training_noise = training_params['noise']
-
         self.batch_size = training_params['batch_size']
         self.num_workers = training_params['num_workers']
         self.max_epochs = training_params['max_epochs']
         self.avail_gpus = training_params['avail_gpus']
         
         if 'GAN' in self.model_version:
+            gen_version = training_params['generator_version']
+            dis_version = training_params['discriminator_version']
+            
+            latent_dim = network_params['latent_dim']
+            gen_img_w = network_params['generator_img_w']
+            gen_upsamp = network_params['generator_upsamp_size']
+            dis_conv = network_params['discriminator_conv_size']
+            dis_lin = network_params['discriminator_linear_size']
+            
             self.model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
                 self.model_version,
-                self.gen_version, self.dis_version,
+                gen_version, dis_version,
                 self.blob_num, self.data_distribution[0], self.blob_size, "{:.0g}".format(self.real_sample_num), self.image_size,
                 self.training_seed, "{:.0g}".format(self.lr),
-                self.latent_dim, self.gen_img_w, self.gen_upsamp, self.dis_conv, self.dis_lin,
+                latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
                 str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
             )
         elif 'Diffusion' in self.model_version.contains('Diffusion'):
-             self.model_name = '{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
+            unet_version = training_params['unet_version']
+            
+            noise_steps = ['noise_steps']
+            time_dim = ['time_dim']
+            initial_size = ['ininial_size']
+    
+            self.model_name = '{}-n{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-st{}-td{}-sz{}-ns{}'.format(
                 self.model_version,
+                unet_version,
                 self.blob_num, self.data_distribution[0], self.blob_size, "{:.0g}".format(self.real_sample_num), self.image_size,
                 self.training_seed, "{:.0g}".format(self.lr),
-                self.latent_dim, self.gen_img_w, self.gen_upsamp, self.dis_conv, self.dis_lin,
+                noise_steps, time_dim, initial_size, 
                 str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
             )
         self.training_params['model_name'] = self.model_name

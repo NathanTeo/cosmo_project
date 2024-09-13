@@ -57,7 +57,7 @@ class blobDataset():
                 
                 # Create sample
                 if current_blob_num==0:
-                    sample = np.zeros((28,28))
+                    sample = np.zeros((self.image_size,self.image_size))
                 else:
                     centers = np.random.rand(current_blob_num,2)*self.generation_matrix_size - 0.5
                     sample = self.create_blobs(centers)
