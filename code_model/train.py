@@ -13,8 +13,11 @@ import wandb
 
 from code_model.models import *
 from code_model.data_modules import *
+from code_model.testers.plotting_utils import *
+from code_model.testers.eval_utils import *
+from code_model.testers.modules import *
 
-def run_training(training_params, generation_params, training_restart=False):
+def run_training(training_params, generation_params, testing_params, training_restart=False):
         """Initialize Params"""
         model_version = training_params['model_version']
 
@@ -165,4 +168,16 @@ def run_training(training_params, generation_params, training_restart=False):
                                 print('no trained model found, training new model')
                                 print('--------------------------------------------')
                                 trainer.fit(model, data)
+        
+                # Generate dataset for testing
+                dataset = testDataset(generation_params, training_params, testing_params)
+                dataset.prep_data(BlobDataModule, model_dict, testing_restart=True)
+                
+                # plot losses
+                if 'GAN' in training_params['model_version']:
+                        logs_plotter = ganLogsPlotter(dataset)
+                elif 'Diffusion' in training_params['model_version']:
+                        logs_plotter = diffLogsPlotter(dataset)
+                        
+                logs_plotter.plot_logs(BlobDataModule, model_dict, testing_restart=True)
                         
