@@ -74,7 +74,7 @@ def find_total_fluxes(samples):
 
 def fourier_transform(samples, progress_bar=False):
     """Performs a 2d FFT on the image"""
-    return [np.fft.fft2(sample) for sample in tqdm(samples, disable=not progress_bar)]
+    return [np.fft.fftshift(np.fft.fft2(sample)) for sample in tqdm(samples, disable=not progress_bar)]
 
 
 """2- point correlation"""
@@ -184,7 +184,10 @@ def create_circular_mask(h, w, center, radius=None):
     return mask
 
 def gaussian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=20):
-    """Gaussian decomposition on a single image for blob counting and blob coordinates"""
+    """
+    Gaussian decomposition on a single image for blob counting and blob coordinates
+    """
+
     # Initiate variables
     img_decomp = img.copy()
     peak_coords = []
@@ -267,6 +270,10 @@ def count_blobs_from_peaks(imgs_peak_vals, generation_blob_number):
     return imgs_peak_counts, imgs_total_blob_counts
     
 def circle_points(r, n):
+    """
+    Takes in an array of radii and number of points at each radius
+    Returns coordinates of equally spaced points on a circle at the specified radii 
+    """
     circles = []
     for r, n in zip(r, n):
         rand_dir = np.random.uniform(low=0, high=2*np.pi)
@@ -277,24 +284,37 @@ def circle_points(r, n):
     return np.array(circles)
  
 def mse(A, B):
-    """Mean squared error"""
+    """
+    Mean squared error
+    """
     return (np.square(A - B)).mean(axis=None)
 
 class blobCounter():
+    """
+    Counts the number of blobs for each sample given a set of samples
+    """
+    
     def __init__(self, blob_size, blob_amplitude, jit=0.5, error_scaling=1e7):
-
+        """
+        Initialize params
+        """
         self.blob_size = blob_size
         self.blob_amplitude = blob_amplitude
         self.jit = jit
         self.error_scaling = error_scaling
     
     def load_samples(self, samples):
+        """
+        Loads samples and initialize sample params
+        """
         self.samples = samples      
         self.image_size = samples[0].shape[0]
         self.sample_size = len(samples)
  
     def _make_gaussian(self, center, var, image_size):
-        """ Make a square gaussian kernel"""
+        """
+        Make a square gaussian kernel
+        """
         x = np.arange(0, image_size, 1, float)
         y = x[:,np.newaxis]
 
@@ -304,11 +324,16 @@ class blobCounter():
         return np.exp(-0.5 * ((x-x0)**2 + (y-y0)**2) / var)
 
     def _create_blobs(self, centers):
-        """Create an image of gaussian blobs"""
+        """
+        Create a sample of gaussian blobs
+        """
         return np.array([normalize_2d(self._make_gaussian(coord, self.blob_size, self.image_size))*self.blob_amplitude
                             for coord in centers]).sum(axis=0)
 
     def plot_fit(self, sample, centers):
+        """
+        Plot the best fit and the residual
+        """
         fig, axs = plt.subplots(1, 2, figsize=(8, 4))
 
         y, x = zip(*centers)
@@ -336,7 +361,9 @@ class blobCounter():
         return np.array(coords) + push
 
     def find_guess(self, sample, rel_peak_threshold=0.8, max_iters=30):
-        """Find an initial guess using gaussian decomp"""
+        """
+        Find an initial guess using gaussian decomposition
+        """
         img_decomp = sample.copy()
         peak_coords = []
         peak_counts = []
@@ -378,12 +405,15 @@ class blobCounter():
         return guess
 
     def count_sample(self, sample, method='SLSQP', max_iters=10, plot_guess=False, plot_progress=False):
-        """Count the number of blobs in a sample by fitting"""
+        """
+        Count the number of blobs in a sample by fitting with scipy minimize
+        """
 
         # Get guess of coordinates
         initial_guess = self.find_guess(sample)
         guess = initial_guess.copy()
 
+        # Plots points of the initial guess
         if plot_guess:
             y, x = zip(*guess)
             plt.imshow(sample)
@@ -393,7 +423,9 @@ class blobCounter():
             plt.close()
 
         def fit_objective(*args):
-            """Function to minimize for fitting gaussian blobs"""
+            """
+            Function to minimize for fitting gaussian blobs
+            """
             # args (centers, img), the centers must be in format (y0, y1, ... , x0, x1, ...)
             centers = (args[0][:int(len(args[0])/2)], args[0][int(len(args[0])/2):])
             centers = list(zip(*centers))
@@ -408,6 +440,9 @@ class blobCounter():
             return error*self.error_scaling
 
         def minimize_objective(guess, sample, method='SLSQP', plot_progress=False):
+            """ 
+            Finds the best fit for a given guess of gaussian centers and sample image
+            """
             # Print blob fitting
             if plot_progress:
                 print(f'fitting for {len(guess)} blobs...', end=' ')
@@ -445,21 +480,31 @@ class blobCounter():
             return fit, result.fun
 
         def add_guess(sample, centers):
-            # New guess is put at location with the largest error
+            """
+            Adds a guess at a resonable location
+            """
+            # Add guess at the pixel where the residual (image-fit) is the largest
             guess_img = self._create_blobs(centers)
+            
             residual = sample - guess_img
+            
             new_guess = np.unravel_index(residual.argmax(), residual.shape)
-            # print(f'{new_guess} added')
+            
             return np.append(guess, [new_guess], axis=0), new_guess
 
         def remove_guess(sample, centers):
-            # Guess with the largest error is removed
+            """
+            Removes the worst guess 
+            """
+            # Remove guess where the residual (sample-fit) at the center pixel is the most negative 
             guess_img = self._create_blobs(centers)
+            
             sample_value_at_center = np.array([sample[int(center[0]), int(center[1])] for center in centers])
             guess_value_at_center = np.array([guess_img[int(center[0]), int(center[1])] for center in centers])
             residual = sample_value_at_center - guess_value_at_center
+            
             worst_guess_idx = residual.argmin()
-            # print(f'{guess[worst_guess_idx]} removed')
+            
             return np.delete(guess, worst_guess_idx, axis=0), guess[worst_guess_idx]
 
         errs = [[], []]
@@ -542,6 +587,9 @@ class blobCounter():
         return guess, errs
     
     def count(self, method='SLSQP', mode='multi', plot_progress=False, progress_bar=True):
+        """
+        Count blobs of the loaded samples
+        """
         # Time track
         start = time.time()
         
@@ -581,16 +629,7 @@ class blobCounter():
             print('per sample: {:4f}s | total: {:4f}s'.format((end-start)/self.sample_size, end-start))
             print()
             
-        return fit_coords, np.array(counts) 
-
-    def plot_sample(self, sample, coord, count):
-        y, x = zip(*coord)
-        plt.imshow(sample)
-        plt.scatter(x, y, c='r', alpha=0.5)
-        plt.title(f'{count} blobs counted')
-        plt.show()
-        plt.close()
-        
+        return fit_coords, np.array(counts)        
 
 
 """Depreciated"""
