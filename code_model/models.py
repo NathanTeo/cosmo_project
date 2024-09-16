@@ -563,6 +563,7 @@ class Diffusion(pl.LightningModule):
         super().__init__()
         
         self.unet_version = training_params['unet_version']
+        self.training_params = training_params
         self.root_path = training_params['root_path']
         
         self.img_size = training_params['image_size']
@@ -571,22 +572,24 @@ class Diffusion(pl.LightningModule):
         
         self.lr = training_params['lr']
         self.scheduler_params = training_params['scheduler_params']
-        self.loss_fn = torch.nn.MSELoss()
+        self.loss_fn = torch.nn.MSELoss()   
         
+        self.epoch_losses = []
+    
+    def setup(self, stage):
+        """Initialize objects that require device"""
         self.betas = self.cosine_schedule()
         self.alphas = 1. - self.betas
         self.alpha_hats = torch.cumprod(self.alphas, dim=0)
         
-        self.network = networks.network_dict[f'unet_v{self.unet_version}'](**training_params)
-        
-        self.epoch_losses = []
+        self.network = networks.network_dict[f'unet_v{self.unet_version}'](self.device, **self.training_params)
     
     def cosine_schedule(self, s=0.008):
         """Prepares cosine scheduler for adding noise"""
         def f(t):
             return torch.cos((t / self.noise_steps + s) / (1 + s) * 0.5 * torch.pi) ** 2
-        x = torch.linspace(0, self.noise_steps, self.noise_steps + 1)
-        alpha_cumprod = f(x) / f(torch.tensor([0]))
+        x = torch.linspace(0, self.noise_steps, self.noise_steps + 1, device=self.device)
+        alpha_cumprod = f(x) / f(torch.tensor([0], device=self.device))
         betas = 1 - alpha_cumprod[1:] / alpha_cumprod[:-1]
         betas = torch.clip(betas, 0.0001, 0.999)
         return betas
@@ -601,7 +604,7 @@ class Diffusion(pl.LightningModule):
 
     def sample_timesteps(self, n):
         """Return randomly sampled timesteps"""
-        return torch.randint(low=1, high=self.noise_steps, size=(n,))
+        return torch.randint(low=1, high=self.noise_steps, size=(n,), device=self.device)
     
     def sample(self, model, n):
         """Return n sampled noised image at all timesteps"""
@@ -645,7 +648,7 @@ class Diffusion(pl.LightningModule):
         loss = self.loss_fn(noise, predicted_noise)
         
         # Log loss
-        self.epoch_losses.append(loss.detach().numpy())
+        self.epoch_losses.append(loss.cpu().detach().numpy())
         
         return loss
         
