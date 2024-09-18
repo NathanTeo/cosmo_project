@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import wandb
 from typing import Any, Dict
+from copy import deepcopy
 import os
 
 import code_model.networks as networks
@@ -558,9 +559,33 @@ class CWGAN(pl.LightningModule, ganUtils):
         
         return scores
 
+class EMA():
+    def __init__(self, beta):
+        self.beta = beta
+    
+    def update_network_average(self, ema_network, network):
+        for current_param, ema_param in zip(network.parameters(), ema_network.parameters()):
+            old_weight, new_weight = ema_param.data, current_param.data
+            ema_param.data = self.update_average(old_weight, new_weight)
+            
+    def update_average(self, old, new):
+        return old*self.beta + (1+self.beta)*new
+    
+    def step_ema(self, ema_network, network, epoch, epoch_start_ema=50):
+        if epoch < epoch_start_ema:
+            self.reset_parameters(ema_network, network)
+            return
+        self.update_network_average(ema_network, network)
+        
+    def reset_parameters(self, ema_network, network):
+        ema_network.load_state_dict(network.state_dict())
+        
+        
 class Diffusion(pl.LightningModule):
     def __init__(self, **training_params):
         super().__init__()
+        
+        self.automatic_optimization = False
         
         self.unet_version = training_params['unet_version']
         self.training_params = training_params
@@ -583,6 +608,9 @@ class Diffusion(pl.LightningModule):
         self.alpha_hats = torch.cumprod(self.alphas, dim=0)
         
         self.network = networks.network_dict[f'unet_v{self.unet_version}'](self.device, **self.training_params)
+        
+        self.ema = EMA(beta=0.995)
+        self.ema_network = deepcopy(self.network).eval().requires_grad_(False)
     
     def cosine_schedule(self, s=0.008):
         """Prepares cosine scheduler for adding noise"""
@@ -650,7 +678,12 @@ class Diffusion(pl.LightningModule):
         # Log loss
         self.epoch_losses.append(loss.cpu().detach().numpy())
         
-        return loss
+        opt = self.optimizers()
+        opt.zero_grad()
+        self.manual_backward(loss)
+        opt.step()
+        
+        self.ema.step_ema(self.ema_network, self.network, self.current_epoch)
         
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.network.parameters(), lr=self.lr)
