@@ -569,9 +569,9 @@ class EMA():
             ema_param.data = self.update_average(old_weight, new_weight)
             
     def update_average(self, old, new):
-        return old*self.beta + (1+self.beta)*new
+        return old*self.beta + (1-self.beta)*new
     
-    def step_ema(self, ema_network, network, epoch, epoch_start_ema=50):
+    def step_ema(self, ema_network, network, epoch, epoch_start_ema=10):
         if epoch < epoch_start_ema:
             self.reset_parameters(ema_network, network)
             return
@@ -598,7 +598,11 @@ class Diffusion(pl.LightningModule):
         self.lr = training_params['lr']
         self.scheduler_params = training_params['scheduler_params']
         self.loss_fn = torch.nn.MSELoss()   
-        
+
+        self.network = networks.network_dict[f'unet_v{self.unet_version}'](**self.training_params)
+        self.ema = EMA(beta=0.995)
+        self.ema_network = deepcopy(self.network).eval().requires_grad_(False)
+    
         self.epoch_losses = []
     
     def setup(self, stage):
@@ -607,11 +611,8 @@ class Diffusion(pl.LightningModule):
         self.alphas = 1. - self.betas
         self.alpha_hats = torch.cumprod(self.alphas, dim=0)
         
-        self.network = networks.network_dict[f'unet_v{self.unet_version}'](self.device, **self.training_params)
+        self.network.set_device(self.device)
         
-        self.ema = EMA(beta=0.995)
-        self.ema_network = deepcopy(self.network).eval().requires_grad_(False)
-    
     def cosine_schedule(self, s=0.008):
         """Prepares cosine scheduler for adding noise"""
         def f(t):
@@ -684,7 +685,7 @@ class Diffusion(pl.LightningModule):
         self.epoch_losses.append(loss.cpu().detach().numpy())
         self.log("loss", loss, on_epoch=False)
         
-        # Step
+        # Step, manual for ema implementation
         opt = self.optimizers()
         opt.zero_grad()
         self.manual_backward(loss)
@@ -694,6 +695,7 @@ class Diffusion(pl.LightningModule):
         self.ema.step_ema(self.ema_network, self.network, self.current_epoch)
         
     def configure_optimizers(self):
+        # Optimizer and schedulers
         optimizer = torch.optim.AdamW(self.network.parameters(), lr=self.lr)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, *self.scheduler_params)
         return [optimizer], [scheduler]
@@ -707,9 +709,10 @@ class Diffusion(pl.LightningModule):
     def on_train_epoch_end(self):
         # Generate samples
         gen_sample_imgs = self.sample(self.network, n=9)
-        
+        ema_gen_sample_imgs = self.sample(self.ema_network, n=9)       
+
         # Plot
-        self._plot_imgs(self.real_sample_imgs, gen_sample_imgs)
+        self._plot_imgs(self.real_sample_imgs, ema_gen_sample_imgs)
         
         # Log losses
         self.epoch_losses = self._log_losses(self.epoch_losses)
@@ -717,7 +720,10 @@ class Diffusion(pl.LightningModule):
         # Log sampled images
         grid = torchvision.utils.make_grid(gen_sample_imgs)
         wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
-        
+
+        grid = torchvision.utils.make_grid(ema_gen_sample_imgs)
+        wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"ema_generated_images_{self.current_epoch}")})
+
         # Backup every 20 epochs
         if ((self.current_epoch+1)%20)==0:
             self._backup()
@@ -735,7 +741,7 @@ class Diffusion(pl.LightningModule):
             real_imgs = batch
         
         # Generate images
-        gen_imgs = self.sample(self.network, n=real_imgs.shape[0]).cpu().detach().squeeze().numpy()
+        gen_imgs = self.sample(self.ema_network, n=real_imgs.shape[0]).cpu().detach().squeeze().numpy()
         
         self.test_output_list['gen_imgs'].extend(gen_imgs)
 
