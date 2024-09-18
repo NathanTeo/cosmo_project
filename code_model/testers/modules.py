@@ -58,7 +58,7 @@ class testDataset():
                 latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
                 str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
             )
-        elif 'Diffusion' in self.model_version.contains('Diffusion'):
+        elif 'Diffusion' in self.model_version:
             unet_version = training_params['unet_version']
             
             noise_steps = ['noise_steps']
@@ -77,7 +77,7 @@ class testDataset():
         
         self.grid_row_num = testing_params['grid_row_num']
         self.plot_num = testing_params['plot_num']
-        self.subset_sample_num = testing_params['subset_sample_num']
+        self.subset_sample_num = int(testing_params['subset_sample_num'])
         self.loss_zoom_bounds = testing_params['loss_zoom_bounds']
         self.counting_params = testing_params['counting_params']
         self.testing_seed = testing_params['seed']
