@@ -670,19 +670,27 @@ class Diffusion(pl.LightningModule):
            
         real_imgs.requires_grad_()
         
+        # Generate noised images
         t = self.sample_timesteps(real_imgs.shape[0])
         x_t, noise = self.add_noise(real_imgs, t)
+        
+        # Predict noise
         predicted_noise = self.network(x_t, t)
+        
+        # Calculate loss
         loss = self.loss_fn(noise, predicted_noise)
         
         # Log loss
         self.epoch_losses.append(loss.cpu().detach().numpy())
+        self.log("loss", loss, on_epoch=False)
         
+        # Step
         opt = self.optimizers()
         opt.zero_grad()
         self.manual_backward(loss)
         opt.step()
         
+        # Exponential moving average
         self.ema.step_ema(self.ema_network, self.network, self.current_epoch)
         
     def configure_optimizers(self):
@@ -691,6 +699,7 @@ class Diffusion(pl.LightningModule):
         return [optimizer], [scheduler]
     
     def get_lr(self, optimizer):
+        # Returns current learning rate
         for param_group in optimizer.param_groups:
             return param_group['lr']
     
