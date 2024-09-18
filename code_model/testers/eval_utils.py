@@ -387,7 +387,7 @@ class blobCounter():
 
             # Record peak value and number of blobs for peak
             peak_coords.append(peak_coord)
-            peak_counts.append(int(np.round(peak_val/self.blob_amplitude)*1.1)) # NOTE: 1.1 chosen arbitrarily, come back to this
+            peak_counts.append(int(np.round(peak_val/self.blob_amplitude*1.1))) # NOTE: 1.1 chosen arbitrarily, come back to this
 
         # Record guess, one coordinate for each count
         guess = []

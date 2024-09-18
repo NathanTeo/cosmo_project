@@ -61,6 +61,8 @@ class blobDataset():
                 else:
                     centers = np.random.rand(current_blob_num,2)*self.generation_matrix_size - 0.5
                     sample = self.create_blobs(centers)
+            elif self.num_distribution=='clustered':
+                pass
                     
             # Add noise
             if self.noise!=0:
@@ -128,7 +130,7 @@ def create_blob_sample(pos, generation_matrix_size, blob_num, blob_size, blob_am
             sample = np.add(sample, sample_next)
     
     if blob_num==0:
-        return np.zeros((28,28))
+        return np.zeros((generation_matrix_size, generation_matrix_size))
     else:
         return sample
     
