@@ -15,6 +15,7 @@ params = {
     'sample_num': 5000,
     'blob_num': 10,
     'num_distribution': 'uniform',
+    'clustering': 0,
     'pad': 0,
     'noise': 0
 }
