@@ -32,6 +32,7 @@ while counter<max_count:
             except FileNotFoundError:
                 print(f'directory: {dir} does not exist or already deleted')
         print('logs cleared')
+        break
                 
     elif confirm=='n':
         print('aborted')

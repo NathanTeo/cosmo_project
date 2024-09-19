@@ -176,8 +176,10 @@ def run_training(training_params, generation_params, testing_params, training_re
                 # plot losses
                 if 'GAN' in training_params['model_version']:
                         logs_plotter = ganLogsPlotter(dataset)
+                        logs_plotter.plot_logs(BlobDataModule, model_dict, testing_restart=True)
                 elif 'Diffusion' in training_params['model_version']:
                         logs_plotter = diffLogsPlotter(dataset)
-                        
-                logs_plotter.plot_logs(BlobDataModule, model_dict, testing_restart=True)
+                        logs_plotter.plot_logs(BlobDataModule, testing_restart=True)
+
+
                         

@@ -683,7 +683,7 @@ class DoubleConv(nn.Module):
 
 'UNet'
 class UNet_v1(nn.Module):
-    def __init__(self, **training_params):
+    def __init__(self, device, **training_params):
         super().__init__()
         
         network_params = training_params['network_params']
@@ -716,7 +716,6 @@ class UNet_v1(nn.Module):
         self.sa6 = SelfAttention(initial_size, image_size)
         self.outc = nn.Conv2d(initial_size, input_channels, kernel_size=1)
         
-    def set_device(self, device):
         self.device = device
         
     def pos_encoding(self, t, channels):

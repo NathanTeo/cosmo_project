@@ -597,21 +597,20 @@ class Diffusion(pl.LightningModule):
         
         self.lr = training_params['lr']
         self.scheduler_params = training_params['scheduler_params']
-        self.loss_fn = torch.nn.MSELoss()   
+        self.loss_fn = torch.nn.MSELoss()
 
-        self.network = networks.network_dict[f'unet_v{self.unet_version}'](**self.training_params)
+        self.network = networks.network_dict[f'unet_v{self.unet_version}'](self.device, **self.training_params)
         self.ema = EMA(beta=0.995)
         self.ema_network = deepcopy(self.network).eval().requires_grad_(False)
+        
+        self.betas = self.cosine_schedule()
+        self.alphas = 1. - self.betas
+        self.alpha_hats = torch.cumprod(self.alphas, dim=0)
     
         self.epoch_losses = []
     
     def setup(self, stage):
-        """Initialize objects that require device"""
-        self.betas = self.cosine_schedule()
-        self.alphas = 1. - self.betas
-        self.alpha_hats = torch.cumprod(self.alphas, dim=0)
-        
-        self.network.set_device(self.device)
+        pass
         
     def cosine_schedule(self, s=0.008):
         """Prepares cosine scheduler for adding noise"""
@@ -654,6 +653,15 @@ class Diffusion(pl.LightningModule):
         model.train()
         x = x.clamp(-1, 1)
         return x
+    
+    def on_train_epoch_start(self):
+        # Move to device
+        self.betas = self.betas.to(self.device)
+        self.alphas = self.alphas.to(self.device)
+        self.alpha_hats = self.alpha_hats.to(self.device)
+        
+        self.network.device = self.device
+        self.ema_network.device = self.device
         
     def training_step(self, batch, batch_idx):
         # Load real imgs
@@ -733,6 +741,13 @@ class Diffusion(pl.LightningModule):
             'gen_imgs': []
         }
 
+        self.betas = self.betas.to(self.device)
+        self.alphas = self.alphas.to(self.device)
+        self.alpha_hats = self.alpha_hats.to(self.device)
+        
+        self.network.device = self.device
+        self.ema_network.device = self.device
+        
     def test_step(self, batch, batch_idx):
         # Load real images
         if len(batch) == 2: # if label exists eg. MNIST dataset

@@ -825,3 +825,11 @@ class diffLogsPlotter(testDataset):
         # Save plot
         plt.savefig(f'{self.plot_save_path}/losses_{self.model_name}.png')
         plt.close()
+    
+    def plot_logs(self, dataModule, testing_restart=False):
+        if not testing_restart and os.path.isfile(f'{self.plot_save_path}/losses_{self.model_name}.png'):
+            print('losses already plotted, skipping step')
+            return
+        else:
+            self.load_data(dataModule)
+            self.loss()
