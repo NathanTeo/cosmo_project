@@ -127,7 +127,7 @@ def two_point_correlation(sample, image_size, bins=10, rel_random_n=5):
     """
     Calculates the two point correlation using the Landy Szalay estimator given an image sample
     """
-    random_sample = generate_random_coords(image_size, len(sample)*rel_random_n)
+    random_sample = generate_random_coords(image_size, max(len(sample)*rel_random_n, 1e4))
     
     dd_norm, edges = find_pair_hist(sample, sample, bins)
     rr_norm, _ = find_pair_hist(random_sample, random_sample, bins)
@@ -146,8 +146,7 @@ def stack_two_point_correlation(point_coords, image_size, bins=10, rel_random_n=
     
     for sample in tqdm(point_coords, disable=not progress_bar):
         sample = np.array(sample)
-        random_sample_size = len(sample)*rel_random_n + 1 # +1 to prevent 0 case
-        random_sample = generate_random_coords(image_size, len(sample)*rel_random_n)
+        random_sample = generate_random_coords(image_size, max(len(sample)*rel_random_n, 1e4))
         
         # Calculate distances
         dd_dists.extend(find_pair_distances(sample, sample))
