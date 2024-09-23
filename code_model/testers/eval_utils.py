@@ -107,7 +107,7 @@ def two_point_stack(samples, image_size, bins=10, bootstrap=True, progress_bar=F
     
     # Calculate mean
     corrs = np.mean(all_corrds, axis=0)
-    errs = np.mean(all_errs, axis=0) if bootstrap else None
+    errs = np.sqrt(np.sum(((1/len(all_errs))*all_errs)**2, axis=0)) if bootstrap else None
 
     return corrs, errs, edges
 
