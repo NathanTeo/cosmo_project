@@ -3,6 +3,8 @@ from scipy.stats import multivariate_normal
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
+import astropy.units as u
+from scipy.special import gamma
 
 class blobDataset():
     """generate real data for training"""
@@ -14,6 +16,7 @@ class blobDataset():
         self.sample_num = params['sample_num']
         self.blob_num =  params['blob_num']
         self.num_distribution = params['num_distribution']
+        self.clustering = params['clustering']
         self.pad = params['pad']
         self.noise = params['noise']
         
@@ -22,7 +25,12 @@ class blobDataset():
         self.generation_matrix_size = self.image_size + self.pad*2
         self.blob_amplitude = 1/self.blob_num
         
-        self.file_name = f'bn{self.blob_num}{self.num_distribution[0]}-is{self.image_size}-bs{self.blob_size}-sn{self.sample_num}-sd{seed}-ns{self.noise}'
+        self.file_name = 'bn{}{}-cl{}-is{}-bs{}-sn{}-sd{}-ns{}'.format(
+            self.blob_num, self.num_distribution[0], 
+            '{:.0e}_{:.0e}'.format(*self.clustering) if self.clustering is not None else '_',
+            self.image_size, self.blob_size, self.sample_num,
+            seed, self.noise
+        )
         
         random.seed(seed)
         
@@ -38,32 +46,23 @@ class blobDataset():
 
     def create_blobs(self, centers):
         """Create an image of gaussian blobs"""
-        return np.array([normalize_2d(self.make_gaussian(coord, self.blob_size, self.generation_matrix_size))*self.blob_amplitude
+        if centers.shape[0]>0:
+            return np.array([normalize_2d(self.make_gaussian(coord, self.blob_size, self.generation_matrix_size))*self.blob_amplitude
                             for coord in centers]).sum(axis=0)
+        else:
+            return np.zeros((self.generation_matrix_size, self.generation_matrix_size))
         
     def generate(self):
         """Generate all samples"""
         self.samples = []
         self.sample_counts = []
-        for i in tqdm(range(self.sample_num)):
-            if self.num_distribution=='uniform':
-                # Create sample
-                centers = np.random.rand(self.blob_num,2)*self.generation_matrix_size - 0.5
-                sample = self.create_blobs(centers)
-            elif self.num_distribution=='poisson':
-                # Get number of blobs from poisson distribution
-                current_blob_num = np.random.poisson(self.blob_num)
-                self.sample_counts.append(current_blob_num)
-                
-                # Create sample
-                if current_blob_num==0:
-                    sample = np.zeros((self.image_size,self.image_size))
-                else:
-                    centers = np.random.rand(current_blob_num,2)*self.generation_matrix_size - 0.5
-                    sample = self.create_blobs(centers)
-            elif self.num_distribution=='clustered':
-                pass
-                    
+        self.sample_coords = []
+        for _ in tqdm(range(self.sample_num)):
+            # Generate points for centers
+            center_generator = centerGenerator(self.blob_num, self.image_size)
+            centers = center_generator.generate(self.num_distribution, self.clustering)
+            sample = self.create_blobs(centers)
+            
             # Add noise
             if self.noise!=0:
                 noise_img = np.random.normal(0, self.noise, (self.image_size, self.image_size))
@@ -76,13 +75,18 @@ class blobDataset():
             
             # Add sample to list
             self.samples.append(sample)
-   
-        
+            
+            # Counts    
+            self.sample_counts.append(centers.shape[0])
+            self.sample_coords.append(centers)
+
     def save(self, path):
         """Save data"""
         np.save(f'{path}/{self.file_name}', self.samples)
-        if self.num_distribution!='uniform':
-            np.save(f'{path}/{self.file_name}_counts', self.sample_counts)
+        
+        np.save(f'{path}/{self.file_name}_counts', self.sample_counts)
+        
+        np.save(f'{path}/{self.file_name}_coords', np.array(self.sample_coords, dtype=object))
     
     def plot_example(self, sample, path, file_type='png'):
         """Plot first sample"""
@@ -106,6 +110,188 @@ class blobDataset():
         
     def _normalize_2d(self, matrix): 
         return (matrix-np.min(matrix))/(np.max(matrix)-np.min(matrix)) 
+
+
+class centerGenerator():
+    def __init__(self, num_centers, image_size):
+        self.num_centers = num_centers
+        self.image_size = image_size
+
+    def unclustered_centers(self, num_distribution):
+        if num_distribution=='uniform':
+            # Create sample
+            self.centers = np.random.rand(self.num_centers,2)*self.image_size - 0.5
+        elif num_distribution=='poisson':
+            # Get number of blobs from poisson distribution
+            current_center_num = np.random.poisson(self.num_centers)
+            
+            # Create sample
+            if current_center_num==0:
+                self.centers = np.empty((0,2))
+            else:
+                self.centers = np.random.rand(current_center_num,2)*self.image_size - 0.5
+         
+        return self.centers
+    
+    def clustered_centers(self, num_distribution, clustering, track_progress=False):
+        # Survey configuration
+        lxdeg = 1                    # Length of x-dimension [deg]
+        lydeg = 1                    # Length of y-dimension [deg]
+        nx = self.image_size         # Grid size of x-dimension
+        ny = self.image_size         # Grid size of y-dimension
+        # Input correlation function w(theta) = wa*theta[deg]^(-wb)
+        wa = clustering[0]
+        wb = clustering[1]
+        
+        if track_progress:
+            phi = wa**(1/wb)
+            print((phi*u.radian).to(u.degree))
+        
+        # Initializations
+        lxrad,lyrad = np.radians(lxdeg),np.radians(lydeg)
+                # Transform the power spectrum P --> P' so that the lognormal
+        # realization of P' will be the same as a Gaussian realization of P
+        def transpk2d(nx,ny,lx,ly,kmod,pkmod):
+            # print('Transforming to input P(k)...')
+            area,nc = lx*ly,float(nx*ny)
+            # Obtain 2D grid of k-modes
+            kx = 2.*np.pi*np.fft.fftfreq(nx,d=lx/nx)
+            ky = 2.*np.pi*np.fft.fftfreq(ny,d=ly/ny)[:int(ny/2+1)]
+            kspec = np.sqrt(kx[:,np.newaxis]**2 + ky[np.newaxis,:]**2)
+            # Create power spectrum array
+            pkspec = np.interp(kspec,kmod,pkmod) # interpolate the pk onto a finer grid
+            pkspec[0,0] = 0.
+            pkspec = pkspec/area + 0.*1j # ? normalization
+            # Inverse Fourier transform to the correlation function
+            xigrid = nc*np.fft.irfftn(pkspec)
+            # Transform the correlation function
+            xigrid = np.log(1.+xigrid)
+            # Fourier transform back to the power spectrum
+            pkspec = np.real(np.fft.rfftn(xigrid))
+            return pkspec
+
+        # Generate a 2D log-normal density field of a Gaussian power spectrum
+        def gendens2d(nx,ny,lx,ly,pkspec,wingrid):
+            # print('Generating lognormal density field...')
+            # Generate complex Fourier amplitudes
+            nc = float(nx*ny)
+            ktot = pkspec.size
+            pkspec[pkspec < 0.] = 0.
+            rangauss = np.reshape(np.random.normal(0.,1.,ktot),(nx,int(ny/2+1)))
+            realpart = np.sqrt(pkspec/(2.*nc))*rangauss
+            rangauss = np.reshape(np.random.normal(0.,1.,ktot),(nx,int(ny/2+1)))
+            imagpart = np.sqrt(pkspec/(2.*nc))*rangauss
+            deltak = realpart + imagpart*1j
+            # Make sure complex conjugate properties are in place
+            doconj2d(nx,ny,deltak)
+            # Do Fourier transform to produce overdensity field
+            deltax = nc*np.fft.irfftn(deltak)
+            # Produce density field
+            lmean = np.exp(0.5*np.var(deltax))
+            # print(deltax.shape, wingrid.shape)
+            meangrid = wingrid*np.exp(deltax)/lmean
+            return meangrid
+
+        # Impose complex conjugate properties on Fourier amplitudes
+        def doconj2d(nx,ny,deltak):
+            for ix in range(int(nx/2+1),nx):
+                deltak[ix,0] = np.conj(deltak[nx-ix,0])
+                deltak[ix,int(ny/2)] = np.conj(deltak[nx-ix,int(ny/2)])
+                deltak[0,0] = 0. + 0.*1j
+                deltak[int(nx/2),0] = np.real(deltak[int(nx/2),0]) + 0.*1j
+                deltak[0,int(ny/2)] = np.real(deltak[0,int(ny/2)]) + 0.*1j
+                deltak[int(nx/2),int(ny/2)] = np.real(deltak[int(nx/2),int(ny/2)]) + 0.*1j
+            return
+
+        # Convert 2D number grid to positions
+        def genpos2d(nx,ny,lx,ly,datgrid):
+            # print('Populating density field...')
+
+            # Create grid of x and y positions
+            dx,dy = lx/nx,ly/ny
+            x,y = dx*np.arange(nx),dy*np.arange(ny)
+
+            xgrid,ygrid = np.meshgrid(x,y,indexing='ij')
+
+            # Get coordinates where grid has points
+            datgrid1,xgrid,ygrid = datgrid[datgrid > 0.].astype(int),xgrid[datgrid > 0.],ygrid[datgrid > 0.] 
+            
+            xgrid = np.repeat(xgrid, datgrid1)
+            ygrid = np.repeat(ygrid, datgrid1)
+
+            # Jitter
+            xpos = xgrid + np.random.uniform(0.,dx, size=len(xgrid)) 
+            ypos = ygrid + np.random.uniform(0.,dy, size=len(ygrid)) 
+            
+            return xpos, ypos
+        
+        # Convert to angular power spectrum
+        ca = 2*np.pi*((np.pi/180.)**wb)*wa*(2.**(1.-wb))*gamma(1.-wb/2.)/gamma(wb/2.)
+        cb = 2.-wb
+        
+        if track_progress:
+            print('Clustering function:')
+            print('w(theta) =',wa,'theta[deg]^(-',wb,')')
+            print('C_K =',ca,'K[rad]^(-',cb,')')
+        
+        # Model angular power spectrum
+        kminmod = min(2.*np.pi/lxrad,2.*np.pi/lyrad)
+        kmaxmod = np.sqrt((np.pi*nx/lxrad)**2+(np.pi*ny/lyrad)**2) # in x and y direction
+        nkmod = 1000
+        kmod = np.linspace(kminmod,kmaxmod,nkmod)
+        pkmod = ca*(kmod**(-cb))
+        
+        # Transform the power spectrum P --> P' so that the lognormal
+        # realization of P' will be the same as a Gaussian realization of P
+        pkin = transpk2d(nx,ny,lxrad,lyrad,kmod,pkmod)
+        
+        # Generate a log-normal density field of a Gaussian power spectrum
+        wingrid = np.ones((nx,ny))
+        wingrid /= np.sum(wingrid)
+        meangrid = gendens2d(nx,ny,lxrad,lyrad,pkin,wingrid)
+        
+        # Sample number grid
+        if num_distribution=='uniform':
+            # Ravel
+            mean_ravel = meangrid.ravel()/float(meangrid.sum())
+
+            # Sample coordinates using density field as probability
+            idxs = np.random.choice(np.arange(len(mean_ravel)), size=self.num_centers, p=mean_ravel).astype(int)
+            idxs, counts = np.unique(idxs, return_counts=True)
+            
+            # Place coordinates on flattened grid 
+            dat_list = np.zeros(len(mean_ravel), dtype=int)
+            np.put(dat_list, idxs, counts)
+            
+            # Unravel
+            datgrid = np.reshape(dat_list, meangrid.shape)
+        
+        elif num_distribution=='poisson':
+            # Sample each point using Poisson
+            meangrid *= float(self.num_centers)
+            datgrid = np.random.poisson(meangrid).astype(float)
+        
+        # Convert 2D number grid to positions
+        xpos,ypos = genpos2d(nx ,ny,lxrad,lyrad,datgrid)
+        
+        # Convert positions to degrees
+        self.centers = np.array(list(zip(
+            np.degrees(xpos)*self.image_size/lxdeg,
+            np.degrees(ypos)*self.image_size/lydeg,
+            ))
+        )
+        
+        return self.centers
+    
+    def generate(self, num_distribution, clustering):
+        if clustering is None:
+            self.unclustered_centers(num_distribution)
+        else:
+            self.clustered_centers(num_distribution, clustering)
+        
+        return self.centers
+
+
 
 """Depreciated"""
 

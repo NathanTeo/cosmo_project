@@ -560,33 +560,38 @@ class CWGAN(pl.LightningModule, ganUtils):
         return scores
 
 class EMA():
+    """
+    Exponential moving average for diffusion model
+    Weights in this network are less suseptible to large changes 
+    """
     def __init__(self, beta):
         self.beta = beta
     
     def update_network_average(self, ema_network, network):
+        # Update all weights
         for current_param, ema_param in zip(network.parameters(), ema_network.parameters()):
             old_weight, new_weight = ema_param.data, current_param.data
             ema_param.data = self.update_average(old_weight, new_weight)
             
     def update_average(self, old, new):
+        # Moving average of weight
         return old*self.beta + (1-self.beta)*new
     
     def step_ema(self, ema_network, network, epoch, epoch_start_ema=10):
+        # Step after specified epoch 
         if epoch < epoch_start_ema:
             self.reset_parameters(ema_network, network)
             return
         self.update_network_average(ema_network, network)
         
     def reset_parameters(self, ema_network, network):
+        # Reload ema to match network
         ema_network.load_state_dict(network.state_dict())
         
         
 class Diffusion(pl.LightningModule):
     def __init__(self, **training_params):
         super().__init__()
-        
-        self.automatic_optimization = False
-        
         self.unet_version = training_params['unet_version']
         self.training_params = training_params
         self.root_path = training_params['root_path']
@@ -693,13 +698,10 @@ class Diffusion(pl.LightningModule):
         self.epoch_losses.append(loss.cpu().detach().numpy())
         self.log("loss", loss, on_epoch=False)
         
-        # Step, manual for ema implementation
-        opt = self.optimizers()
-        opt.zero_grad()
-        self.manual_backward(loss)
-        opt.step()
+        return loss
         
-        # Exponential moving average
+    def on_train_batch_end(self, outputs, batch, batch_idx):
+        # Step exponential moving average
         self.ema.step_ema(self.ema_network, self.network, self.current_epoch)
         
     def configure_optimizers(self):

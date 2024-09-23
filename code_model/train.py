@@ -53,8 +53,8 @@ def run_training(training_params, generation_params, testing_params, training_re
                 model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
                 model_version,
                 gen_version, dis_version,
-                blob_num, data_distribution[0], blob_size, "{:.0g}".format(sample_num), image_size,
-                training_seed, "{:.0g}".format(lr),
+                blob_num, data_distribution[0], blob_size, "{:.0e}".format(sample_num), image_size,
+                training_seed, "{:.0e}".format(lr),
                 latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
                 str(training_noise[1])[2:] if training_noise is not None else '_'
                 )
@@ -68,8 +68,8 @@ def run_training(training_params, generation_params, testing_params, training_re
                 model_name = '{}-n{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-st{}-td{}-sz{}-ns{}'.format(
                 model_version,
                 unet_version,
-                blob_num, data_distribution[0], blob_size, "{:.0g}".format(sample_num), image_size,
-                training_seed, "{:.0g}".format(lr),
+                blob_num, data_distribution[0], blob_size, "{:.0e}".format(sample_num), image_size,
+                training_seed, "{:.0e}".format(lr),
                 noise_steps, time_dim, initial_size, 
                 str(training_noise[1])[2:] if training_noise is not None else '_'
                 )
