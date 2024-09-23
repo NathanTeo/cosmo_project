@@ -180,6 +180,25 @@ def plot_histogram_stack(ax, hist, edges,
     if fill_color is not None:
         ax.fill_between(x, 0, y, color=fill_color)
         
+def plot_two_point(ax, corrs, edges, errs=None, interp='cubic',
+                   color=(('darkorange', 1), ('darkorange', 0.5)), linewidth=1,
+                   label=None, errorbars=True):
+    """Plots the interpolated 2 point correlation with errors is available"""
+    # Get midpoints and interpolate
+    midpoints = midpoints_of_bins(edges)
+    smooth = interp1d(midpoints, corrs, kind=interp)
+    
+    # Plot
+    x = np.linspace(midpoints[0], midpoints[-1], 100)
+    ax.plot(x, smooth(x), color=color[0], linewidth=linewidth, label=label)
+    if errorbars:
+        ax.errorbar(midpoints, corrs, yerr=errs, fmt='.', color=color[1])
+
+
+def midpoints_of_bins(edges):
+    """Returns midpoints of bin edges for plotting"""
+    return (edges[:-1]+edges[1:])/2 
+
 def set_linewidth(current_iter, total_iter, minor=0.3, major=1.2):
     return minor if current_iter!=(total_iter-1) else major
     

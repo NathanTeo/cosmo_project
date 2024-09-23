@@ -53,8 +53,8 @@ class testDataset():
             self.model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
                 self.model_version,
                 gen_version, dis_version,
-                self.blob_num, self.data_distribution[0], self.blob_size, "{:.0g}".format(self.real_sample_num), self.image_size,
-                self.training_seed, "{:.0g}".format(self.lr),
+                self.blob_num, self.data_distribution[0], self.blob_size, "{:.0e}".format(self.real_sample_num), self.image_size,
+                self.training_seed, "{:.0e}".format(self.lr),
                 latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
                 str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
             )
@@ -521,9 +521,9 @@ class blobTester(testDataset):
     def two_point_correlation(self):
         """2-point correlation analysis"""
         print('calculating 2 point correlation...')
-        real_corrs, edges = stack_two_point_correlation(self.real_blob_coords, self.image_size, bins=20, progress_bar=True)
-        all_gen_corrs, _ = map(
-            list, zip(*[stack_two_point_correlation(
+        real_corrs, real_errs, edges = two_point_stack(self.real_blob_coords, self.image_size, bins=20, progress_bar=True)
+        all_gen_corrs, all_gen_errs, _ = map(
+            list, zip(*[two_point_stack(
                 blob_coords, self.image_size, bins=20, progress_bar=True
                 ) for blob_coords in self.all_gen_blob_coords])
         )
@@ -532,16 +532,21 @@ class blobTester(testDataset):
         fig, ax = plt.subplots()
 
         # Plot
-        plot_histogram_stack(ax, real_corrs, edges, color=(self.real_color,0.8), label='real', logscale=False)
+        plot_two_point(
+            ax, real_corrs, edges, real_errs, 
+            color=((self.real_color,1), (self.real_color,0.5)),
+            label='real'
+        ) 
         
+        plot_errors = [False, False, True] # Only plot errorbars for last model
             
-        for i, corrs in enumerate(all_gen_corrs):
-            plot_histogram_stack(
-                ax, corrs, edges,
-                color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models)), 
-                label=f'epoch {self.model_epochs[i]}', logscale=False
-                )
-
+        for i, (corrs, errs) in enumerate(zip(all_gen_corrs, all_gen_errs)):
+            plot_two_point(
+                ax, corrs, edges, errs, 
+                color=((self.gen_color,self.alphas[i]), (self.gen_color,0.5)), linewidth=set_linewidth(i, len(self.models)),
+                label=f'epoch {self.model_epochs[i]}', errorbars=plot_errors[i]
+            )
+        
         # Format
         ax.set_ylim(-1, 1)
         fig.suptitle(f"2-point correlation, {self.subset_sample_num} samples")
@@ -817,6 +822,7 @@ class diffLogsPlotter(testDataset):
         ax.plot(epochs, losses, color='C0', linewidth=0.7)
 
         # Format
+        ax.set_yscale('log')
         ax.set_xlabel('epochs')
         ax.set_ylabel('loss')
 

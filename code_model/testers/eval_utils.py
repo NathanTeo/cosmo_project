@@ -10,10 +10,12 @@ from skimage.feature import peak_local_max
 from scipy.ndimage import gaussian_filter
 from tqdm.auto import tqdm
 from scipy.stats import multivariate_normal
-import random
+from scipy.optimize import minimize
+from scipy.spatial.distance import cdist
+from scipy.interpolate import interp1d
+from astroML.correlation import two_point, bootstrap_two_point
 import time
 import concurrent.futures
-from scipy.optimize import minimize
 
 """Ungrouped"""
 
@@ -78,94 +80,36 @@ def fourier_transform(samples, progress_bar=False):
 
 
 """2- point correlation"""
-
-def euclidean_dist(coord_1, coord_2):
-    """
-    Calculates euclidean distance between 2 points
-    """
-    return ((coord_1[0]-coord_2[0])**2+(coord_1[1]-coord_2[1])**2)**0.5
-
-def generate_random_coords(image_size, n):
-    """
-    Generate n number of random 2D coordinates within the range of the image size
-    """
-    return np.random.rand(n, 2)*image_size-0.5
-
-def find_pair_distances(sample_1, sample_2):
-    """
-    Find distances between all pairs of points given two samples.
-    If both samples are the same, the distances to all pairs of points within one sample will be calculated.
-    """
-    if (len(sample_1)==len(sample_2)) and ((sample_1==sample_2).all()):
-        sample = sample_1
-        sample_temp = np.array(sample).copy()
-        distances = []
-        
-        # Calculate distances
-        for coord in sample:
-            for i in range(len(sample_temp)-1):
-                distances.append(euclidean_dist(coord, sample_temp[i+1]))
-            sample_temp = sample_temp[1:]
+def calculate_two_point(coords, image_size, bins=10, bootstrap=True):
+    """Calculate the two point correaltion with astroML"""
+    # Get edges of bins
+    edges = np.linspace(0, image_size, bins)
+    
+    # Two point correlation
+    if bootstrap:
+        corrs, errs = bootstrap_two_point(coords, edges)
+        return corrs, errs, edges
     else:
-        distances = []
-        for coord_1 in sample_1:
-            for coord_2 in sample_2:
-                distances.append(euclidean_dist(coord_1, coord_2))
-                
-    return distances
+        corrs = two_point(coords, edges)
+        return corrs, None, edges
+    
+def two_point_stack(samples, image_size, bins=10, bootstrap=True, progress_bar=False):
+    """Calculate the mean two point correlation for a set of samples with astroML"""
+    # Initialize arrays
+    all_corrds = []
+    all_errs = []
+    
+    # Two point correlation
+    for coords in tqdm(samples, disable=not progress_bar):
+        corrs, errs, edges = calculate_two_point(coords, image_size, bins, bootstrap)
+        all_corrds.append(corrs)
+        all_errs.append(errs)
+    
+    # Calculate mean
+    corrs = np.mean(all_corrds, axis=0)
+    errs = np.mean(all_errs, axis=0) if bootstrap else None
 
-def find_pair_hist(sample_1, sample_2, bins):
-    """
-    Returns the histogram of distances given two samples of points.
-    """
-    distances = find_pair_distances(sample_1, sample_2)
-    n, edges, _ = plt.hist(distances, bins=bins)
-    
-    return n/len(distances), edges
-
-def two_point_correlation(sample, image_size, bins=10, rel_random_n=5):
-    """
-    Calculates the two point correlation using the Landy Szalay estimator given an image sample
-    """
-    random_sample = generate_random_coords(image_size, max(len(sample)*rel_random_n, 1e4))
-    
-    dd_norm, edges = find_pair_hist(sample, sample, bins)
-    rr_norm, _ = find_pair_hist(random_sample, random_sample, bins)
-    dr_norm, _ = find_pair_hist(sample, random_sample, bins)
-    
-    return (dd_norm-2*dr_norm+rr_norm)/rr_norm, edges
-
-def stack_two_point_correlation(point_coords, image_size, bins=10, rel_random_n=5, progress_bar=False):
-    """
-    Calculates the two point correlation using the Landy Szalay estimator given a series of image samples
-    """
-    bins = np.linspace(0, image_size,bins)
-    dd_dists = []
-    rr_dists = []
-    dr_dists = []
-    
-    for sample in tqdm(point_coords, disable=not progress_bar):
-        sample = np.array(sample)
-        random_sample = generate_random_coords(image_size, max(len(sample)*rel_random_n, 1e4))
-        
-        # Calculate distances
-        dd_dists.extend(find_pair_distances(sample, sample))
-        rr_dists.extend(find_pair_distances(random_sample, random_sample))
-        dr_dists.extend(find_pair_distances(sample, random_sample))
-    
-    dd, edges, _ = plt.hist(dd_dists, bins=bins)
-    rr, edges, _ = plt.hist(rr_dists, bins=bins)
-    dr, edges, _ = plt.hist(dr_dists, bins=bins)
-    
-    dd_norm = dd/len(dd_dists)
-    rr_norm = rr/len(rr_dists)
-    dr_norm = dr/len(dr_dists)
-
-    corr = (dd_norm-2*dr_norm+rr_norm)/rr_norm
-    
-    return corr, edges
-
-
+    return corrs, errs, edges
 
 """Counting"""
 
@@ -684,3 +628,104 @@ def imgs_peak_finder(imgs, min_distance=3, threshold_abs=0.05, filter_sd = None,
         peak_vals.append([img[coord[0],coord[1]] for coord in img_peak_coords])
         
     return peak_coords, peak_nums, peak_vals
+
+def euclidean_dist(coord_1, coord_2):
+    """
+    Calculates euclidean distance between 2 points
+    """
+    return ((coord_1[0]-coord_2[0])**2+(coord_1[1]-coord_2[1])**2)**0.5
+
+def generate_random_coords(image_size, n):
+    """
+    Generate n number of random 2D coordinates within the range of the image size
+    """
+    return np.random.rand(n, 2)*image_size-0.5
+
+def upper_tri_masking(A):
+    m = A.shape[0]
+    r = np.arange(m)
+    mask = r[:,None] < r
+    return A[mask]
+
+def find_pair_distances(sample_1, sample_2):
+    """
+    Find distances between all pairs of points given two samples.
+    If both samples are the same, the distances to all pairs of points within one sample will be calculated.
+    """
+    
+    ## SLOW METHOD
+    # if (len(sample_1)==len(sample_2)) and ((sample_1==sample_2).all()):
+    #     sample = sample_1
+    #     sample_temp = np.array(sample).copy()
+    #     distances = []
+        
+    #     # Calculate distances
+    #     for coord in sample:
+    #         for i in range(len(sample_temp)-1):
+    #             distances.append(euclidean_dist(coord, sample_temp[i+1]))
+    #         sample_temp = sample_temp[1:]
+    # else:
+    #     distances = []
+    #     for coord_1 in sample_1:
+    #         for coord_2 in sample_2:
+    #             distances.append(euclidean_dist(coord_1, coord_2))
+    
+    if (len(sample_1)==len(sample_2)) and ((sample_1==sample_2).all()):
+        distances = upper_tri_masking(cdist(sample_1, sample_2))
+    else:
+        distances = cdist(sample_1, sample_2).flatten()
+                
+    return distances
+
+def find_pair_hist(sample_1, sample_2, bins):
+    """
+    Returns the histogram of distances given two samples of points.
+    """
+    distances = find_pair_distances(sample_1, sample_2)
+    n, edges = np.histogram(distances, bins=bins)
+    
+    return n/len(distances), edges
+
+def two_point_correlation(sample, image_size, bins=10, rel_random_n=5):
+    """
+    Calculates the two point correlation using the Landy Szalay estimator given an image sample
+    """
+    random_sample = generate_random_coords(image_size,int(max(len(sample)*rel_random_n, 1e3)))
+    
+    dd_norm, edges = find_pair_hist(sample, sample, bins)
+    rr_norm, _ = find_pair_hist(random_sample, random_sample, bins)
+    dr_norm, _ = find_pair_hist(sample, random_sample, bins)
+    
+    return (dd_norm-2*dr_norm+rr_norm)/rr_norm, edges
+
+def stack_two_point_correlation(point_coords, image_size, bins=10, rel_random_n=5, progress_bar=False):
+    """
+    Calculates the two point correlation using the Landy Szalay estimator given a series of image samples
+    NOTE: THIS IS WRONG. SHOULD NOT BE STACKING SAMPLES
+    """
+    bins = np.linspace(0, image_size,bins)
+    dd_dists = []
+    rr_dists = []
+    dr_dists = []
+    
+    for sample in tqdm(point_coords, disable=not progress_bar):
+        sample = np.array(sample)
+        random_sample = generate_random_coords(image_size, int(max(len(sample)*rel_random_n, 1e3)))
+        
+        # Calculate distances
+        dd_dists.extend(find_pair_distances(sample, sample))
+        rr_dists.extend(find_pair_distances(random_sample, random_sample))
+        dr_dists.extend(find_pair_distances(sample, random_sample))
+    
+    dd, edges = np.histogram(dd_dists, bins=bins)
+    rr, edges = np.histogram(rr_dists, bins=bins)
+    dr, edges = np.histogram(dr_dists, bins=bins)
+    
+    dd_norm = dd/len(dd_dists)
+    rr_norm = rr/len(rr_dists)
+    dr_norm = dr/len(dr_dists)
+
+    corr = (dd_norm-2*dr_norm+rr_norm)/rr_norm
+    
+    return corr, edges
+
