@@ -17,7 +17,7 @@ from code_model.testers.plotting_utils import *
 from code_model.testers.eval_utils import *
 from code_model.testers.modules import *
 
-def run_training(training_params, generation_params, testing_params, training_restart=False):
+def run_training(training_params, generation_params, testing_params, training_restart=False, generate_samples=False):
         """Initialize Params"""
         model_version = training_params['model_version']
 
@@ -171,7 +171,9 @@ def run_training(training_params, generation_params, testing_params, training_re
         
                 # Generate dataset for testing
                 dataset = testDataset(generation_params, training_params, testing_params)
-                dataset.prep_data(BlobDataModule, model_dict, testing_restart=True)
+                
+                if generate_samples:
+                        dataset.prep_data(BlobDataModule, model_dict, testing_restart=True)
                 
                 # plot losses
                 if 'GAN' in training_params['model_version']:
