@@ -9,13 +9,13 @@ import os
 
 """Params"""
 params = {
-    'image_size': 32,
+    'image_size': 128,
     'seed': 70,
     'blob_size': 5,
-    'sample_num': 5000,
-    'blob_num': 10,
-    'num_distribution': 'uniform',
-    'clustering': 0,
+    'sample_num': 10,
+    'blob_num': 1000,
+    'num_distribution': 'poisson',
+    'clustering': (0.01, 0.8),
     'pad': 0,
     'noise': 0
 }

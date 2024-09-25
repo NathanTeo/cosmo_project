@@ -105,7 +105,10 @@ class testDataset():
         """Plotting style"""
         self.real_color = 'black'
         self.gen_color = 'red'
-        self.alphas = [0.1, 0.3, 0.5]
+        # Need to change if different number of models are plotted, find a way to make this automatic/input?
+        self.hist_alphas = [0.3, 0.7, 0.5]
+        self.line_alphas = [0.3, 0.7, 0.9]
+        self.select_last_epoch = [False, False, True]
         
         """Initialize seed"""
         torch.manual_seed(self.testing_seed)
@@ -409,18 +412,17 @@ class blobTester(testDataset):
         bins = np.arange(min-1.5, max+1.5,1)
         
         # Plot histogram
-        plt.hist(self.real_blob_counts, bins=bins, 
-                    histtype='step', label='real', color=(self.real_color,0.8))
-        plt.axvline(self.real_blob_num_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1)
-
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
             plt.hist(blob_counts, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}',
-                    color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models)),
-                    fill=True
+                    color=(self.gen_color,self.hist_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                    fill=self.select_last_epoch[i]
                     )
-
         plt.axvline(self.all_gen_blob_num_mean[-1], color=(self.gen_color,0.5), linestyle='dashed', linewidth=1) # Only label mean for last model
+        
+        plt.hist(self.real_blob_counts, bins=bins, 
+                    histtype='step', label='real', color=(self.real_color,0.8))
+        plt.axvline(self.real_blob_num_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1)
 
         _, max_ylim = plt.ylim()
         plt.text(self.real_blob_num_mean*1.05, max_ylim*0.9,
@@ -498,15 +500,15 @@ class blobTester(testDataset):
         fig = plt.figure()
 
         # Plot
-        plt.hist(real_img_fluxes, 
-                    histtype='step', label='real', color=(self.real_color,0.8))
         for i, fluxes in enumerate(all_gen_img_fluxes):
             plt.hist(fluxes, 
                     histtype='step', label=f'epoch {self.model_epochs[i]}', 
-                    color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models)),
-                    fill=True
+                    color=(self.gen_color,self.hist_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                    fill=self.select_last_epoch[i]
                     )
-
+        plt.hist(real_img_fluxes, 
+                    histtype='step', label='real', color=(self.real_color,0.8))
+ 
         # Format   
         plt.ylabel('image count')
         plt.xlabel('total flux')
@@ -536,19 +538,16 @@ class blobTester(testDataset):
             ax, real_corrs, edges, real_errs, 
             color=((self.real_color,1), (self.real_color,0.5)),
             label='real'
-        ) 
-        
-        plot_errors = [False, False, True] # Only plot errorbars for last model
-            
+        )
+         
         for i, (corrs, errs) in enumerate(zip(all_gen_corrs, all_gen_errs)):
             plot_two_point(
                 ax, corrs, edges, errs, 
-                color=((self.gen_color,self.alphas[i]), (self.gen_color,0.5)), linewidth=set_linewidth(i, len(self.models)),
-                label=f'epoch {self.model_epochs[i]}', errorbars=plot_errors[i]
+                color=((self.gen_color,self.line_alphas[i]), (self.gen_color,0.5)), linewidth=set_linewidth(i, len(all_gen_corrs)),
+                label=f'epoch {self.model_epochs[i]}', errorbars=self.select_last_epoch[i]
             )
         
         # Format
-        ax.set_ylim(-1, 1)
         fig.suptitle(f"2-point correlation, {self.subset_sample_num} samples")
         plt.xlabel('pair distance')
         plt.ylabel('2-point correlation')
@@ -591,14 +590,16 @@ class blobTester(testDataset):
         fig, ax = plt.subplots()
 
         # Plot
-        plot_histogram_stack(ax, *real_hist_stack, color=(self.real_color,0.8), label='real')
+        fill = [None, None, (self.gen_color, self.hist_alphas[-1])]
         for i, hist_stack in enumerate(all_gen_hist_stack):
             plot_histogram_stack(
                 ax, *hist_stack,
-                color=(self.gen_color,self.alphas[i]), linewidth=set_linewidth(i, len(self.models)),
-                fill_color=(self.gen_color,self.alphas[i]),
+                color=(self.gen_color,self.hist_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                fill_color=fill[i],
                 label=f'epoch {self.model_epochs[i]}'
                 )
+
+        plot_histogram_stack(ax, *real_hist_stack, color=(self.real_color,0.8), label='real')
 
         # Format
         plt.ylabel('image count')

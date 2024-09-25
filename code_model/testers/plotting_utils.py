@@ -200,5 +200,5 @@ def midpoints_of_bins(edges):
     return (edges[:-1]+edges[1:])/2 
 
 def set_linewidth(current_iter, total_iter, minor=0.3, major=1.2):
-    return minor if current_iter!=(total_iter-1) else major
+    return minor if current_iter!=int(total_iter-1) else major
     

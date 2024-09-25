@@ -79,7 +79,9 @@ def fourier_transform(samples, progress_bar=False):
     return [np.fft.fftshift(np.fft.fft2(sample)) for sample in tqdm(samples, disable=not progress_bar)]
 
 
+
 """2- point correlation"""
+
 def calculate_two_point(coords, image_size, bins=10, bootstrap=True):
     """Calculate the two point correaltion with astroML"""
     # Get edges of bins
@@ -87,29 +89,33 @@ def calculate_two_point(coords, image_size, bins=10, bootstrap=True):
     
     # Two point correlation
     if bootstrap:
-        corrs, errs = bootstrap_two_point(coords, edges)
+        corrs, errs = bootstrap_two_point(coords, edges, method='landy-szalay')
         return corrs, errs, edges
     else:
-        corrs = two_point(coords, edges)
+        corrs = two_point(coords, edges, method='landy-szalay')
         return corrs, None, edges
     
 def two_point_stack(samples, image_size, bins=10, bootstrap=True, progress_bar=False):
     """Calculate the mean two point correlation for a set of samples with astroML"""
     # Initialize arrays
-    all_corrds = []
+    all_corrs = []
     all_errs = []
     
     # Two point correlation
     for coords in tqdm(samples, disable=not progress_bar):
+        if len(coords)==0:
+            continue
         corrs, errs, edges = calculate_two_point(coords, image_size, bins, bootstrap)
-        all_corrds.append(corrs)
+        all_corrs.append(corrs)
         all_errs.append(errs)
-    
+        
     # Calculate mean
-    corrs = np.mean(all_corrds, axis=0)
-    errs = np.sqrt(np.sum(((1/len(all_errs))*all_errs)**2, axis=0)) if bootstrap else None
-
+    corrs = np.nanmean(all_corrs, axis=0) # is nanmean correct here?
+    errs = np.sqrt(np.sum(((1/len(all_errs))*np.array(all_errs))**2, axis=0)) if bootstrap else None
+    
     return corrs, errs, edges
+
+
 
 """Counting"""
 
@@ -411,7 +417,7 @@ class blobCounter():
 
             # Reshape centers fit to be [(y0, x0), (y1, x1), ...]
             fit = (result.x[:int(len(result.x)/2)], result.x[int(len(result.x)/2):])
-            fit = list(zip(*fit))
+            fit = np.array(list(zip(*fit))).clip(-0.5, self.image_size-0.5)
 
             minimize_end = time.time()
             

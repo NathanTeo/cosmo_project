@@ -15,7 +15,8 @@ lightning_logs/
 logs/
 temp_plots/
 plots/
-check_functions/
+workspace_experiments/
+workspace_tests/
 checkpoints/
 wandb/
 scripts/*
