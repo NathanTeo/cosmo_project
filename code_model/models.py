@@ -604,7 +604,7 @@ class Diffusion(pl.LightningModule):
         self.scheduler_params = training_params['scheduler_params']
         self.loss_fn = torch.nn.MSELoss()
 
-        self.network = networks.network_dict[f'unet_v{self.unet_version}'](self.device, **self.training_params)
+        self.network = networks.network_dict[f'unet_v{self.unet_version}'](**self.training_params)
         self.ema = EMA(beta=0.995)
         self.ema_network = deepcopy(self.network).eval().requires_grad_(False)
         
@@ -620,13 +620,13 @@ class Diffusion(pl.LightningModule):
     def cosine_schedule(self, s=0.008):
         """Prepares cosine scheduler for adding noise"""
         def f(t):
-            return torch.cos((t / self.noise_steps + s) / (1 + s) * 0.5 * torch.pi) ** 2
+            return torch.cos(((t/self.noise_steps) + s) / (1 + s) * 0.5 * torch.pi) ** 2
         x = torch.linspace(0, self.noise_steps, self.noise_steps + 1, device=self.device)
         alpha_cumprod = f(x) / f(torch.tensor([0], device=self.device))
         betas = 1 - alpha_cumprod[1:] / alpha_cumprod[:-1]
-        betas = torch.clip(betas, 0.0001, 0.999)
+        betas = torch.clip(betas, 0.0001, 0.9999)
         return betas
-    
+
     def add_noise(self, x, t):
         """Adds gaussian noise to images"""
         sqrt_alpha_hats = torch.sqrt(self.alpha_hats[t])[:,None,None,None]
@@ -665,7 +665,6 @@ class Diffusion(pl.LightningModule):
         self.alphas = self.alphas.to(self.device)
         self.alpha_hats = self.alpha_hats.to(self.device)
         
-        self.network.device = self.device
         self.ema_network.device = self.device
         
     def training_step(self, batch, batch_idx):
