@@ -647,14 +647,14 @@ class Diffusion(pl.LightningModule):
             for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
                 t = (torch.ones(n, device=self.device)*i).long()
                 predicted_noise = model(x, t)
-                alphas = self.alphas[t][:,None,None,None]
-                alpha_hats = self.alpha_hats[t][:,None,None,None]
-                betas = self.betas[t][:,None,None,None]
+                alpha = self.alphas[t][:,None,None,None]
+                alpha_hat = self.alpha_hats[t][:,None,None,None]
+                beta = self.betas[t][:,None,None,None]
                 if i>1:
                     noise = torch.randn_like(x)
                 else:
                     noise = torch.zeros_like(x)
-                x = 1/torch.sqrt(alphas) * (x - ((1-alphas) / (torch.sqrt(1-alpha_hats))) * predicted_noise) + torch.sqrt(betas) * noise
+                x = 1/torch.sqrt(alpha) * (x - ((1-alpha) / (torch.sqrt(1-alpha_hat))) * predicted_noise) + torch.sqrt(beta) * noise
         model.train()
         x = x.clamp(-1, 1)
         return x
