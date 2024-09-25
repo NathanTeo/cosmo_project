@@ -1,7 +1,7 @@
 """
 Author: Nathan Teo
 
-This script runs GAN training
+This script runs model training
 """
 
 import os
