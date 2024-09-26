@@ -12,6 +12,7 @@ click==8.1.7+computecanada
 contourpy==1.2.1+computecanada
 cycler==0.12.1+computecanada
 docker-pycreds==0.4.0+computecanada
+einops==0.8.0+computecanada
 filelock==3.13.1+computecanada
 fonttools==4.53.0+computecanada
 frozenlist==1.4.1+computecanada

@@ -7,6 +7,13 @@ This script contains generators and discriminators (or critics) used in the GANs
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
+import torch
+import torch.nn as nn
+from inspect import isfunction
+from einops import rearrange
+
+
 
 """Discriminators"""
 class Discriminator_v1(nn.Module):
@@ -753,12 +760,6 @@ class UNet_v1(nn.Module):
         return output
         
 'unet 2 from https://github.com/mikonvergence/DiffusionFastForward.git'
-import math
-import torch
-import torch.nn as nn
-from inspect import isfunction
-from einops import rearrange
-
 def exists(x):
     return x is not None
 
@@ -892,7 +893,8 @@ class UnetConvNextBlock(nn.Module):
 
         self.channels = network_params['input_channels']
         dim_mults = network_params['dim_mult']
-        
+        out_dim = self.channels
+         
         self.residual = residual
         self.output_mean_scale = output_mean_scale
 
@@ -998,5 +1000,5 @@ network_dict = {
     'dis_v4': Discriminator_v4,
     'dis_v5': Discriminator_v5,
     'unet_v1': UNet_v1,
-    'unet_v2': UNet_v2
+    'unet_v2': UnetConvNextBlock
 }

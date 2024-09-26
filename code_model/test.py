@@ -1,7 +1,7 @@
 """
 Author: Nathan Teo
 
-This script contains runs testing on the model:
+This script runs testing on the model:
 """
 
 from code_model.data_modules import *
