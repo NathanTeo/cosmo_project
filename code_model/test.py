@@ -20,10 +20,10 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     # plot losses
     if 'GAN' in training_params['model_version']:
         logs_plotter = ganLogsPlotter(dataset)
+        logs_plotter.plot_logs(BlobDataModule, model_dict, testing_restart)
     elif 'Diffusion' in training_params['model_version']:
         logs_plotter = diffLogsPlotter(dataset)
-    
-    logs_plotter.plot_logs(BlobDataModule, model_dict, testing_restart)
+        logs_plotter.plot_logs(BlobDataModule, testing_restart)
     
     # test dataset
     if generation_params['blob_size']>0:
