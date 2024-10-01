@@ -76,7 +76,8 @@ def find_total_fluxes(samples):
 
 def fourier_transform(samples, progress_bar=False):
     """Performs a 2d FFT on the image"""
-    return [np.fft.fftshift(np.fft.fft2(sample)) for sample in tqdm(samples, disable=not progress_bar)]
+    return [np.abs(np.fft.fftshift(np.fft.fft2(sample))) 
+            for sample in tqdm(samples, disable=not progress_bar)]
 
 
 
