@@ -26,7 +26,8 @@ class testDataset():
         self.lr = training_params['lr']
 
         self.blob_num = generation_params['blob_num']
-        self.data_distribution = generation_params['distribution']
+        self.num_distribution = generation_params['distribution']
+        self.clustering = generation_params['clustering']
         self.generation_seed = generation_params['seed']
         self.blob_size = generation_params['blob_size']
         self.real_sample_num = generation_params['sample_num']
@@ -41,38 +42,34 @@ class testDataset():
         self.avail_gpus = training_params['avail_gpus']
         
         if 'GAN' in self.model_version:
-            gen_version = training_params['generator_version']
-            dis_version = training_params['discriminator_version']
-            
-            latent_dim = network_params['latent_dim']
-            gen_img_w = network_params['generator_img_w']
-            gen_upsamp = network_params['generator_upsamp_size']
-            dis_conv = network_params['discriminator_conv_size']
-            dis_lin = network_params['discriminator_linear_size']
-            
-            self.model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
-                self.model_version,
-                gen_version, dis_version,
-                self.blob_num, self.data_distribution[0], self.blob_size, "{:.0e}".format(self.real_sample_num), self.image_size,
-                self.training_seed, "{:.0e}".format(self.lr),
-                latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
-                str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
-            )
+                gen_version = training_params['generator_version']
+                dis_version = training_params['discriminator_version']
+                
+                self.model_name = '{}-g{}-d{}-bn{}{}-cl{}-bs{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
+                        self.model_version,
+                        gen_version, dis_version,
+                        self.blob_num, self.num_distribution[0],
+                        '{:.0e}_{:.0e}'.format(*self.clustering) if self.clustering is not None else '_',
+                        self.blob_size, "{:.0e}".format(self.real_sample_num), self.image_size,
+                        self.training_seed, "{:.0e}".format(self.lr),
+                        list(network_params.values()),
+                        str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
+                )
+
         elif 'Diffusion' in self.model_version:
-            unet_version = training_params['unet_version']
-            
-            noise_steps = ['noise_steps']
-            time_dim = ['time_dim']
-            initial_size = ['ininial_size']
-    
-            self.model_name = '{}-n{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-st{}-td{}-sz{}-ns{}'.format(
-                self.model_version,
-                unet_version,
-                self.blob_num, self.data_distribution[0], self.blob_size, "{:.0g}".format(self.real_sample_num), self.image_size,
-                self.training_seed, "{:.0g}".format(self.lr),
-                noise_steps, time_dim, initial_size, 
-                str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
-            )
+                unet_version = training_params['unet_version']
+                
+                self.model_name = '{}-n{}-bn{}{}-cl{}-bs{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
+                        self.model_version,
+                        unet_version,
+                        self.blob_num, self.num_distribution[0],
+                        '{:.0e}_{:.0e}'.format(*self.clustering) if self.clustering is not None else '_',
+                        self.blob_size, "{:.0g}".format(self.real_sample_num), self.image_size,
+                        self.training_seed, "{:.0g}".format(self.lr),
+                        list(network_params.values()),
+                        str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
+                )  
+                
         self.training_params['model_name'] = self.model_name
         
         self.grid_row_num = testing_params['grid_row_num']
@@ -85,7 +82,12 @@ class testDataset():
         """Paths"""
         self.root_path = training_params['root_path']
         self.data_path = 'data'
-        self.data_file_name = f'bn{self.blob_num}{self.data_distribution[0]}-is{self.image_size}-bs{self.blob_size}-sn{self.real_sample_num}-sd{self.generation_seed}-ns{int(self.gen_noise)}.npy'
+        self.data_file_name = 'bn{}{}-cl{}-is{}-bs{}-sn{}-sd{}-ns{}.npy'.format(
+            self.blob_num, self.num_distribution[0], 
+            '{:.0e}_{:.0e}'.format(*self.clustering) if self.clustering is not None else '_',
+            self.image_size, self.blob_size, self.real_sample_num,
+            self.generation_seed, int(self.gen_noise)
+        )
         self.chkpt_path = 'checkpoints'
         self.log_path = 'logs'
         self.plot_save_path = f'{self.root_path}/plots/images'
@@ -103,6 +105,7 @@ class testDataset():
         self.epoch_last = self.losses['epochs'][-1]
         
         """Plotting style"""
+        self.image_file_format = 'png'
         self.real_color = 'black'
         self.gen_color = 'red'
         # Need to change if different number of models are plotted, find a way to make this automatic/input?
@@ -168,7 +171,7 @@ class testDataset():
                     np.save('{}/{}_{:.0g}.npy'.format(
                         self.output_save_path, filename[:-5], self.subset_sample_num
                         ), model.outputs)
-                
+            
                 return self.all_gen_imgs
             
         except FileNotFoundError:
@@ -221,6 +224,7 @@ class blobTester(testDataset):
             real_imgs_subset = self.real_imgs[n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)]
             gen_imgs_subset = self.all_gen_imgs[-1][n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)] # Only use last model for this section
             
+            'Images'
             # Plotting grid of images
             fig = plt.figure(figsize=(6,3))
             subfig = fig.subfigures(1, 2, wspace=0.2)
@@ -229,9 +233,10 @@ class blobTester(testDataset):
             plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs')
             
             # Save plot
-            plt.savefig(f'{self.plot_save_path}/gen-imgs_{n}_{self.model_name}.png')
+            plt.savefig(f'{self.plot_save_path}/gen-imgs_{n}_{self.model_name}.{self.image_file_format}')
             plt.close()
 
+            'Marginal sums'
             # Plotting marginal sums
             real_marginal_sums = [marginal_sums(real_imgs_subset[i]) for i in range(self.grid_row_num**2)]
             gen_marginal_sums = [marginal_sums(gen_imgs_subset[i]) for i in range(self.grid_row_num**2)]
@@ -248,9 +253,10 @@ class blobTester(testDataset):
             plt.tight_layout()
             
             # Save plot
-            plt.savefig(f'{self.plot_save_path}/marg-sums_{n}_{self.model_name}.png')
+            plt.savefig(f'{self.plot_save_path}/marg-sums_{n}_{self.model_name}.{self.image_file_format}')
             plt.close()
            
+            'Counts'
             # Fitting blobs
             counter = blobCounter(blob_size=self.blob_size, blob_amplitude=self.blob_amplitude)
             
@@ -260,6 +266,7 @@ class blobTester(testDataset):
             counter.load_samples(gen_imgs_subset)
             gen_blob_coords, gen_img_blob_counts = counter.count(progress_bar=False)
 
+            # Plotting fit
             fig = plt.figure(figsize=(6,3))
             subfig = fig.subfigures(1, 2, wspace=0.2)
             
@@ -271,9 +278,25 @@ class blobTester(testDataset):
             fig.text(.5, .03, 'number of blobs labelled above image', ha='center')
             
             # Save plot
-            plt.savefig(f'{self.plot_save_path}/counts-imgs_{n}_{self.model_name}.png')
+            plt.savefig(f'{self.plot_save_path}/counts-imgs_{n}_{self.model_name}.{self.image_file_format}')
             plt.close()
+            
+            'FFT'
+            # Fourier transform images
+            real_ffts = fourier_transform(real_imgs_subset)
+            gen_ffts = fourier_transform(gen_imgs_subset)
 
+            # Plotting fft
+            fig = plt.figure(figsize=(6,3))
+            subfig = fig.subfigures(1, 2, wspace=0.2)
+            
+            plot_img_grid(subfig[0], real_ffts, self.grid_row_num, title='Real Imgs')
+            plot_img_grid(subfig[1], gen_ffts, self.grid_row_num, title='Generated Imgs')
+            
+            # Save plot
+            plt.savefig(f'{self.plot_save_path}/fft_{n}_{self.model_name}.{self.image_file_format}')
+            plt.close()
+            
     def stack(self):
         """Stack images"""
         'Stack'
@@ -294,7 +317,7 @@ class blobTester(testDataset):
         plt.tight_layout()
 
         # Save plot
-        plt.savefig(f'{self.plot_save_path}/stack_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/stack_{self.model_name}.{self.image_file_format}')
         plt.close()
         
         'Stacked image histogram'
@@ -313,7 +336,7 @@ class blobTester(testDataset):
         plt.tight_layout()
 
         # Save
-        plt.savefig(f'{self.plot_save_path}/stack-histogram-img_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/stack-histogram-img_{self.model_name}.{self.image_file_format}')
         plt.close()
 
     def count_blobs_fast(self):
@@ -438,7 +461,7 @@ class blobTester(testDataset):
         plt.tight_layout()
 
         # Save
-        plt.savefig(f'{self.plot_save_path}/number-blobs-histogram_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/number-blobs-histogram_{self.model_name}.{self.image_file_format}')
         plt.close()    
 
         'Extreme number of blobs'
@@ -463,7 +486,7 @@ class blobTester(testDataset):
         plt.tight_layout()
 
         # Save
-        plt.savefig(f'{self.plot_save_path}/min-peak_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/min-peak_{self.model_name}.{self.image_file_format}')
         plt.close()
 
         # Create figure
@@ -487,7 +510,7 @@ class blobTester(testDataset):
         plt.tight_layout()
 
         # Save
-        plt.savefig(f'{self.plot_save_path}/max-peak_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/max-peak_{self.model_name}.{self.image_file_format}')
         plt.close()
 
         'Total flux histogram'
@@ -517,7 +540,7 @@ class blobTester(testDataset):
         plt.tight_layout()
 
         # Save
-        plt.savefig(f'{self.plot_save_path}/total-flux-histogram_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/total-flux-histogram_{self.model_name}.{self.image_file_format}')
         plt.close()
 
     def two_point_correlation(self):
@@ -556,7 +579,7 @@ class blobTester(testDataset):
         plt.legend(loc='lower right')
 
         # Save
-        plt.savefig(f'{self.plot_save_path}/2-pt-corr_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/2-pt-corr_{self.model_name}.{self.image_file_format}')
         plt.close() 
 
     def pixel_stats(self):
@@ -578,7 +601,7 @@ class blobTester(testDataset):
         plt.tight_layout()
 
         # Save
-        plt.savefig(f'{self.plot_save_path}/pixel-histogram_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/pixel-histogram_{self.model_name}.{self.image_file_format}')
         plt.close()
 
         'Stacked histogram'
@@ -609,7 +632,7 @@ class blobTester(testDataset):
         plt.tight_layout()
 
         # Save
-        plt.savefig(f'{self.plot_save_path}/pixel-stack-histogram_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/pixel-stack-histogram_{self.model_name}.{self.image_file_format}')
         plt.close()
     
     def test(self):
@@ -651,7 +674,7 @@ class pointTester(testDataset):
             plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs')
             
             # Save plot
-            plt.savefig(f'{self.plot_save_path}/gen-imgs_{self.model_name}_{n}.png')
+            plt.savefig(f'{self.plot_save_path}/gen-imgs_{self.model_name}_{n}.{self.image_file_format}')
             plt.close()
 
 class ganLogsPlotter(testDataset):
@@ -691,7 +714,7 @@ class ganLogsPlotter(testDataset):
         fig.tight_layout()
 
         # Save plot
-        plt.savefig(f'{self.plot_save_path}/losses_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/losses_{self.model_name}.{self.image_file_format}')
         plt.close()
 
         # Plot zoom 
@@ -710,7 +733,7 @@ class ganLogsPlotter(testDataset):
         plt.tight_layout()
 
         # Save plots
-        plt.savefig(f'{self.plot_save_path}/losses-zm_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/losses-zm_{self.model_name}.{self.image_file_format}')
         plt.close()
 
     def score_models(self, model_dict):
@@ -792,11 +815,11 @@ class ganLogsPlotter(testDataset):
         fig.tight_layout()
 
         # Save plot
-        plt.savefig(f'{self.plot_save_path}/losses-wrt-last_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/losses-wrt-last_{self.model_name}.{self.image_file_format}')
         plt.close()
         
     def plot_logs(self, dataModule, model_dict, testing_restart=False):
-        if not testing_restart and os.path.isfile(f'{self.plot_save_path}/losses_{self.model_name}.png'):
+        if not testing_restart and os.path.isfile(f'{self.plot_save_path}/losses_{self.model_name}.{self.image_file_format}'):
             print('losses already plotted, skipping step')
             return
         else:
@@ -830,11 +853,11 @@ class diffLogsPlotter(testDataset):
         fig.tight_layout()
 
         # Save plot
-        plt.savefig(f'{self.plot_save_path}/losses_{self.model_name}.png')
+        plt.savefig(f'{self.plot_save_path}/losses_{self.model_name}.{self.image_file_format}')
         plt.close()
     
     def plot_logs(self, dataModule, testing_restart=False):
-        if not testing_restart and os.path.isfile(f'{self.plot_save_path}/losses_{self.model_name}.png'):
+        if not testing_restart and os.path.isfile(f'{self.plot_save_path}/losses_{self.model_name}.{self.image_file_format}'):
             print('losses already plotted, skipping step')
             return
         else:

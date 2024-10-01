@@ -25,7 +25,8 @@ def run_training(training_params, generation_params, testing_params, training_re
         lr = training_params['lr']
 
         blob_num = generation_params['blob_num']
-        data_distribution = generation_params['distribution']
+        num_distribution = generation_params['distribution']
+        clustering = generation_params['clustering']
         generation_seed = generation_params['seed']
         blob_size = generation_params['blob_size']
         sample_num = generation_params['sample_num']
@@ -44,41 +45,42 @@ def run_training(training_params, generation_params, testing_params, training_re
                 gen_version = training_params['generator_version']
                 dis_version = training_params['discriminator_version']
                 
-                latent_dim = network_params['latent_dim']
-                gen_img_w = network_params['generator_img_w']
-                gen_upsamp = network_params['generator_upsamp_size']
-                dis_conv = network_params['discriminator_conv_size']
-                dis_lin = network_params['discriminator_linear_size']
-        
-                model_name = '{}-g{}-d{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-ld{}-gw{}-gu{}-dc{}-dl{}-ns{}'.format(
-                model_version,
-                gen_version, dis_version,
-                blob_num, data_distribution[0], blob_size, "{:.0e}".format(sample_num), image_size,
-                training_seed, "{:.0e}".format(lr),
-                latent_dim, gen_img_w, gen_upsamp, dis_conv, dis_lin,
-                str(training_noise[1])[2:] if training_noise is not None else '_'
+                model_name = '{}-g{}-d{}-bn{}{}-cl{}-bs{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
+                        model_version,
+                        gen_version, dis_version,
+                        blob_num, num_distribution[0],
+                        '{:.0e}_{:.0e}'.format(*clustering) if clustering is not None else '_',
+                        blob_size, "{:.0e}".format(sample_num), image_size,
+                        training_seed, "{:.0e}".format(lr),
+                        list(network_params.values()),
+                        str(training_noise[1])[2:] if training_noise is not None else '_'
                 )
+
         elif 'Diffusion' in model_version:
                 unet_version = training_params['unet_version']
                 
-                noise_steps = ['noise_steps']
-                time_dim = ['time_dim']
-                initial_size = ['ininial_size']
-        
-                model_name = '{}-n{}-bn{}{}-bs{}-sn{}-is{}-ts{}-lr{}-st{}-td{}-sz{}-ns{}'.format(
-                model_version,
-                unet_version,
-                blob_num, data_distribution[0], blob_size, "{:.0e}".format(sample_num), image_size,
-                training_seed, "{:.0e}".format(lr),
-                noise_steps, time_dim, initial_size, 
-                str(training_noise[1])[2:] if training_noise is not None else '_'
-                )
+                model_name = '{}-n{}-bn{}{}-cl{}-bs{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
+                        model_version,
+                        unet_version,
+                        blob_num, num_distribution[0],
+                        '{:.0e}_{:.0e}'.format(*clustering) if clustering is not None else '_',
+                        blob_size, "{:.0g}".format(sample_num), image_size,
+                        training_seed, "{:.0g}".format(lr),
+                        list(network_params.values()), 
+                        str(training_noise[1])[2:] if training_noise is not None else '_'
+                )       
                 
                 
         """Paths"""
         root_path = training_params['root_path']
         data_path = 'data'
-        data_file_name = f'bn{blob_num}{data_distribution[0]}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{int(gen_noise)}.npy'
+        data_file_name = 'bn{}{}-cl{}-is{}-bs{}-sn{}-sd{}-ns{}.npy'.format(
+                blob_num, num_distribution[0], 
+                '{:.0e}_{:.0e}'.format(*clustering) if clustering is not None else '_',
+                image_size, blob_size, sample_num,
+                generation_seed, int(gen_noise)
+        )
+        data_file_name = f'bn{blob_num}{num_distribution[0]}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{int(gen_noise)}.npy'
         chkpt_path = 'checkpoints'
         training_params['model_name'] = model_name
         
