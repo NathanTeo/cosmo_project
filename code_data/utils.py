@@ -137,8 +137,8 @@ class centerGenerator():
         # Survey configuration
         lxdeg = 1                    # Length of x-dimension [deg]
         lydeg = 1                    # Length of y-dimension [deg]
-        nx = self.image_size         # Grid size of x-dimension
-        ny = self.image_size         # Grid size of y-dimension
+        nx = 1000                    # Grid size of x-dimension
+        ny = 1000                    # Grid size of y-dimension
         # Input correlation function w(theta) = wa*theta[deg]^(-wb)
         wa = clustering[0]
         wb = clustering[1]
