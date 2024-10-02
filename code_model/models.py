@@ -373,7 +373,7 @@ class CWGAN(pl.LightningModule, ganUtils):
         return self.generator(z)
 
     # Calculate gradient penalty
-    def gradient_penalty(self, discriminator, real, fake):
+    def gradient_penalty(self, discriminator, real, fake, method='LP'):
         """Calculate gradient penalty"""
         batch_size, c, h, w = real.size()
         
@@ -396,6 +396,15 @@ class CWGAN(pl.LightningModule, ganUtils):
         gradient = gradient.view(gradient.shape[0], -1)
         gradient_norm = gradient.norm(2, dim=1)
         gradient_penalty = torch.mean((gradient_norm-1) ** 2)
+
+        # Gulrajani, Ishaan, et al. "Improved training of wasserstein gans." arXiv preprint arXiv:1704.00028 (2017).
+        if method == 'GP':
+            gradient_penalty = torch.mean((gradient_norm - 1) ** 2)
+
+        # Henning Petzka, Asja Fischer, and Denis Lukovnicov. "On the regularization of Wasserstein GANs."
+        # arXiv preprint arXiv:1709.08894 (2017).
+        elif method == 'LP':
+            gradient_penalty = torch.mean((torch.maximum(torch.tensor(0), gradient_norm - 1)) ** 2)
         
         return gradient_penalty
     
