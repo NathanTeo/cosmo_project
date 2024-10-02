@@ -32,7 +32,7 @@ class blobDataset():
             seed, self.noise
         )
         
-        random.seed(seed)
+        np.random.seed(seed)
         
     def make_gaussian(self, center, var, image_size):
             """ Make a square gaussian kernel"""

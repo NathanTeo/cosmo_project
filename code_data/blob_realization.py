@@ -12,10 +12,10 @@ params = {
     'image_size': 128,
     'seed': 70,
     'blob_size': 5,
-    'sample_num': 10,
-    'blob_num': 1000,
+    'sample_num': 3,
+    'blob_num': 10000,
     'num_distribution': 'poisson',
-    'clustering': (0.01, 0.8),
+    'clustering': None,
     'pad': 0,
     'noise': 0
 }
