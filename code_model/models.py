@@ -559,6 +559,12 @@ class CWGAN(pl.LightningModule, ganUtils):
         
         return scores
 
+    # Returns the number of learnable parameters in the model
+    def count_learnable_params(self):
+        gen_params_count = sum(p.numel() for p in self.generator.parameters() if p.requires_grad)
+        dis_params_count = sum(p.numel() for p in self.discriminator.parameters() if p.requires_grad)
+        return gen_params_count, dis_params_count
+
 class EMA():
     """
     Exponential moving average for diffusion model
@@ -812,6 +818,12 @@ class Diffusion(pl.LightningModule):
         os.system(f'rsync -a {self.root_path}/checkpoints/ {self.root_path}/backup/checkpoints --delete')
         os.system(f'rsync -a {self.root_path}/logs/ {self.root_path}/backup/logs --delete')
         print('\ncheckpoints and logs backed up')
+    
+    def count_learnable_params(self):
+        params_count  = sum(p.numel() for p in self.network.parameters() if p.requires_grad)
+        return params_count 
+
+
     
 model_dict = {
     'CGAN': CGAN,

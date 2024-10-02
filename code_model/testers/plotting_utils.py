@@ -194,11 +194,18 @@ def plot_two_point(ax, corrs, edges, errs=None, interp='cubic',
     if errorbars:
         ax.errorbar(midpoints, corrs, yerr=errs, fmt='.', color=color[1])
 
-
 def midpoints_of_bins(edges):
     """Returns midpoints of bin edges for plotting"""
     return (edges[:-1]+edges[1:])/2 
 
 def set_linewidth(current_iter, total_iter, minor=0.3, major=1.2):
     return minor if current_iter!=int(total_iter-1) else major
+
+def millify(n, rounding=1):
+    millnames = ['','k','M','B','T']
     
+    n = float(n)
+    millidx = max(0,min(len(millnames)-1,
+                        int(np.floor(0 if n == 0 else np.log10(abs(n))/3))))
+
+    return '{value:.{rounding}f}{millname}'.format(value=n / 10**(3 * millidx), rounding=rounding, millname=millnames[millidx])    

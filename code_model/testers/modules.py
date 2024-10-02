@@ -290,8 +290,8 @@ class blobTester(testDataset):
             fig = plt.figure(figsize=(6,3))
             subfig = fig.subfigures(1, 2, wspace=0.2)
             
-            plot_img_grid(subfig[0], real_ffts, self.grid_row_num, title='Real Imgs')
-            plot_img_grid(subfig[1], gen_ffts, self.grid_row_num, title='Generated Imgs')
+            plot_img_grid(subfig[0], real_ffts, self.grid_row_num, title='Real FFT')
+            plot_img_grid(subfig[1], gen_ffts, self.grid_row_num, title='Generated')
             
             # Save plot
             plt.savefig(f'{self.plot_save_path}/fft_{n}_{self.model_name}.{self.image_file_format}')
