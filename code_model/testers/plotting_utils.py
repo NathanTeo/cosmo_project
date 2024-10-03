@@ -181,8 +181,8 @@ def plot_histogram_stack(ax, hist, edges,
         ax.fill_between(x, 0, y, color=fill_color)
         
 def plot_two_point(ax, corrs, edges, errs=None, interp='cubic',
-                   color=(('darkorange', 1), ('darkorange', 0.5)), linewidth=1,
-                   label=None, errorbars=True):
+                   color=(('darkorange', 1), ('darkorange', 0.5)), linewidth=1, capsize=2,
+                   label=None, errorbars=True, logscale=True):
     """Plots the interpolated 2 point correlation with errors is available"""
     # Get midpoints and interpolate
     midpoints = midpoints_of_bins(edges)
@@ -192,7 +192,11 @@ def plot_two_point(ax, corrs, edges, errs=None, interp='cubic',
     x = np.linspace(midpoints[0], midpoints[-1], 100)
     ax.plot(x, smooth(x), color=color[0], linewidth=linewidth, label=label)
     if errorbars:
-        ax.errorbar(midpoints, corrs, yerr=errs, fmt='.', color=color[1])
+        ax.errorbar(midpoints, corrs, yerr=errs, fmt='.', capsize=capsize, color=color[1])
+        
+    if logscale:
+        ax.set_xscale('log')
+        ax.set_yscale('log')
 
 def midpoints_of_bins(edges):
     """Returns midpoints of bin edges for plotting"""

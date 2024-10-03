@@ -13,7 +13,7 @@ from scipy.stats import multivariate_normal
 from scipy.optimize import minimize
 from scipy.spatial.distance import cdist
 from scipy.interpolate import interp1d
-from astroML.correlation import two_point, bootstrap_two_point
+from astroML.correlation import two_point_angular, bootstrap_two_point_angular
 import time
 import concurrent.futures
 
@@ -82,37 +82,43 @@ def fourier_transform(samples, progress_bar=False):
 
 
 """2- point correlation"""
-
-def calculate_two_point(coords, image_size, bins=10, bootstrap=True):
+def calculate_two_point(coords, image_size, angular_size=1, bins=10, bootstrap=True, logscale=True):
     """Calculate the two point correaltion with astroML"""
     # Get edges of bins
-    edges = np.linspace(0, image_size, bins)
-    
+    if logscale:
+        edges = 10**np.linspace(np.log10(0.001), np.log10(angular_size), bins)
+    else:    
+        edges = np.linspace(0, angular_size, bins)
+
+    coords_scaled = np.array(coords) / image_size * angular_size
+
     # Two point correlation
     if bootstrap:
-        corrs, errs = bootstrap_two_point(coords, edges, method='landy-szalay')
-        return corrs, errs, edges
+        corrs, errs, _ = bootstrap_two_point_angular(*zip(*coords_scaled), edges)
+        return corrs, errs, edges/angular_size*image_size
     else:
-        corrs = two_point(coords, edges, method='landy-szalay')
-        return corrs, None, edges
+        corrs = two_point_angular(*zip(*coords_scaled), edges)
+        return corrs, None, edges/angular_size*image_size
     
-def two_point_stack(samples, image_size, bins=10, bootstrap=True, progress_bar=False):
+def two_point_stack(samples, image_size, bins=10, bootstrap=True, progress_bar=False, logscale=True):
     """Calculate the mean two point correlation for a set of samples with astroML"""
     # Initialize arrays
     all_corrs = []
     all_errs = []
-    
+
     # Two point correlation
     for coords in tqdm(samples, disable=not progress_bar):
         if len(coords)==0:
             continue
-        corrs, errs, edges = calculate_two_point(coords, image_size, bins, bootstrap)
+        corrs, errs, edges = calculate_two_point(coords, image_size, bins=bins, bootstrap=bootstrap, logscale=logscale)
         all_corrs.append(corrs)
         all_errs.append(errs)
         
-    # Calculate mean
+    # Calculate mean, ignoring nan values in corr
     corrs = np.nanmean(all_corrs, axis=0) # is nanmean correct here?
-    errs = np.sqrt(np.sum(((1/len(all_errs))*np.array(all_errs))**2, axis=0)) if bootstrap else None
+    nonnan_counts = np.count_nonzero(~np.isnan(all_corrs), axis=0)
+    all_errs = np.where(np.isnan(all_corrs), np.nan, all_errs)
+    errs = np.sqrt(np.nansum(((1/nonnan_counts)*np.array(all_errs))**2, axis=0)) if bootstrap else None
     
     return corrs, errs, edges
 
