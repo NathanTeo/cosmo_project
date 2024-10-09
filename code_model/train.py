@@ -80,7 +80,6 @@ def run_training(training_params, generation_params, testing_params, training_re
                 image_size, blob_size, sample_num,
                 generation_seed, int(gen_noise)
         )
-        data_file_name = f'bn{blob_num}{num_distribution[0]}-is{image_size}-bs{blob_size}-sn{sample_num}-sd{generation_seed}-ns{int(gen_noise)}.npy'
         chkpt_path = 'checkpoints'
         training_params['model_name'] = model_name
         

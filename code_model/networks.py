@@ -945,11 +945,12 @@ class UnetConvNextBlock(nn.Module):
         **training_params
     ):
         super().__init__()
-        dim = training_params['image_size']
         network_params = training_params['network_params']
 
+        dim = network_params['model_dim']
         self.channels = network_params['input_channels']
         dim_mults = network_params['dim_mult']
+        time_dim = network_params['time_dim']
         out_dim = self.channels
          
         self.residual = residual
@@ -959,7 +960,6 @@ class UnetConvNextBlock(nn.Module):
         in_out = list(zip(dims[:-1], dims[1:]))
 
         if with_time_emb:
-            time_dim = dim
             self.time_mlp = nn.Sequential(
                 SinusoidalPosEmb(dim),
                 nn.Linear(dim, dim * 4),
