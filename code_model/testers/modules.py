@@ -555,7 +555,6 @@ class blobTester(testDataset):
 
         # Create figure
         fig, ax = plt.subplots()
-
         # Plot
         plot_two_point(
             ax, real_corrs, edges, real_errs, 

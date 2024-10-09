@@ -16,7 +16,6 @@ logs/
 temp_plots/
 plots/
 workspace_experiments/
-workspace_tests/
 checkpoints/
 wandb/
 scripts/*
