@@ -961,10 +961,10 @@ class UnetConvNextBlock(nn.Module):
 
         if with_time_emb:
             self.time_mlp = nn.Sequential(
-                SinusoidalPosEmb(dim),
-                nn.Linear(dim, dim * 4),
+                SinusoidalPosEmb(time_dim),
+                nn.Linear(time_dim, time_dim * 4),
                 nn.GELU(),
-                nn.Linear(dim * 4, dim)
+                nn.Linear(time_dim * 4, time_dim) # need to check if this should be all time_dim
             )
         else:
             time_dim = None
