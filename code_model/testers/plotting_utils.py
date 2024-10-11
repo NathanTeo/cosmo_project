@@ -6,10 +6,13 @@ This script contains functions used for plotting during model testing
 
 import matplotlib.pyplot as plt
 import numpy as np
+import itertools
 
 from code_model.testers.eval_utils import *
 
-def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subplot_titles=None, vmin=-0.05, vmax=None):
+def plot_img_grid(subfig, imgs, grid_row_num, 
+                  title, wspace=.2, hspace=.2, subplot_titles=None, 
+                  vmin=-0.05, vmax=None, cmap='viridis'):
     """
     Plot a grid of sample images in a subfigure/figure
     """
@@ -17,18 +20,21 @@ def plot_img_grid(subfig, imgs, grid_row_num, title, wspace=.2, hspace=.2, subpl
     axs = subfig.subplots(grid_row_num, grid_row_num)
     
     # Plot sample images in grid
-    for i in range(grid_row_num):
-        for j in range(grid_row_num):
-            axs[i, j].imshow(imgs[(grid_row_num)*i+j], interpolation='none', vmin=vmin, vmax=vmax)
-            axs[i, j].set_xticks([])
-            axs[i, j].set_yticks([])
-            axs[i, j].axis('off')
-            if subplot_titles is not None:
-                axs[i, j].set_title('{:.4f}'.format(subplot_titles[(grid_row_num)*i+j]))
-    
+    subplots = [[None for x in range(grid_row_num)] for y in range(grid_row_num)] 
+    for i, j in itertools.product(range(grid_row_num), range(grid_row_num)):
+        subplots[i][j] = axs[i, j].imshow(imgs[(grid_row_num)*i+j], interpolation='none', 
+                                          vmin=vmin, vmax=vmax, cmap=cmap)
+        axs[i, j].set_xticks([])
+        axs[i, j].set_yticks([])
+        axs[i, j].axis('off')
+        if subplot_titles is not None:
+            axs[i, j].set_title('{:.4f}'.format(subplot_titles[(grid_row_num)*i+j]))
+
     # Format
     subfig.subplots_adjust(wspace=wspace, hspace=hspace)         
     subfig.suptitle(title, y=0.95)
+    
+    return subplots
     
 def plot_min_num_peaks(ax, imgs, peak_nums, title=None, vmin=-0.05, vmax=None):
     """
@@ -139,19 +145,20 @@ def plot_marginal_sums(marginal_sums, subfig, grid_row_num, title):
     # Format
     subfig.suptitle(title, y=0.95)
 
-def plot_stacked_imgs(ax, stacked_img, title, vmin=-0.05, vmax=None):
+def plot_stacked_imgs(ax, stacked_img, title=None, vmin=-0.05, vmax=None):
     """
     Plot stacked image
     """
     ax.imshow(stacked_img, vmin=vmin, vmax=vmax)
-    ax.set_title(title)
+    if title is not None:    
+        ax.set_title(title)
 
-def plot_pixel_histogram(ax, imgs, color, bins=None):
+def plot_pixel_histogram(ax, imgs, color, bins=None, logscale=True):
     """
     Plot individual image histograms on the same axes.
     """
     for img in imgs:
-        ax.hist(img.ravel(), histtype='step', log=True, color=color, bins=bins)
+        ax.hist(img.ravel(), histtype='step', log=logscale, color=color, bins=bins)
     
     ax.set_ylabel('image count')
     ax.set_xlabel('pixel value')
@@ -213,3 +220,21 @@ def millify(n, rounding=1):
                         int(np.floor(0 if n == 0 else np.log10(abs(n))/3))))
 
     return '{value:.{rounding}f}{millname}'.format(value=n / 10**(3 * millidx), rounding=rounding, millname=millnames[millidx])    
+
+def find_good_bins(arrs, spacing=(1.5, 1.5), 
+                   method='arange', step=1, num_bins=20,
+                   ignore_outliers=False, percentile_range=(1,99)):
+    """Returns reasonable bins for histogram"""
+    arr = np.concatenate(arrs)
+    
+    if ignore_outliers:
+        bin_min = np.floor(np.percentile(arr, percentile_range[0]))
+        bin_max = np.ceil(np.percentile(arr, percentile_range[1]))
+    else:        
+        bin_min = np.min(arr)
+        bin_max = np.max(arr)
+    
+    if method=='arange': 
+        return np.arange(bin_min-spacing[0], bin_max+spacing[1], step)
+    elif method=='linspace':
+        return np.linspace(bin_min-spacing[0], bin_max+spacing[1], num_bins)

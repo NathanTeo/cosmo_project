@@ -116,10 +116,12 @@ def two_point_stack(samples, image_size, bins=10, bootstrap=True, progress_bar=F
         
     # Calculate mean, ignoring nan values in corr
     corrs = np.nanmean(all_corrs, axis=0) # is nanmean correct here?
+    errs = np.nanstd(all_corrs, axis=0)
+    '''
     nonnan_counts = np.count_nonzero(~np.isnan(all_corrs), axis=0)
     all_errs = np.where(np.isnan(all_corrs), np.nan, all_errs)
     errs = np.sqrt(np.nansum(((1/nonnan_counts)*np.array(all_errs))**2, axis=0)) if bootstrap else None
-    
+    '''
     return corrs, errs, edges
 
 

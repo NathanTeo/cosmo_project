@@ -329,7 +329,7 @@ class blobTester(testDataset):
         plt.hist(stacked_gen_img.ravel(), histtype='step', label='generated', color=(self.gen_color,0.8))
 
         # Format
-        plt.ylabel('image count')
+        plt.ylabel('pixel count')
         plt.xlabel('stacked pixel value')
         plt.suptitle(f"stack of {self.subset_sample_num} samples")
         plt.legend()
@@ -425,14 +425,7 @@ class blobTester(testDataset):
         fig = plt.figure()
 
         # Bins for histogram
-        concat_blob_counts = self.real_blob_counts
-        for blob_counts in self.all_gen_blob_counts: 
-            concat_blob_counts = np.concatenate([concat_blob_counts, blob_counts])
-        
-        min = np.min(concat_blob_counts)
-        max = np.max(concat_blob_counts)
-        
-        bins = np.arange(min-1.5, max+1.5,1)
+        bins = find_good_bins([self.real_blob_counts, *self.all_gen_blob_counts], method='arange')
         
         # Plot histogram
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
@@ -522,14 +515,17 @@ class blobTester(testDataset):
         # Create figure
         fig = plt.figure()
 
+        # Bins for histogram
+        bins = find_good_bins([real_img_fluxes, *all_gen_img_fluxes], method='linspace', num_bins=40)
+        
         # Plot
         for i, fluxes in enumerate(all_gen_img_fluxes):
-            plt.hist(fluxes, 
+            plt.hist(fluxes, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}', 
                     color=(self.gen_color,self.hist_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
                     fill=self.select_last_epoch[i]
                     )
-        plt.hist(real_img_fluxes, 
+        plt.hist(real_img_fluxes, bins=bins,
                     histtype='step', label='real', color=(self.real_color,0.8))
  
         # Format   
@@ -546,10 +542,12 @@ class blobTester(testDataset):
     def two_point_correlation(self):
         """2-point correlation analysis"""
         print('calculating 2 point correlation...')
-        real_corrs, real_errs, edges = two_point_stack(self.real_blob_coords, self.image_size, bins=20, progress_bar=True)
+        real_corrs, real_errs, edges = two_point_stack(self.real_blob_coords, self.image_size, bins=20, progress_bar=True,
+                                                       logscale=True if self.clustering is not None else False)
         all_gen_corrs, all_gen_errs, _ = map(
             list, zip(*[two_point_stack(
-                blob_coords, self.image_size, bins=20, progress_bar=True
+                blob_coords, self.image_size, bins=20, progress_bar=True,
+                logscale=True if self.clustering is not None else False
                 ) for blob_coords in self.all_gen_blob_coords])
         )
 
@@ -559,14 +557,16 @@ class blobTester(testDataset):
         plot_two_point(
             ax, real_corrs, edges, real_errs, 
             color=((self.real_color,1), (self.real_color,0.5)),
-            label='real'
+            label='real',
+            logscale=True if self.clustering is not None else False
         )
          
         for i, (corrs, errs) in enumerate(zip(all_gen_corrs, all_gen_errs)):
             plot_two_point(
                 ax, corrs, edges, errs, 
                 color=((self.gen_color,self.line_alphas[i]), (self.gen_color,0.5)), linewidth=set_linewidth(i, len(all_gen_corrs)),
-                label=f'epoch {self.model_epochs[i]}', errorbars=self.select_last_epoch[i]
+                label=f'epoch {self.model_epochs[i]}', errorbars=self.select_last_epoch[i],
+                logscale=True if self.clustering is not None else False
             )
         
         # Format
@@ -596,6 +596,8 @@ class blobTester(testDataset):
         plot_pixel_histogram(axs[1], gen_imgs_subset_sh, color=(self.gen_color,0.5), bins=20)
 
         # Format
+        plt.ylabel('pixel count')
+        plt.xlabel('pixel value')
         fig.suptitle(f"Histogram of pixel values, {histogram_num} samples")
         plt.tight_layout()
 
@@ -624,7 +626,7 @@ class blobTester(testDataset):
         plot_histogram_stack(ax, *real_hist_stack, color=(self.real_color,0.8), label='real')
 
         # Format
-        plt.ylabel('image count')
+        plt.ylabel('pixel count')
         plt.xlabel('pixel value')
         fig.suptitle(f"Stacked histogram of pixel values, {self.subset_sample_num} samples")
         plt.legend()

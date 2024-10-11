@@ -11,6 +11,11 @@ from code_model.models import model_dict
 from code_model.testers.eval_utils import *
 from code_model.testers.plotting_utils import *
 
+"""RUNS"""
+gan_run = 'cwgan_6a'
+diffusion_run = 'diffusion_3c'
+
+##########################################################
 class compareUtils():
     def __init__(self, gan_run, diff_run):
         """Initialize"""
@@ -23,7 +28,7 @@ class compareUtils():
         self.diff_chkpt_path = f'{self.root_path}/{diff_run}/checkpoints'
         self.gan_output_path = f'{self.root_path}/{gan_run}/plots/model_output'
         self.diff_output_path = f'{self.root_path}/{diff_run}/plots/model_output'
-        self.plot_save_path = f'/Users/Idiot/Desktop/Research/OFYP/cosmo/misc_plots/{gan_run}-v-{diff_run}'
+        self.plot_save_path = f'/Users/Idiot/Desktop/Research/OFYP/cosmo/misc_plots/gan-v-diff/{gan_run}-v-{diff_run}'
 
         if not os.path.exists(self.plot_save_path):
             os.makedirs(self.plot_save_path)
@@ -257,7 +262,7 @@ class compareUtils():
         plt.hist(stacked_diff_img.ravel(), histtype='step', label='Diffusion', color=(self.diff_color,0.8))
         
         # Format
-        plt.ylabel('image count')
+        plt.ylabel('pixel count')
         plt.xlabel('stacked pixel value')
         plt.suptitle(f"Stack of {self.subset_sample_num} samples")
         plt.legend()
@@ -448,5 +453,5 @@ class compareModule(compareUtils):
         self.plot_total_flux()
         
 if __name__=="__main__":
-    tester = compareModule('cwgan_6b', 'diffusion_3b')
+    tester = compareModule(gan_run, diffusion_run)
     tester.run_tests()
