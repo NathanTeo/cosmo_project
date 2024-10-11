@@ -7,10 +7,12 @@ This script contains generators and discriminators (or critics) used in the GANs
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.utils import spectral_norm
 import math
 import numpy as np
 from inspect import isfunction
 from einops import rearrange
+
 
 
 """Discriminators"""
@@ -660,63 +662,6 @@ class Generator_v7(nn.Module):
 
 
 """SAGAN"""
-def l2normalize(v, eps=1e-12):
-    return v / (v.norm() + eps)
-
-class SpectralNorm(nn.Module):
-    def __init__(self, module, name='weight', power_iterations=1):
-        super(SpectralNorm, self).__init__()
-        self.module = module
-        self.name = name
-        self.power_iterations = power_iterations
-        if not self._made_params():
-            self._make_params()
-
-    def _update_u_v(self):
-        u = getattr(self.module, self.name + "_u")
-        v = getattr(self.module, self.name + "_v")
-        w = getattr(self.module, self.name + "_bar")
-
-        height = w.data.shape[0]
-        for _ in range(self.power_iterations):
-            v.data = l2normalize(torch.mv(torch.t(w.view(height,-1).data), u.data))
-            u.data = l2normalize(torch.mv(w.view(height,-1).data, v.data))
-
-        # sigma = torch.dot(u.data, torch.mv(w.view(height,-1).data, v.data))
-        sigma = u.dot(w.view(height, -1).mv(v))
-        setattr(self.module, self.name, w / sigma.expand_as(w))
-
-    def _made_params(self):
-        try:
-            u = getattr(self.module, self.name + "_u")
-            v = getattr(self.module, self.name + "_v")
-            w = getattr(self.module, self.name + "_bar")
-            return True
-        except AttributeError:
-            return False
-
-    def _make_params(self):
-        w = getattr(self.module, self.name)
-
-        height = w.data.shape[0]
-        width = w.view(height, -1).data.shape[1]
-
-        u = nn.Parameter(w.data.new(height).normal_(0, 1), requires_grad=False)
-        v = nn.Parameter(w.data.new(width).normal_(0, 1), requires_grad=False)
-        u.data = l2normalize(u.data)
-        v.data = l2normalize(v.data)
-        w_bar = nn.Parameter(w.data)
-
-        del self.module._parameters[self.name]
-
-        self.module.register_parameter(self.name + "_u", u)
-        self.module.register_parameter(self.name + "_v", v)
-        self.module.register_parameter(self.name + "_bar", w_bar)
-
-    def forward(self, *args):
-        self._update_u_v()
-        return self.module.forward(*args)
-
 class Self_Attn(nn.Module):
     """ Self attention Layer"""
     def __init__(self,in_dim,activation):
@@ -754,63 +699,74 @@ class Self_Attn(nn.Module):
 class SaganGenerator(nn.Module):
     """Generator."""
 
-    def __init__(self, batch_size, image_size=64, z_dim=100, conv_dim=64):
+    def __init__(self, **training_params):
         super(SaganGenerator, self).__init__()
-        self.imsize = image_size
-        layer1 = []
-        layer2 = []
-        layer3 = []
-        last = []
+        self.imsize = training_params['image_size']
+        network_params = training_params['network_params']
+        
+        z_dim = network_params['latent_dim']
+        input_channels = network_params['input_channels']
+        layer_mults = network_params['gen_layer_mults']
+        up_dim = network_params['gen_dim']
+        gen_img_size = network_params['gen_img_size']
 
-        repeat_num = int(np.log2(self.imsize)) - 3
-        mult = 2 ** repeat_num # 8
-        layer1.append(SpectralNorm(nn.ConvTranspose2d(z_dim, conv_dim * mult, 4)))
-        layer1.append(nn.BatchNorm2d(conv_dim * mult))
-        layer1.append(nn.ReLU())
+        dims = [*map(lambda m: up_dim * m, layer_mults)]
+        in_out = list(zip(dims[:-1], dims[1:]))
+        
+        # Latent space to 2D
+        layer = []
+        layer.append(spectral_norm(nn.Linear(z_dim, gen_img_size*gen_img_size*up_dim)))
+        layer.append(nn.ReLU(inplace=True))
+        layer.append(nn.Unflatten(input_channels, (up_dim, gen_img_size, gen_img_size)))
+        
+        self.latent_to_img = nn.Sequential(*layer)
+        
+        # Build up layers
+        layers = []
+        for i, (dim_in, dim_out) in enumerate(in_out[:-2]):
+            layer = []
+            layer.append(self._upsample_conv(gen_img_size * (2**i), dim_in, dim_out))
+            layer.append(nn.BatchNorm2d(dim_out))
+            layer.append(nn.LeakyReLU(0.1))
+            
+            layers.append(nn.Sequential(*layers))
+            
+        up_layers = nn.Sequential(*layers)
 
-        curr_dim = conv_dim * mult
-
-        layer2.append(SpectralNorm(nn.ConvTranspose2d(curr_dim, int(curr_dim / 2), 4, 2, 1)))
-        layer2.append(nn.BatchNorm2d(int(curr_dim / 2)))
-        layer2.append(nn.ReLU())
-
-        curr_dim = int(curr_dim / 2)
-
-        layer3.append(SpectralNorm(nn.ConvTranspose2d(curr_dim, int(curr_dim / 2), 4, 2, 1)))
-        layer3.append(nn.BatchNorm2d(int(curr_dim / 2)))
-        layer3.append(nn.ReLU())
-
-        if self.imsize == 64:
-            layer4 = []
-            curr_dim = int(curr_dim / 2)
-            layer4.append(SpectralNorm(nn.ConvTranspose2d(curr_dim, int(curr_dim / 2), 4, 2, 1)))
-            layer4.append(nn.BatchNorm2d(int(curr_dim / 2)))
-            layer4.append(nn.ReLU())
-            self.l4 = nn.Sequential(*layer4)
-            curr_dim = int(curr_dim / 2)
-
-        self.l1 = nn.Sequential(*layer1)
-        self.l2 = nn.Sequential(*layer2)
-        self.l3 = nn.Sequential(*layer3)
-
-        last.append(nn.ConvTranspose2d(curr_dim, 3, 4, 2, 1))
-        last.append(nn.Tanh())
-        self.last = nn.Sequential(*last)
-
-        self.attn1 = Self_Attn( 128, 'relu')
-        self.attn2 = Self_Attn( 64,  'relu')
-
+        # Place attention layer at the second last up layer
+        attn = Self_Attn(dims[-2], 'relu')
+        
+        # Build last up layer
+        dim_in, dim_out = in_out[-1]
+        layer = []
+        layer.append(self._upsample_conv(gen_img_size * (2**(len(dims)-1)), dim_in, dim_out))
+        layer.append(nn.BatchNorm2d(dim_out))
+        layer.append(nn.LeakyReLU(0.1))
+        
+        last_up = nn.Sequential(*layer)
+        
+        # All upsample layers
+        self.upsample = nn.Sequential(up_layers, attn, last_up)
+        
+        # Resize image
+        final_kernal_size = int(gen_img_size * (2**len(dims)) - self.imsize - 1)
+        layer = []
+        layer.append(spectral_norm(nn.Conv2d(dims[-1], 1, kernel_size=final_kernal_size)))
+        
+        self.resize = nn.Sequential(*layer)
+        
+    def _upsample_conv(self, img_w, in_dim, out_dim):
+        """Upsampling block by nearest neighbour method"""
+        layer = []
+        layer.append(nn.Upsample(size=(img_w*2, img_w*2), mode='nearest'))
+        layer.append(spectral_norm(nn.Conv2d(in_dim, out_dim, 3, 1)))
+        return nn.Sequential(*layer)
+            
     def forward(self, z):
-        z = z.view(z.size(0), z.size(1), 1, 1)
-        out=self.l1(z)
-        out=self.l2(out)
-        out=self.l3(out)
-        out,p1 = self.attn1(out)
-        out=self.l4(out)
-        out,p2 = self.attn2(out)
-        out=self.last(out)
-
-        return out, p1, p2
+        x = self.latent_to_img(z)
+        x = self.upsample(x)
+        out = self.resize(x)
+        return torch.tanh(out)
 
 
 class SaganDiscriminator(nn.Module):
@@ -820,39 +776,56 @@ class SaganDiscriminator(nn.Module):
         super(SaganDiscriminator, self).__init__()
         self.imsize = training_params['image_size']
         network_params = training_params['network_params']
+        self.model_version = training_params['model_version']
         
         input_channels = network_params['input_channels']
         layer_mults = network_params['dis_layer_mults']
-        conv_dim = network_params['conv_dim']
-        
-        # layer1 = []
-        # layer2 = []
-        # layer3 = []
-        # last = []
+        conv_dim = network_params['dis_dim']
         
         dims = [input_channels, *map(lambda m: conv_dim * m, layer_mults)]
         in_out = list(zip(dims[:-1], dims[1:]))
 
-        self.layers = []
-        for (dim_in, dim_out) in in_out:
+        # Build convolutional layers
+        layers = []
+        for (dim_in, dim_out) in in_out[:-2]:
             layer = []
-            layer.append(SpectralNorm(nn.Conv2d(dim_in, dim_out, 4, 2, 1)))
+            layer.append(spectral_norm(nn.Conv2d(dim_in, dim_out, 4, 2, 1)))
             layer.append(nn.LeakyReLU(0.1))
             
-            self.layers.append(nn.Sequential(*layer))
-        
-        self.attn = Self_Attn(dims[-1], 'relu')
-        
-        self.last = nn.Sequential(nn.Conv2d(dims[-1], input_channels, 1, 4))
+            layers.append(nn.Sequential(*layer))
+        conv_layers = nn.Sequential(*layers)
 
-    def forward(self, x):
-        for layer in self.layers:
-            x = layer(x)
-            
-        x = self.attn(x)
-        out = self.last(x)
+        # Place attention at the second last conv layer
+        attn = Self_Attn(dims[-2], 'relu')
         
-        return out.squeeze()
+        # Build last convolutional layer
+        dim_in, dim_out = in_out[-1]
+        layer = []
+        layer.append(spectral_norm(nn.Conv2d(dim_in, dim_out, 4, 2, 1)))
+        layer.append(nn.LeakyReLU(0.1))
+        last_conv = nn.Sequential(*layer)
+        
+        # All cnn layers
+        self.attn_cnn = nn.Sequential(conv_layers, attn, last_conv)
+        
+        # Classifier
+        n_channels = n_channels = self.attn_cnn(torch.empty(1, 1, self.imsize, self.imsize)).size(-1)
+
+        layer = []
+        layer.append(nn.Flatten())
+        layer.append(nn.Dropout(0.5))
+        layer.append(spectral_norm(nn.Linear(n_channels, 1)))
+        
+        self.classifier = nn.Sequential(*layer)
+        
+    def forward(self, x):
+        x = self.attn_cnn(x)
+        out = self.classifier(x)
+        
+        if self.model_version=='CGAN':
+            out = torch.sigmoid(out)
+        
+        return out
 
 """Diffusion"""
 
@@ -1136,19 +1109,25 @@ class UnetConvNextBlock(nn.Module):
         with_time_emb = True,
         output_mean_scale = False,
         residual = False,
+        scaling_factor=1,
         **training_params
     ):
         super().__init__()
         network_params = training_params['network_params']
 
-        dim = network_params['model_dim']
+        try:
+            dim = network_params['model_dim']
+            time_dim = network_params['time_dim']
+        except KeyError:
+            dim = training_params['image_size']
+            time_dim = dim
         self.channels = network_params['input_channels']
         dim_mults = network_params['dim_mult']
-        time_dim = network_params['time_dim']
         out_dim = self.channels
          
         self.residual = residual
         self.output_mean_scale = output_mean_scale
+        self.scaling_factor = scaling_factor
 
         dims = [self.channels, *map(lambda m: dim * m, dim_mults)]
         in_out = list(zip(dims[:-1], dims[1:]))
@@ -1200,7 +1179,7 @@ class UnetConvNextBlock(nn.Module):
             #nn.Tanh() # ADDED
         )
 
-    def forward(self, x, time=None):
+    def forward(self, x, time=None, scale=False):
         orig_x = x
         t = None
         if time is not None and exists(self.time_mlp):
@@ -1233,6 +1212,9 @@ class UnetConvNextBlock(nn.Module):
         if self.output_mean_scale:
             out_mean = torch.mean(out, [1,2,3], keepdim=True)
             out = out - original_mean + out_mean
+            
+        if scale:
+            out = out/self.scaling_factor
 
         return out
     
@@ -1245,12 +1227,14 @@ network_dict = {
     'gen_v5': Generator_v5,
     'gen_v6': Generator_v6,
     'gen_v7': Generator_v7,
+    'gen_v8': SaganGenerator,
     'dis_v1': Discriminator_v1,
     'dis_v2': Discriminator_v2,
     'dis_v3': Discriminator_v3,
     'dis_v4': Discriminator_v4,
     'dis_v5': Discriminator_v5,
     'dis_v6': Discriminator_v6,
+    'dis_v7': SaganDiscriminator,
     'unet_v1': UNet_v1,
     'unet_v2': UnetConvNextBlock
 }

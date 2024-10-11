@@ -339,11 +339,13 @@ class CWGAN(pl.LightningModule, ganUtils):
         # Initialize params
         self.latent_dim = training_params['network_params']['latent_dim']
         self.lr = training_params['lr']
+        self.ttur_ratio = 10
         self.betas = training_params['betas']
+        self.loss_method = training_params['loss_method']
         self.gp_lambda = training_params['gp_lambda']
         self.epoch_start_g_train = training_params['epoch_start_g_train']
         self.discriminator_train_freq = training_params['discriminator_train_freq']
-        self.noise = training_params['noise']     
+        self.noise = training_params['noise']
         
         gen_version = training_params['generator_version']
         dis_version = training_params['discriminator_version']
@@ -447,14 +449,25 @@ class CWGAN(pl.LightningModule, ganUtils):
             dis_fake = self.discriminator(gen_imgs)
             
             # Calculate loss
-            gp = self.gradient_penalty(self.discriminator, real_imgs, self(z))
-            d_loss = (
-                -(torch.mean(dis_real) - torch.mean(dis_fake)) + self.gp_lambda*gp
-            )
+            if self.loss_method=='w-gp':
+                gp = self.gradient_penalty(self.discriminator, real_imgs, self(z), method='GP')
+                d_loss = (
+                    -(torch.mean(dis_real) - torch.mean(dis_fake)) + self.gp_lambda*gp
+                )
+                self.log("gp", gp, on_epoch=False)
+            elif self.loss_method=='w-lp':
+                lp = self.gradient_penalty(self.discriminator, real_imgs, self(z), method='LP')
+                d_loss = (
+                    -(torch.mean(dis_real) - torch.mean(dis_fake)) + self.gp_lambda*lp
+                )
+                self.log("lp", lp, on_epoch=False)
+            elif self.loss_method=='hinge':
+               d_loss_real = torch.nn.ReLU()(1.0 - dis_real).mean()
+               d_loss_fake = torch.nn.ReLU()(1.0 + dis_fake).mean()
+               d_loss = d_loss_real + d_loss_fake
             
             # Log
             self.log("d_loss", d_loss, on_epoch=False)
-            self.log("gp", gp, on_epoch=False)
 
             # Update weights
             opt_d.zero_grad()
@@ -483,10 +496,13 @@ class CWGAN(pl.LightningModule, ganUtils):
             self.toggle_optimizer(opt_g)
             
             # calculate loss
-            g_loss = -torch.mean(output)
+            if self.loss_method=='w-gp' or self.loss_method=='w-lp':
+                g_loss = - torch.mean(output)
+            elif self.loss_method=='hinge':
+                g_loss = - torch.mean(output)
             
             # log
-            self.log("g_loss", g_loss, on_epoch=False)
+            self.log("g_loss", g_loss,hinge=False)
             
             # update weights
             opt_g.zero_grad()
@@ -502,7 +518,7 @@ class CWGAN(pl.LightningModule, ganUtils):
     def configure_optimizers(self):
         lr = self.lr
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=self.betas)
-        opt_d = torch.optim.Adam(self.discriminator.parameters(), lr=lr, betas=self.betas)
+        opt_d = torch.optim.Adam(self.discriminator.parameters(), lr=self.ttur_ratio*lr, betas=self.betas) # TTUR
         sched_d = GapAwareScheduler(opt_d, V_ideal=np.log10(4), k0=self.sched_k0, k1=self.sched_k1)
         return [opt_g, opt_d], [sched_d, ]
     
