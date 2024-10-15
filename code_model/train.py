@@ -118,7 +118,7 @@ def run_training(training_params, generation_params, testing_params, training_re
         )
 
         """Initialize seed"""
-        torch.manual_seed(training_seed)
+        pl.seed_everything(training_seed)
 
         """Training"""
         if __name__ == 'code_model.train':
@@ -131,6 +131,11 @@ def run_training(training_params, generation_params, testing_params, training_re
                 # Load model
                 model = model_dict[model_version](**training_params)
                 
+                # Transfer scaling factor from data module to model
+                model.scaling_factor = data.scaling_factor
+                
+                print(f'Model scaling factor: {model.scaling_factor}')
+
                 # Initialize trainer
                 if avail_gpus<2:
                         trainer = pl.Trainer(

@@ -621,8 +621,10 @@ class EMA():
         
         
 class Diffusion(pl.LightningModule):
-    def __init__(self, **training_params):
+    def __init__(self, scaling_factor=1, **training_params):
         super().__init__()
+        self.scaling_factor=scaling_factor
+        
         self.unet_version = training_params['unet_version']
         self.training_params = training_params
         self.root_path = training_params['root_path']
@@ -635,7 +637,7 @@ class Diffusion(pl.LightningModule):
         self.scheduler_params = training_params['scheduler_params']
         self.loss_fn = torch.nn.MSELoss()
 
-        self.network = networks.network_dict[f'unet_v{self.unet_version}'](**self.training_params)
+        self.network = networks.network_dict[f'unet_v{self.unet_version}'](scaling_factor=scaling_factor, **self.training_params)
         self.ema = EMA(beta=0.995)
         self.ema_network = deepcopy(self.network).eval().requires_grad_(False)
         
@@ -646,7 +648,8 @@ class Diffusion(pl.LightningModule):
         self.epoch_losses = []
     
     def setup(self, stage):
-        pass
+        if stage=='fit':
+            self.test_dataloader
         
     def cosine_schedule(self, s=0.008):
         """Prepares cosine scheduler for adding noise"""
@@ -670,24 +673,37 @@ class Diffusion(pl.LightningModule):
         """Return randomly sampled timesteps"""
         return torch.randint(low=1, high=self.noise_steps, size=(n,), device=self.device)
     
-    def sample(self, model, n):
+    def sample(self, network, n, scale=False):
         """Return n sampled noised image at all timesteps"""
-        model.eval()
+        network.eval()
         with torch.no_grad():
+            # Random noise
             x = torch.randn((n, self.input_channels, self.img_size, self.img_size), device=self.device)
+            
             for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
+                # Tensor of the current t of length n (for each of the samples)
                 t = (torch.ones(n, device=self.device)*i).long()
-                predicted_noise = model(x, t)
+                # Predict noise for current t
+                predicted_noise = network(x, t)
+                # Get new noise to add
                 alpha = self.alphas[t][:,None,None,None]
                 alpha_hat = self.alpha_hats[t][:,None,None,None]
                 beta = self.betas[t][:,None,None,None]
                 if i>1:
                     noise = torch.randn_like(x)
-                else:
+                else: # Don't noise at the last step
                     noise = torch.zeros_like(x)
+                # Subtract predicted noise from image and renoise to next t
                 x = 1/torch.sqrt(alpha) * (x - ((1-alpha) / (torch.sqrt(1-alpha_hat))) * predicted_noise) + torch.sqrt(beta) * noise
-        model.train()
+        network.train()
+        
+        # Restrict output to within -1 and 1
         x = x.clamp(-1, 1)
+        
+        # Rescale for testing such that blob amplitude consistent across all datasets
+        if scale:
+            x /= self.scaling_factor
+        
         return x
     
     def on_train_epoch_start(self):
@@ -700,7 +716,7 @@ class Diffusion(pl.LightningModule):
         
     def training_step(self, batch, batch_idx):
         # Load real imgs
-        if len(batch) == 2: # if label exists eg. MNIST dataset
+        if len(batch)==2: # if label exists eg. MNIST dataset
             real_imgs, _ = batch
         else:
             real_imgs = batch
@@ -788,7 +804,7 @@ class Diffusion(pl.LightningModule):
             real_imgs = batch
         
         # Generate images
-        gen_imgs = self.sample(self.ema_network, n=real_imgs.shape[0]).cpu().detach().squeeze().numpy()
+        gen_imgs = self.sample(self.ema_network, n=real_imgs.shape[0], scale=True).cpu().detach().squeeze().numpy()
         
         self.test_output_list['gen_imgs'].extend(gen_imgs)
 
