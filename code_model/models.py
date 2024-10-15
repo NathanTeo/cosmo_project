@@ -502,7 +502,7 @@ class CWGAN(pl.LightningModule, ganUtils):
                 g_loss = - torch.mean(output)
             
             # log
-            self.log("g_loss", g_loss,hinge=False)
+            self.log("g_loss", g_loss, on_epoch=False)
             
             # update weights
             opt_g.zero_grad()

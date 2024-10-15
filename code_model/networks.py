@@ -715,21 +715,22 @@ class SaganGenerator(nn.Module):
         
         # Latent space to 2D
         layer = []
-        layer.append(spectral_norm(nn.Linear(z_dim, gen_img_size*gen_img_size*up_dim)))
+        layer.append(spectral_norm(nn.Linear(z_dim, gen_img_size*gen_img_size*dims[0])))
         layer.append(nn.ReLU(inplace=True))
-        layer.append(nn.Unflatten(input_channels, (up_dim, gen_img_size, gen_img_size)))
+        layer.append(nn.Unflatten(input_channels, (dims[0], gen_img_size, gen_img_size)))
         
-        self.latent_to_img = nn.Sequential(*layer)
+        self.linear = nn.Sequential(*layer)
         
         # Build up layers
         layers = []
-        for i, (dim_in, dim_out) in enumerate(in_out[:-2]):
+        for i, (dim_in, dim_out) in enumerate(in_out[:-1]):
             layer = []
             layer.append(self._upsample_conv(gen_img_size * (2**i), dim_in, dim_out))
             layer.append(nn.BatchNorm2d(dim_out))
-            layer.append(nn.LeakyReLU(0.1))
+            layer.append(nn.LeakyReLU(0.2))
             
-            layers.append(nn.Sequential(*layers))
+            layers.append(nn.Sequential(*layer))
+            
             
         up_layers = nn.Sequential(*layers)
 
@@ -741,7 +742,7 @@ class SaganGenerator(nn.Module):
         layer = []
         layer.append(self._upsample_conv(gen_img_size * (2**(len(dims)-1)), dim_in, dim_out))
         layer.append(nn.BatchNorm2d(dim_out))
-        layer.append(nn.LeakyReLU(0.1))
+        layer.append(nn.LeakyReLU(0.2))
         
         last_up = nn.Sequential(*layer)
         
@@ -763,7 +764,7 @@ class SaganGenerator(nn.Module):
         return nn.Sequential(*layer)
             
     def forward(self, z):
-        x = self.latent_to_img(z)
+        x = self.linear(z)
         x = self.upsample(x)
         out = self.resize(x)
         return torch.tanh(out)
@@ -787,10 +788,10 @@ class SaganDiscriminator(nn.Module):
 
         # Build convolutional layers
         layers = []
-        for (dim_in, dim_out) in in_out[:-2]:
+        for (dim_in, dim_out) in in_out[:-1]:
             layer = []
             layer.append(spectral_norm(nn.Conv2d(dim_in, dim_out, 4, 2, 1)))
-            layer.append(nn.LeakyReLU(0.1))
+            layer.append(nn.LeakyReLU(0.2))
             
             layers.append(nn.Sequential(*layer))
         conv_layers = nn.Sequential(*layers)
@@ -802,18 +803,17 @@ class SaganDiscriminator(nn.Module):
         dim_in, dim_out = in_out[-1]
         layer = []
         layer.append(spectral_norm(nn.Conv2d(dim_in, dim_out, 4, 2, 1)))
-        layer.append(nn.LeakyReLU(0.1))
+        layer.append(nn.LeakyReLU(0.2))
         last_conv = nn.Sequential(*layer)
         
         # All cnn layers
-        self.attn_cnn = nn.Sequential(conv_layers, attn, last_conv)
+        self.attn_cnn = nn.Sequential(conv_layers, attn, last_conv, nn.Flatten())
         
         # Classifier
-        n_channels = n_channels = self.attn_cnn(torch.empty(1, 1, self.imsize, self.imsize)).size(-1)
+        n_channels = self.attn_cnn(torch.empty(1, 1, self.imsize, self.imsize)).size(-1)
 
         layer = []
-        layer.append(nn.Flatten())
-        layer.append(nn.Dropout(0.5))
+        layer.append(nn.Dropout(0.2))
         layer.append(spectral_norm(nn.Linear(n_channels, 1)))
         
         self.classifier = nn.Sequential(*layer)

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=test_model
+#SBATCH --job-name=generate_samples
 #SBATCH --mem=32G
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
