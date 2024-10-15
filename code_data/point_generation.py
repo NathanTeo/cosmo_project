@@ -12,11 +12,11 @@ import os
 from tqdm.auto import tqdm
 
 """Params"""
-image_size = 28
+image_size = 128
 seed = 70
 blob_size = 0
-sample_num = 50000
-blob_num = 10
+sample_num = 10000
+blob_num = 100
 distribution = 'uniform'
 noise = False
 noise_scale = 0.05
