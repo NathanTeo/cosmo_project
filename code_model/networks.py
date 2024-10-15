@@ -1109,7 +1109,6 @@ class UnetConvNextBlock(nn.Module):
         with_time_emb = True,
         output_mean_scale = False,
         residual = False,
-        scaling_factor=1,
         **training_params
     ):
         super().__init__()
@@ -1127,7 +1126,6 @@ class UnetConvNextBlock(nn.Module):
          
         self.residual = residual
         self.output_mean_scale = output_mean_scale
-        self.scaling_factor = scaling_factor
 
         dims = [self.channels, *map(lambda m: dim * m, dim_mults)]
         in_out = list(zip(dims[:-1], dims[1:]))
@@ -1179,7 +1177,7 @@ class UnetConvNextBlock(nn.Module):
             #nn.Tanh() # ADDED
         )
 
-    def forward(self, x, time=None, scale=False):
+    def forward(self, x, time=None):
         orig_x = x
         t = None
         if time is not None and exists(self.time_mlp):
@@ -1212,9 +1210,6 @@ class UnetConvNextBlock(nn.Module):
         if self.output_mean_scale:
             out_mean = torch.mean(out, [1,2,3], keepdim=True)
             out = out - original_mean + out_mean
-            
-        if scale:
-            out = out/self.scaling_factor
 
         return out
     

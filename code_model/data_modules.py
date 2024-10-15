@@ -15,7 +15,7 @@ class BlobDataModule(pl.LightningDataModule):
     """
     Pytorch Lightning data module for loading and transforming the real sample gaussian blobs
     """
-    def __init__(self, data_file, batch_size, num_workers, train_split=0.8, truncate_ratio=None):
+    def __init__(self, data_file, batch_size, num_workers, train_split=1, truncate_ratio=None):
         super().__init__()
         
         # Parameters
@@ -25,7 +25,11 @@ class BlobDataModule(pl.LightningDataModule):
         
         self.train_split = train_split
         
-        self.num_samples = len(np.load(data_file))
+        # Very bad way to handle, is there a way to get this without loading data?
+        samples = np.load(data_file)
+        self.num_samples = len(samples)
+        self.scaling_factor = 1/np.max([np.max(self.samples), np.abs(np.min(self.samples))])
+        print(f'Data module scaling factor: {self.scaling_factor}')
         
         self.truncate_ratio = truncate_ratio
 
@@ -45,6 +49,8 @@ class BlobDataModule(pl.LightningDataModule):
         
         self.samples = torch.unsqueeze(torch.tensor(samples), 1).float()
         
+        self.scale_samples()
+        
         # Assign train/val datasets
         if stage == "fit" or stage is None:
             self.inputData_train, self.inputData_val = random_split(self.samples, [self.train_split, 1-self.train_split])
@@ -52,7 +58,10 @@ class BlobDataModule(pl.LightningDataModule):
         # Assign test dataset
         if stage == "test" or stage is None:
             self.inputData_test = self.samples
-    
+           
+    def scale_samples(self):
+        self.samples = self.samples*self.scaling_factor
+        
     def len(self):
         # Returns length of data (number of samples)
         return self.num_samples
