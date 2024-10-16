@@ -78,8 +78,33 @@ def fourier_transform(samples, progress_bar=False):
     """Performs a 2d FFT on the image"""
     return [np.abs(np.fft.fftshift(np.fft.fft2(sample))) 
             for sample in tqdm(samples, disable=not progress_bar)]
+    
+def make_gaussian(center, var, image_size):
+    """Make a square gaussian kernel"""
+    x = np.arange(0, image_size, 1, float)
+    y = x[:,np.newaxis]
 
+    x0 = center[1]
+    y0 = center[0]
 
+    return np.exp(-0.5 * ((x-x0)**2 + (y-y0)**2) / var)
+
+def create_blobs(centers, image_size, blob_size, blob_amplitude):
+    """Create a sample of gaussian blobs"""
+    if len(centers)==0:
+        return np.zeros((image_size, image_size))
+    else:
+        return np.array([normalize_2d(make_gaussian(coord, blob_size, image_size))*blob_amplitude
+                            for coord in centers]).sum(axis=0)
+    
+def get_residuals(samples, blob_coords, image_size, blob_size, blob_amplitude):
+    """Calculate residuals"""
+    # Realize gaussian sample from generated blob center coordinates
+    coords_to_gaussian_samples = np.array([create_blobs(centers, image_size, blob_size, blob_amplitude)
+                                           for centers in tqdm(blob_coords)])
+    
+    # Get residuals
+    return coords_to_gaussian_samples - samples
 
 """2- point correlation"""
 def calculate_two_point(coords, image_size, angular_size=1, bins=10, bootstrap=True, logscale=True):
@@ -418,7 +443,7 @@ class blobCounter():
             D = np.eye(n) - np.eye(n, k=-1)
             cons = [{'type': 'ineq', 'fun': lambda x: D @ x[:n]}] 
 
-            bnds = np.array([(-0.5, self.image_size-0.5) for _ in guess_transfm])
+            bnds = np.array([(-1., self.image_size) for _ in guess_transfm]) # Bounds are allowed to be outside image by 0.5 pixels
             
             # Minimize
             result = minimize(fit_objective, guess_transfm, args=(sample),
@@ -426,7 +451,7 @@ class blobCounter():
 
             # Reshape centers fit to be [(y0, x0), (y1, x1), ...]
             fit = (result.x[:int(len(result.x)/2)], result.x[int(len(result.x)/2):])
-            fit = np.array(list(zip(*fit))).clip(-0.5, self.image_size-0.5)
+            fit = np.array(list(zip(*fit))).clip(-1., self.image_size) # Bounds are allowd to be outside image by 0.5 pixels
 
             minimize_end = time.time()
             

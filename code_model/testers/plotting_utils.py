@@ -11,7 +11,8 @@ import itertools
 from code_model.testers.eval_utils import *
 
 def plot_img_grid(subfig, imgs, grid_row_num, 
-                  title, wspace=.2, hspace=.2, subplot_titles=None, 
+                  title, title_y=0.95, 
+                  wspace=.2, hspace=.2, subplot_titles=None, 
                   vmin=-0.05, vmax=None, cmap='viridis'):
     """
     Plot a grid of sample images in a subfigure/figure
@@ -32,7 +33,7 @@ def plot_img_grid(subfig, imgs, grid_row_num,
 
     # Format
     subfig.subplots_adjust(wspace=wspace, hspace=hspace)         
-    subfig.suptitle(title, y=0.95)
+    subfig.suptitle(title, y=title_y)
     
     return subplots
     
@@ -53,7 +54,8 @@ def plot_min_num_peaks(ax, imgs, peak_nums, title=None, vmin=-0.05, vmax=None):
     return min_num_peaks
 
 def plot_extremum_num_blobs(subfig, imgs, imgs_coords, blob_nums, imgs_peak_counts=None,
-                            extremum='min', k=3, title=None, vmin=-0.05, vmax=None):
+                            extremum='min', k=3, title=None, title_y=0.92,
+                            vmin=-0.05, vmax=None):
     """
     Plot the image with the minimum number of blobs
     """
@@ -63,6 +65,10 @@ def plot_extremum_num_blobs(subfig, imgs, imgs_coords, blob_nums, imgs_peak_coun
         min_idxs = np.argpartition(blob_nums, k)[:k]
     elif extremum=='max':
         min_idxs = np.argpartition(blob_nums, -k)[-k:]
+    
+    # Make k=1 case iterable for loop
+    if k==1:
+        axs = [axs]
 
     for ax, idx in zip(axs, min_idxs):
         ax.imshow(imgs[idx], vmin=vmin, vmax=vmax)
@@ -87,7 +93,7 @@ def plot_extremum_num_blobs(subfig, imgs, imgs_coords, blob_nums, imgs_peak_coun
         ax.set_yticks([])
         ax.axis('off')
         
-    subfig.suptitle(title, y=0.92)
+    subfig.suptitle(title, y=title_y)
 
 def plot_peak_grid(subfig, imgs, imgs_coords,
                    grid_row_num, title, wspace=.2, hspace=.2, imgs_peak_values=None, subplot_titles=None, vmin=-0.05, vmax=None):
@@ -238,3 +244,6 @@ def find_good_bins(arrs, spacing=(1.5, 1.5),
         return np.arange(bin_min-spacing[0], bin_max+spacing[1], step)
     elif method=='linspace':
         return np.linspace(bin_min-spacing[0], bin_max+spacing[1], num_bins)
+
+def blank_plot(ax):
+    ax.set_axis_off()

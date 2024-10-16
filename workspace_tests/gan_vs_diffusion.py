@@ -41,6 +41,11 @@ class compareUtils():
         diff_config = __import__(f'{diff_run}.config.model_params')
         self.diff_training_params = diff_config.config.model_params.training_params
         
+        generation_params = diff_config.config.model_params.generation_params
+        self.image_size = generation_params['image_size']
+        self.blob_size = generation_params['blob_size']
+        self.blob_amplitude = 1/generation_params['blob_num'] 
+        
         self.gan_training_params['avail_gpus'] = torch.cuda.device_count()
         self.gan_training_params['root_path'] = f"C:/Users/Idiot/Desktop/Research/OFYP/cosmo/cosmo_runs/{gan_run}"
         
@@ -104,6 +109,13 @@ class compareUtils():
         self.real_blob_count_mean = np.mean(self.real_blob_counts)
         self.gan_blob_count_mean = np.mean(self.gan_blob_counts)
         self.diff_blob_count_mean = np.mean(self.diff_blob_counts)
+        
+        # Get residuals
+        print('finding residuals...')
+        self.gan_residuals = get_residuals(self.gan_samples, self.gan_blob_coords, 
+                                           self.image_size, self.blob_size, self.blob_amplitude)
+        self.diff_residuals = get_residuals(self.diff_samples, self.diff_blob_coords,
+                                            self.image_size, self.blob_size, self.blob_amplitude)
                 
     def gan_speed(self, num_of_samples):
         """Record gan generation speed"""
@@ -127,12 +139,14 @@ class compareUtils():
         diff_samples_subset = self.diff_samples[:grid_row_num**2]
         
         # Plotting grid of images
-        fig = plt.figure(figsize=(8,3))
-        subfig = fig.subfigures(1, 3, wspace=0.2)
+        fig = plt.figure(figsize=(7,3))
+        subfig = fig.subfigures(1, 3, wspace=0.3)
         
-        plot_img_grid(subfig[0], real_samples_subset, grid_row_num, title='Real')
-        plot_img_grid(subfig[1], gan_samples_subset, grid_row_num, title='GAN') 
-        plot_img_grid(subfig[2], diff_samples_subset, grid_row_num, title='Diffusion')
+        plot_img_grid(subfig[0], real_samples_subset, grid_row_num, title='Real', wspace=0.1)
+        plot_img_grid(subfig[1], gan_samples_subset, grid_row_num, title='GAN', wspace=0.1) 
+        plot_img_grid(subfig[2], diff_samples_subset, grid_row_num, title='Diffusion', wspace=0.1)
+        
+        fig.tight_layout()
         
         # Save plot
         plt.savefig(f'{self.plot_save_path}/samples.{self.image_file_format}')
@@ -237,7 +251,7 @@ class compareUtils():
 
         'Plot image'
         # Create figure
-        fig, axs = plt.subplots(1, 3)
+        fig, axs = plt.subplots(1, 3, figsize=(6,3))
 
         # Plot
         plot_stacked_imgs(axs[0], stacked_real_img, title=f"Real\n{self.subset_sample_num} samples")
@@ -303,25 +317,26 @@ class compareUtils():
     
     def plot_samples_with_extreme_count(self):
         'Extreme number of blobs'
+        k=1
         # Create figure
-        fig = plt.figure(figsize=(4,6))
+        fig = plt.figure(figsize=(4,2*k+0.2))
         subfig = fig.subfigures(1, 3, wspace=0.2)
 
         # Plot
         plot_extremum_num_blobs(
             subfig[0], self.real_samples,
             self.real_blob_coords, self.real_blob_counts,
-            extremum='min', title='Real'
+            extremum='min', title='Real', title_y=0.87, k=k
             )
         plot_extremum_num_blobs(
             subfig[1], self.gan_samples,
             self.gan_blob_coords, self.gan_blob_counts,
-            extremum='min', title='GAN'
+            extremum='min', title='GAN', title_y=0.87, k=k
             )  
         plot_extremum_num_blobs(
             subfig[2], self.diff_samples,
             self.diff_blob_coords, self.diff_blob_counts,
-            extremum='min', title='Diffusion'
+            extremum='min', title='Diffusion', title_y=0.87, k=k
             )  
         # Format
         fig.suptitle(f"Min blob count, {self.subset_sample_num} samples")
@@ -332,24 +347,24 @@ class compareUtils():
         plt.close()
 
         # Create figure
-        fig = plt.figure(figsize=(4,6))
+        fig = plt.figure(figsize=(4,2*k+0.2))
         subfig = fig.subfigures(1, 3, wspace=0.2)
 
         # Plot
         plot_extremum_num_blobs(
             subfig[0], self.real_samples,
             self.real_blob_coords, self.real_blob_counts,
-            extremum='max', title='Real'
+            extremum='max', title='Real', title_y=0.87, k=k
             )
         plot_extremum_num_blobs(
             subfig[1], self.gan_samples,
             self.gan_blob_coords, self.gan_blob_counts,
-            extremum='max', title='GAN'
+            extremum='max', title='GAN', title_y=0.87, k=k
             )  
         plot_extremum_num_blobs(
             subfig[2], self.diff_samples,
             self.diff_blob_coords, self.diff_blob_counts,
-            extremum='max', title='Diffusion'
+            extremum='max', title='Diffusion', title_y=0.87, k=k
             ) 
         # Format
         fig.suptitle(f"Max blobs count, {self.subset_sample_num} samples")
@@ -395,10 +410,56 @@ class compareUtils():
         # Save
         plt.savefig(f'{self.plot_save_path}/total-flux-histogram.{self.image_file_format}')
         plt.close()
+        
+    def plot_residual_samples(self, num_plots=5, grid_row_num=2):
+        for n in range(num_plots):    
+            # Get images
+            gan_sample_subset = self.gan_samples[n*(grid_row_num**2):(n+1)*(grid_row_num**2)]
+            gan_res_subset = self.gan_residuals[n*(grid_row_num**2):(n+1)*(grid_row_num**2)]
+            
+            diff_sample_subset = self.diff_samples[n*(grid_row_num**2):(n+1)*(grid_row_num**2)]
+            diff_res_subset = self.diff_residuals[n*(grid_row_num**2):(n+1)*(grid_row_num**2)]
+                
+            'Images'
+            # For image max plot
+            concat_subset = np.concatenate([gan_sample_subset, diff_sample_subset])
+            
+            # Plotting grid of images
+            fig = plt.figure(figsize=(4.5, 6))
+            subfig = fig.subfigures(4, 2, wspace=0.1, hspace=0.3, height_ratios=(0.5,5,5,1))
+            
+            subplots_samp = plot_img_grid(subfig[1,0], gan_sample_subset, grid_row_num,
+                                        title='GAN samples', title_y=1.06,
+                                        vmin=-0.05, vmax=np.max(concat_subset), wspace=0.05, hspace=0.01)
+            subplots_res = plot_img_grid(subfig[1,1], gan_res_subset, grid_row_num, 
+                                        title='GAN residuals', title_y=1.06, 
+                                        cmap='RdBu', vmin=-0.07, vmax=0.07, wspace=0.05, hspace=0.01)
+            
+            subplots_samp = plot_img_grid(subfig[2,0], diff_sample_subset, grid_row_num,
+                                        title='Diffusion samples', title_y=1.06,
+                                        vmin=-0.05, vmax=np.max(concat_subset), wspace=0.05, hspace=0.01)
+            subplots_res = plot_img_grid(subfig[2,1], diff_res_subset, grid_row_num,
+                                        title='Diffusion residuals', title_y=1.06,
+                                        cmap='RdBu', vmin=-0.07, vmax=0.07, wspace=0.05, hspace=0.01)
+            
+            cax0, empty0 = subfig[3,0].subplots(2)
+            cax1, empty1 = subfig[3,1].subplots(2)
+            blank_plot(empty0)
+            blank_plot(empty1)
+            fig.colorbar(subplots_samp[0][0], cax=cax0, orientation='horizontal')
+            fig.colorbar(subplots_res[0][0], cax=cax1, orientation='horizontal')
+
+            fig.tight_layout()
+            
+            # Save plot
+            plt.savefig(f'{self.plot_save_path}/residual_{n}.{self.image_file_format}')
+            plt.close()
 
 class compareModule(compareUtils):
     def __init__(self, gan_run, diff_run):
         super().__init__(gan_run, diff_run)
+        
+        print(f'run {gan_run} vs run {diffusion_run}')
         
         print('loading models and data...')
         self.load_models()
@@ -438,7 +499,7 @@ class compareModule(compareUtils):
         print()
     
     def plot(self):
-        n = 6
+        n = 7
         print(f'task 1/{n} | samples')
         self.plot_samples()
         print(f'task 2/{n} | count histogram')
@@ -451,7 +512,9 @@ class compareModule(compareUtils):
         self.plot_samples_with_extreme_count()
         print(f'task 6/{n} | total flux')
         self.plot_total_flux()
+        print(f'task 7/{n} | residual samples')
+        self.plot_residual_samples()
         
 if __name__=="__main__":
     tester = compareModule(gan_run, diffusion_run)
-    tester.run_tests()
+    tester.plot()
