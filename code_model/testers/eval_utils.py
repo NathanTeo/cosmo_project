@@ -479,11 +479,14 @@ class blobCounter():
             """
             Removes the worst guess 
             """
-            # Remove guess where the residual (sample-fit) at the center pixel is the most negative 
-            guess_img = self._create_blobs(centers)
+            # Clip fit to within image
+            centers_copy = centers.copy().clip(-0.5,len(sample)-0.5)
             
-            sample_value_at_center = np.array([sample[int(center[0]), int(center[1])] for center in centers])
-            guess_value_at_center = np.array([guess_img[int(center[0]), int(center[1])] for center in centers])
+            # Remove guess where the residual (sample-fit) at the center pixel is the most negative 
+            guess_img = self._create_blobs(centers_copy)
+            
+            sample_value_at_center = np.array([sample[int(center[0]), int(center[1])] for center in centers_copy])
+            guess_value_at_center = np.array([guess_img[int(center[0]), int(center[1])] for center in centers_copy])
             residual = sample_value_at_center - guess_value_at_center
             
             worst_guess_idx = residual.argmin()
