@@ -905,7 +905,7 @@ class BigGanGenerator(nn.Module):
     # Number of channels
     image_channels = network_params['image_channels']
     # Channel width mulitplier
-    self.ch = network_params['G_ch']
+    self.ch = network_params['G_channels']
     # Dimensionality of the latent space
     self.dim_z = network_params['latent_dim']
     # The initial spatial dimensions
@@ -1093,7 +1093,7 @@ class BigGanDiscriminator(nn.Module):
     # Image channels
     image_channels = network_params['image_channels']
     # Width mulitplier
-    self.ch = network_params['D_ch']
+    self.ch = network_params['D_channels']
     # Resolution of the output
     self.resolution = training_params['image_size']
     # Use Wide D as in BigGAN and SA-GAN or skinny D as in SN-GAN?
