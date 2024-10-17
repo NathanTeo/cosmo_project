@@ -12,8 +12,8 @@ from code_model.testers.eval_utils import *
 from code_model.testers.plotting_utils import *
 
 """RUNS"""
-gan_run = 'cwgan_6a'
-diffusion_run = 'diffusion_3c'
+gan_run = 'cwgan_6b'
+diffusion_run = 'diffusion_3d'
 
 ##########################################################
 class compareUtils():
@@ -194,7 +194,7 @@ class compareUtils():
             
     def plot_count_histogram(self, ignore_outliers=True):
         # Create figure
-        fig = plt.figure()
+        fig = plt.figure(figsize=(4,3))
 
         # Bins for histogram
         concat_fluxes = np.concatenate([self.real_blob_counts, self.gan_blob_counts, self.diff_blob_counts])
@@ -251,7 +251,7 @@ class compareUtils():
 
         'Plot image'
         # Create figure
-        fig, axs = plt.subplots(1, 3, figsize=(6,3))
+        fig, axs = plt.subplots(1, 3, figsize=(4,2.5))
 
         # Plot
         plot_stacked_imgs(axs[0], stacked_real_img, title=f"Real\n{self.subset_sample_num} samples")
@@ -268,7 +268,7 @@ class compareUtils():
         
         'Stacked image histogram'
         # Create figure
-        fig = plt.figure()
+        fig = plt.figure(figsize=(4,3))
 
         # Plot
         plt.hist(stacked_real_img.ravel(), histtype='step', label='Real', color=(self.real_color,0.8))
