@@ -7,11 +7,13 @@ This script contains generators and discriminators (or critics) used in the GANs
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn import init
+import functools
 from torch.nn.utils import spectral_norm
 import math
 import numpy as np
-from inspect import isfunction
-from einops import rearrange
+
+import layers
 
 
 
@@ -25,7 +27,7 @@ class Discriminator_v1(nn.Module):
         # Params
         network_params = training_params['network_params']
         
-        input_channels = network_params['input_channels']
+        image_channels = network_params['image_channels']
         conv_size = network_params['discriminator_conv_size']
         conv_dropout = network_params['conv_dropout']
         linear_size = network_params['discriminator_linear_size']
@@ -36,7 +38,7 @@ class Discriminator_v1(nn.Module):
         
         # Simple CNN
         self.cnn = nn.Sequential(
-            nn.Conv2d(input_channels, conv_size, kernel_size=5, stride=1), 
+            nn.Conv2d(image_channels, conv_size, kernel_size=5, stride=1), 
             nn.BatchNorm2d(conv_size), nn.ReLU(inplace=True), nn.Dropout2d(conv_dropout),
 
             nn.Conv2d(conv_size, conv_size*2, kernel_size=5, stride=1), 
@@ -74,7 +76,7 @@ class Discriminator_v2(nn.Module):
         # Params
         network_params = training_params['network_params']
         
-        input_channels = network_params['input_channels']
+        image_channels = network_params['image_channels']
         conv_size = network_params['discriminator_conv_size']
         conv_dropout = network_params['conv_dropout']
         linear_size = network_params['discriminator_linear_size']
@@ -86,7 +88,7 @@ class Discriminator_v2(nn.Module):
         
         # Simple CNN
         self.cnn = nn.Sequential(
-            nn.Conv2d(input_channels, conv_size, kernel_size=5, stride=1), 
+            nn.Conv2d(image_channels, conv_size, kernel_size=5, stride=1), 
             nn.InstanceNorm2d(conv_size, affine=True), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(conv_dropout),
 
             nn.Conv2d(conv_size, conv_size*2, kernel_size=5, stride=1),
@@ -124,7 +126,7 @@ class Discriminator_v3(nn.Module):
         # Params
         network_params = training_params['network_params']
         
-        input_channels = network_params['input_channels']
+        image_channels = network_params['image_channels']
         conv_size = network_params['discriminator_conv_size']
         conv_dropout = network_params['conv_dropout']
         linear_size = network_params['discriminator_linear_size']
@@ -136,7 +138,7 @@ class Discriminator_v3(nn.Module):
         
         # CNN
         self.cnn = nn.Sequential(
-            self._conv_block(input_channels, conv_size, conv_dropout=conv_dropout),
+            self._conv_block(image_channels, conv_size, conv_dropout=conv_dropout),
             self._conv_block(conv_size, conv_size*2, conv_dropout=conv_dropout),
             self._conv_block(conv_size*2, conv_size*4, conv_dropout=conv_dropout),
             self._conv_block(conv_size*4, conv_size*4, conv_dropout=conv_dropout),
@@ -155,10 +157,10 @@ class Discriminator_v3(nn.Module):
             nn.Linear(linear_size, 1),
     )
         
-    def _conv_block(self, input_channels, conv_size, conv_dropout=0.2, kernel_size=5, stride=1):
+    def _conv_block(self, image_channels, conv_size, conv_dropout=0.2, kernel_size=5, stride=1):
         # Convolutional block
         return nn.Sequential(
-            nn.Conv2d(input_channels, conv_size, kernel_size=kernel_size, stride=stride), 
+            nn.Conv2d(image_channels, conv_size, kernel_size=kernel_size, stride=stride), 
             nn.InstanceNorm2d(conv_size, affine=True), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(conv_dropout)
         )
 
@@ -180,7 +182,7 @@ class Discriminator_v4(nn.Module):
         # Params
         network_params = training_params['network_params']
         
-        input_channels = network_params['input_channels']
+        image_channels = network_params['image_channels']
         conv_size = network_params['discriminator_conv_size']
         linear_size = network_params['discriminator_linear_size']
         linear_dropout = network_params['linear_dropout']
@@ -191,7 +193,7 @@ class Discriminator_v4(nn.Module):
         
         # CNN
         self.cnn = nn.Sequential(
-            *self._conv_block(input_channels, conv_size, image_size),
+            *self._conv_block(image_channels, conv_size, image_size),
             *self._conv_block(conv_size, conv_size*2, self.norm_img_size),
             *self._conv_block(conv_size*2, conv_size*4, self.norm_img_size),
             *self._conv_block(conv_size*4, conv_size*4, self.norm_img_size),
@@ -209,9 +211,9 @@ class Discriminator_v4(nn.Module):
             nn.Linear(linear_size, 1),
     )
         
-    def _conv_block(self, input_channels, conv_size, img_size, kernel_size=5, stride=1):
+    def _conv_block(self, image_channels, conv_size, img_size, kernel_size=5, stride=1):
         # Convolutional block
-        layers = [nn.Conv2d(input_channels, conv_size, kernel_size=kernel_size, stride=stride)]
+        layers = [nn.Conv2d(image_channels, conv_size, kernel_size=kernel_size, stride=stride)]
         self.norm_img_size = int((img_size-kernel_size)/stride + 1)
         layers.append(nn.LayerNorm([conv_size, self.norm_img_size, self.norm_img_size]))
         layers.append(nn.LeakyReLU(0.2, inplace=True))
@@ -235,7 +237,7 @@ class Discriminator_v5(nn.Module):
         # Params
         network_params = training_params['network_params']
         
-        input_channels = network_params['input_channels']
+        image_channels = network_params['image_channels']
         conv_size = network_params['discriminator_conv_size']
         linear_size = network_params['discriminator_linear_size']
         linear_dropout = network_params['linear_dropout']
@@ -246,7 +248,7 @@ class Discriminator_v5(nn.Module):
         
         # CNN
         self.cnn = nn.Sequential(
-            *self._conv_block(input_channels, conv_size, image_size),
+            *self._conv_block(image_channels, conv_size, image_size),
             *self._conv_block(conv_size, conv_size*2, self.norm_img_size),
             *self._conv_block(conv_size*2, conv_size*4, self.norm_img_size),
             *self._conv_block(conv_size*4, conv_size*8, self.norm_img_size),
@@ -265,9 +267,9 @@ class Discriminator_v5(nn.Module):
             nn.Linear(linear_size, 1),
     )
         
-    def _conv_block(self, input_channels, conv_size, img_size, kernel_size=5, stride=1):
+    def _conv_block(self, image_channels, conv_size, img_size, kernel_size=5, stride=1):
         # Convolutional block
-        layers = [nn.Conv2d(input_channels, conv_size, kernel_size=kernel_size, stride=stride)]
+        layers = [nn.Conv2d(image_channels, conv_size, kernel_size=kernel_size, stride=stride)]
         self.norm_img_size = int((img_size-kernel_size)/stride + 1)
         layers.append(nn.LayerNorm([conv_size, self.norm_img_size, self.norm_img_size]))
         layers.append(nn.LeakyReLU(0.2, inplace=True))
@@ -291,7 +293,7 @@ class Discriminator_v6(nn.Module):
         # Params
         network_params = training_params['network_params']
         
-        input_channels = network_params['input_channels']
+        image_channels = network_params['image_channels']
         conv_size = network_params['discriminator_conv_size']
         linear_size = network_params['discriminator_linear_size']
         linear_dropout = network_params['linear_dropout']
@@ -302,7 +304,7 @@ class Discriminator_v6(nn.Module):
         
         # CNN
         self.cnn = nn.Sequential(
-            *self._conv_block(input_channels, conv_size, image_size),
+            *self._conv_block(image_channels, conv_size, image_size),
             *self._conv_block(conv_size, conv_size*2, self.norm_img_size),
             *self._conv_block(conv_size*2, conv_size*4, self.norm_img_size),
             *self._conv_block(conv_size*4, conv_size*8, self.norm_img_size),
@@ -320,9 +322,9 @@ class Discriminator_v6(nn.Module):
             nn.Linear(linear_size, 1),
     )
         
-    def _conv_block(self, input_channels, conv_size, img_size, kernel_size=5, stride=1):
+    def _conv_block(self, image_channels, conv_size, img_size, kernel_size=5, stride=1):
         # Convolutional block
-        layers = [nn.Conv2d(input_channels, conv_size, kernel_size=kernel_size, stride=stride)]
+        layers = [nn.Conv2d(image_channels, conv_size, kernel_size=kernel_size, stride=stride)]
         self.norm_img_size = int((img_size-kernel_size)/stride + 1)
         layers.append(nn.LayerNorm([conv_size, self.norm_img_size, self.norm_img_size]))
         layers.append(nn.LeakyReLU(0.2, inplace=True))
@@ -705,7 +707,7 @@ class SaganGenerator(nn.Module):
         network_params = training_params['network_params']
         
         z_dim = network_params['latent_dim']
-        input_channels = network_params['input_channels']
+        image_channels = network_params['image_channels']
         layer_mults = network_params['gen_layer_mults']
         up_dim = network_params['gen_dim']
         gen_img_size = network_params['gen_img_size']
@@ -717,7 +719,7 @@ class SaganGenerator(nn.Module):
         layer = []
         layer.append(spectral_norm(nn.Linear(z_dim, gen_img_size*gen_img_size*dims[0])))
         layer.append(nn.ReLU(inplace=True))
-        layer.append(nn.Unflatten(input_channels, (dims[0], gen_img_size, gen_img_size)))
+        layer.append(nn.Unflatten(image_channels, (dims[0], gen_img_size, gen_img_size)))
         
         self.linear = nn.Sequential(*layer)
         
@@ -779,11 +781,11 @@ class SaganDiscriminator(nn.Module):
         network_params = training_params['network_params']
         self.model_version = training_params['model_version']
         
-        input_channels = network_params['input_channels']
+        image_channels = network_params['image_channels']
         layer_mults = network_params['dis_layer_mults']
         conv_dim = network_params['dis_dim']
         
-        dims = [input_channels, *map(lambda m: conv_dim * m, layer_mults)]
+        dims = [image_channels, *map(lambda m: conv_dim * m, layer_mults)]
         in_out = list(zip(dims[:-1], dims[1:]))
 
         # Build convolutional layers
@@ -826,6 +828,390 @@ class SaganDiscriminator(nn.Module):
             out = torch.sigmoid(out)
         
         return out
+    
+'Big GAN'
+# Architectures for G
+# Attention is passed in in the format '32_64' to mean applying an attention
+# block at both resolution 32x32 and 64x64. Just '64' will apply at 64x64.
+def G_arch(ch=64, attention='64', ksize='333333', dilation='111111'):
+  arch = {}
+  arch[512] = {'in_channels' :  [ch * item for item in [16, 16, 8, 8, 4, 2, 1]],
+               'out_channels' : [ch * item for item in [16,  8, 8, 4, 2, 1, 1]],
+               'upsample' : [True] * 7,
+               'resolution' : [8, 16, 32, 64, 128, 256, 512],
+               'attention' : {2**i: (2**i in [int(item) for item in attention.split('_')])
+                              for i in range(3,10)}}
+  arch[256] = {'in_channels' :  [ch * item for item in [16, 16, 8, 8, 4, 2]],
+               'out_channels' : [ch * item for item in [16,  8, 8, 4, 2, 1]],
+               'upsample' : [True] * 6,
+               'resolution' : [8, 16, 32, 64, 128, 256],
+               'attention' : {2**i: (2**i in [int(item) for item in attention.split('_')])
+                              for i in range(3,9)}}
+  arch[128] = {'in_channels' :  [ch * item for item in [16, 16, 8, 4, 2]],
+               'out_channels' : [ch * item for item in [16, 8, 4, 2, 1]],
+               'upsample' : [True] * 5,
+               'resolution' : [8, 16, 32, 64, 128],
+               'attention' : {2**i: (2**i in [int(item) for item in attention.split('_')])
+                              for i in range(3,8)}}
+  arch[64]  = {'in_channels' :  [ch * item for item in [16, 16, 8, 4]],
+               'out_channels' : [ch * item for item in [16, 8, 4, 2]],
+               'upsample' : [True] * 4,
+               'resolution' : [8, 16, 32, 64],
+               'attention' : {2**i: (2**i in [int(item) for item in attention.split('_')])
+                              for i in range(3,7)}}
+  arch[32]  = {'in_channels' :  [ch * item for item in [4, 4, 4]],
+               'out_channels' : [ch * item for item in [4, 4, 4]],
+               'upsample' : [True] * 3,
+               'resolution' : [8, 16, 32],
+               'attention' : {2**i: (2**i in [int(item) for item in attention.split('_')])
+                              for i in range(3,6)}}
+
+  return arch
+
+# Discriminator architecture, same paradigm as G's above
+def D_arch(ch=64, image_channels=1, attention='64',ksize='333333', dilation='111111'):
+  arch = {}
+  arch[256] = {'in_channels' :  [image_channels] + [ch*item for item in [1, 2, 4, 8, 8, 16]],
+               'out_channels' : [item * ch for item in [1, 2, 4, 8, 8, 16, 16]],
+               'downsample' : [True] * 6 + [False],
+               'resolution' : [128, 64, 32, 16, 8, 4, 4 ],
+               'attention' : {2**i: 2**i in [int(item) for item in attention.split('_')]
+                              for i in range(2,8)}}
+  arch[128] = {'in_channels' :  [image_channels] + [ch*item for item in [1, 2, 4, 8, 16]],
+               'out_channels' : [item * ch for item in [1, 2, 4, 8, 16, 16]],
+               'downsample' : [True] * 5 + [False],
+               'resolution' : [64, 32, 16, 8, 4, 4],
+               'attention' : {2**i: 2**i in [int(item) for item in attention.split('_')]
+                              for i in range(2,8)}}
+  arch[64]  = {'in_channels' :  [image_channels] + [ch*item for item in [1, 2, 4, 8]],
+               'out_channels' : [item * ch for item in [1, 2, 4, 8, 16]],
+               'downsample' : [True] * 4 + [False],
+               'resolution' : [32, 16, 8, 4, 4],
+               'attention' : {2**i: 2**i in [int(item) for item in attention.split('_')]
+                              for i in range(2,7)}}
+  arch[32]  = {'in_channels' :  [image_channels] + [item * ch for item in [4, 4, 4]],
+               'out_channels' : [item * ch for item in [4, 4, 4, 4]],
+               'downsample' : [True, True, False, False],
+               'resolution' : [16, 16, 16, 16],
+               'attention' : {2**i: 2**i in [int(item) for item in attention.split('_')]
+                              for i in range(2,6)}}
+  return arch
+
+
+class BigGanGenerator(nn.Module):
+  def __init__(self, **training_params):
+    super(BigGanGenerator, self).__init__()
+    network_params = training_params['network_params']
+    # Number of channels
+    image_channels = network_params['image_channels']
+    # Channel width mulitplier
+    self.ch = network_params['G_ch']
+    # Dimensionality of the latent space
+    self.dim_z = network_params['latent_dim']
+    # The initial spatial dimensions
+    self.bottom_width = network_params['bottom_width']
+    # Resolution of the output
+    self.resolution = training_params['image_size']
+    # Kernel size?
+    self.kernel_size = 3
+    # Attention?
+    self.attention = '64'
+    # number of classes, for use in categorical conditional generation
+    self.n_classes = None
+    # Hierarchical latent space?
+    self.hier = False
+    # Cross replica batchnorm?
+    self.cross_replica = False
+    # Use my batchnorm?
+    self.mybn = False
+    # nonlinearity for residual blocks
+    self.activation = nn.ReLU(inplace=False)
+    # Initialization style
+    self.init = 'ortho'
+    # Parameterization style
+    self.G_param = 'SN'
+    # Normalization style
+    self.norm_style = 'bn'
+    # Epsilon for BatchNorm?
+    self.BN_eps = 1e-5
+    # Epsilon for Spectral Norm?
+    self.SN_eps = 1e-12
+    # fp16?
+    self.fp16 = False
+    # Architecture dict
+    self.arch = G_arch(self.ch, self.attention)[self.resolution]
+    # Other params
+    skip_init=False
+    num_G_SVs=1
+    num_G_SV_itrs=1
+
+    # If using hierarchical latents, adjust z
+    if self.hier:
+      # Number of places z slots into
+      self.num_slots = len(self.arch['in_channels']) + 1
+      self.z_chunk_size = (self.dim_z // self.num_slots)
+      # Recalculate latent dimensionality for even splitting into chunks
+      self.dim_z = self.z_chunk_size *  self.num_slots
+    else:
+      self.num_slots = 1
+      self.z_chunk_size = 0
+
+    # Which convs, batchnorms, and linear layers to use
+    if self.G_param == 'SN':
+      self.which_conv = functools.partial(layers.SNConv2d,
+                          kernel_size=3, padding=1,
+                          num_svs=num_G_SVs, num_itrs=num_G_SV_itrs,
+                          eps=self.SN_eps)
+      self.which_linear = functools.partial(layers.SNLinear,
+                          num_svs=num_G_SVs, num_itrs=num_G_SV_itrs,
+                          eps=self.SN_eps)
+    else:
+      self.which_conv = functools.partial(nn.Conv2d, kernel_size=3, padding=1)
+      self.which_linear = nn.Linear
+      
+    # We use a non-spectral-normed embedding here regardless;
+    # For some reason applying SN to G's embedding seems to randomly cripple G
+    self.which_embedding = nn.Embedding
+    self.which_bn = functools.partial(layers.bn,
+                          cross_replica=self.cross_replica,
+                          mybn=self.mybn,
+                          eps=self.BN_eps)
+
+
+    # Prepare model
+    # If not using shared embeddings, self.shared is just a passthrough
+    # self.shared = (self.which_embedding(n_classes, self.shared_dim) if G_shared 
+                    # else layers.identity())
+    # First linear layer
+    self.linear = self.which_linear(self.dim_z // self.num_slots,
+                                    self.arch['in_channels'][0] * (self.bottom_width **2))
+
+    # self.blocks is a doubly-nested list of modules, the outer loop intended
+    # to be over blocks at a given resolution (resblocks and/or self-attention)
+    # while the inner loop is over a given block
+    self.blocks = []
+    for index in range(len(self.arch['out_channels'])):
+      self.blocks += [[layers.GBlock(in_channels=self.arch['in_channels'][index],
+                             out_channels=self.arch['out_channels'][index],
+                             which_conv=self.which_conv,
+                             which_bn=self.which_bn,
+                             activation=self.activation,
+                             upsample=(functools.partial(F.interpolate, scale_factor=2)
+                                       if self.arch['upsample'][index] else None))]]
+
+      # If attention on this block, attach it to the end
+      if self.arch['attention'][self.arch['resolution'][index]]:
+        print('Adding attention layer in G at resolution %d' % self.arch['resolution'][index])
+        self.blocks[-1] += [layers.Attention(self.arch['out_channels'][index], self.which_conv)]
+
+    # Turn self.blocks into a ModuleList so that it's all properly registered.
+    self.blocks = nn.ModuleList([nn.ModuleList(block) for block in self.blocks])
+
+    # output layer: batchnorm-relu-conv.
+    # Consider using a non-spectral conv here
+    self.output_layer = nn.Sequential(layers.bn(self.arch['out_channels'][-1],
+                                                cross_replica=self.cross_replica,
+                                                mybn=self.mybn),
+                                    self.activation,
+                                    self.which_conv(self.arch['out_channels'][-1], image_channels))
+
+    # Initialize weights. Optionally skip init for testing.
+    if not skip_init:
+      self.init_weights()
+
+    '''
+    # Set up optimizer
+    # If this is an EMA copy, no need for an optim, so just return now
+    if no_optim:
+      return
+    self.lr, self.B1, self.B2, self.adam_eps = G_lr, G_B1, G_B2, adam_eps
+    if G_mixed_precision:
+      print('Using fp16 adam in G...')
+      import utils
+      self.optim = utils.Adam16(params=self.parameters(), lr=self.lr,
+                           betas=(self.B1, self.B2), weight_decay=0,
+                           eps=self.adam_eps)
+    else:
+      self.optim = optim.Adam(params=self.parameters(), lr=self.lr,
+                           betas=(self.B1, self.B2), weight_decay=0,
+                           eps=self.adam_eps)
+    '''
+
+    # LR scheduling, left here for forward compatibility
+    # self.lr_sched = {'itr' : 0}# if self.progressive else {}
+    # self.j = 0
+
+  # Initialize
+  def init_weights(self):
+    self.param_count = 0
+    for module in self.modules():
+      if (isinstance(module, nn.Conv2d) 
+          or isinstance(module, nn.Linear) 
+          or isinstance(module, nn.Embedding)):
+        if self.init == 'ortho':
+          init.orthogonal_(module.weight)
+        elif self.init == 'N02':
+          init.normal_(module.weight, 0, 0.02)
+        elif self.init in ['glorot', 'xavier']:
+          init.xavier_uniform_(module.weight)
+        else:
+          print('Init style not recognized...')
+        self.param_count += sum([p.data.nelement() for p in module.parameters()])
+    print('Param count for G''s initialized parameters: %d' % self.param_count)
+
+  # Note on this forward function: we pass in a y vector which has
+  # already been passed through G.shared to enable easy class-wise
+  # interpolation later. If we passed in the one-hot and then ran it through
+  # G.shared in this forward function, it would be harder to handle.
+  def forward(self, z, y=None):
+    # If hierarchical, concatenate zs and ys
+    if self.hier:
+      zs = torch.split(z, self.z_chunk_size, 1)
+      z = zs[0]
+      ys = [torch.cat([y, item], 1) for item in zs[1:]]
+    else:
+      ys = [y] * len(self.blocks)
+      
+    # First linear layer
+    h = self.linear(z)
+    # Reshape
+    h = h.view(h.size(0), -1, self.bottom_width, self.bottom_width)
+    
+    # Loop over blocks
+    for index, blocklist in enumerate(self.blocks):
+      # Second inner loop in case block has multiple layers
+      for block in blocklist:
+        h = block(h, ys[index])
+        
+    # Apply batchnorm-relu-conv-tanh at output
+    return torch.tanh(self.output_layer(h))
+
+class BigGanDiscriminator(nn.Module):
+  def __init__(self, **training_params):
+    super(BigGanDiscriminator, self).__init__()
+    network_params = training_params['network_params']
+    # Image channels
+    image_channels = network_params['image_channels']
+    # Width mulitplier
+    self.ch = network_params['D_ch']
+    # Resolution of the output
+    self.resolution = training_params['image_size']
+    # Use Wide D as in BigGAN and SA-GAN or skinny D as in SN-GAN?
+    self.D_wide = True
+    # Kernel size
+    self.kernel_size = 3
+    # Attention?
+    self.attention = '64'
+    # Number of classes
+    self.n_classes = None
+    # Activation
+    self.activation = nn.ReLU(inplace=False)
+    # Initialization style
+    self.init = 'ortho'
+    # Parameterization style
+    self.D_param = 'LP'
+    # Epsilon for Spectral Norm?
+    self.SN_eps = 1e-12
+    # Fp16?
+    self.fp16 = False
+    # Architecture
+    self.arch = D_arch(self.ch, self.attention, image_channels=image_channels)[self.resolution]
+    # Other params
+    output_dim=1
+    skip_init = False
+    num_D_SVs=1
+    num_D_SV_itrs=1
+
+    # Which convs, batchnorms, and linear layers to use
+    # No option to turn off SN in D right now
+    if self.D_param == 'SN':
+      self.which_conv = functools.partial(layers.SNConv2d,
+                          kernel_size=3, padding=1,
+                          num_svs=num_D_SVs, num_itrs=num_D_SV_itrs,
+                          eps=self.SN_eps)
+      self.which_linear = functools.partial(layers.SNLinear,
+                          num_svs=num_D_SVs, num_itrs=num_D_SV_itrs,
+                          eps=self.SN_eps)
+      self.which_embedding = functools.partial(layers.SNEmbedding,
+                              num_svs=num_D_SVs, num_itrs=num_D_SV_itrs,
+                              eps=self.SN_eps)
+    # Prepare model
+    # self.blocks is a doubly-nested list of modules, the outer loop intended
+    # to be over blocks at a given resolution (resblocks and/or self-attention)
+    self.blocks = []
+    for index in range(len(self.arch['out_channels'])):
+      self.blocks += [[layers.DBlock(in_channels=self.arch['in_channels'][index],
+                       out_channels=self.arch['out_channels'][index],
+                       which_conv=self.which_conv,
+                       wide=self.D_wide,
+                       activation=self.activation,
+                       preactivation=(index > 0),
+                       downsample=(nn.AvgPool2d(2) if self.arch['downsample'][index] else None))]]
+      # If attention on this block, attach it to the end
+      if self.arch['attention'][self.arch['resolution'][index]]:
+        print('Adding attention layer in D at resolution %d' % self.arch['resolution'][index])
+        self.blocks[-1] += [layers.Attention(self.arch['out_channels'][index],
+                                             self.which_conv)]
+    # Turn self.blocks into a ModuleList so that it's all properly registered.
+    self.blocks = nn.ModuleList([nn.ModuleList(block) for block in self.blocks])
+    # Linear output layer. The output dimension is typically 1, but may be
+    # larger if we're e.g. turning this into a VAE with an inference output
+    self.linear = self.which_linear(self.arch['out_channels'][-1], output_dim)
+    # Embedding for projection discrimination
+    self.embed = self.which_embedding(self.n_classes, self.arch['out_channels'][-1])
+
+    # Initialize weights
+    if not skip_init:
+      self.init_weights()
+   
+    '''
+    # Set up optimizer
+    self.lr, self.B1, self.B2, self.adam_eps = D_lr, D_B1, D_B2, adam_eps
+    if D_mixed_precision:
+      print('Using fp16 adam in D...')
+      import utils
+      self.optim = utils.Adam16(params=self.parameters(), lr=self.lr,
+                             betas=(self.B1, self.B2), weight_decay=0, eps=self.adam_eps)
+    else:
+      self.optim = optim.Adam(params=self.parameters(), lr=self.lr,
+                             betas=(self.B1, self.B2), weight_decay=0, eps=self.adam_eps)
+    # LR scheduling, left here for forward compatibility
+    # self.lr_sched = {'itr' : 0}# if self.progressive else {}
+    # self.j = 0
+    '''
+
+  # Initialize
+  def init_weights(self):
+    self.param_count = 0
+    for module in self.modules():
+      if (isinstance(module, nn.Conv2d)
+          or isinstance(module, nn.Linear)
+          or isinstance(module, nn.Embedding)):
+        if self.init == 'ortho':
+          init.orthogonal_(module.weight)
+        elif self.init == 'N02':
+          init.normal_(module.weight, 0, 0.02)
+        elif self.init in ['glorot', 'xavier']:
+          init.xavier_uniform_(module.weight)
+        else:
+          print('Init style not recognized...')
+        self.param_count += sum([p.data.nelement() for p in module.parameters()])
+    print('Param count for D''s initialized parameters: %d' % self.param_count)
+
+  def forward(self, x, y=None):
+    # Stick x into h for cleaner for loops without flow control
+    h = x
+    # Loop over blocks
+    for index, blocklist in enumerate(self.blocks):
+      for block in blocklist:
+        h = block(h)
+    # Apply global sum pooling as in SN-GAN
+    h = torch.sum(self.activation(h), [2, 3])
+    # Get initial class-unconditional output
+    out = self.linear(h)
+    # Get projection of final featureset onto class vectors and add to evidence
+    out = out + torch.sum(self.embed(y) * h, 1, keepdim=True)
+    return out
 
 """Diffusion"""
 
@@ -922,12 +1308,12 @@ class UNet_v1(nn.Module):
         
         self.time_dim = network_params['time_dim']
         
-        input_channels = network_params['input_channels']
+        image_channels = network_params['image_channels']
         initial_size = network_params['initial_size']
         
         bot_size = initial_size * 8
         
-        self.inc = DoubleConv(input_channels, initial_size)
+        self.inc = DoubleConv(image_channels, initial_size)
         self.down1 = Down(initial_size, initial_size*2, emb_dim=self.time_dim)
         self.sa1 = SelfAttention(initial_size*2, int(image_size/2))
         self.down2 = Down(initial_size*2, initial_size*4, emb_dim=self.time_dim)
@@ -945,7 +1331,7 @@ class UNet_v1(nn.Module):
         self.sa5 = SelfAttention(initial_size, int(image_size/2))
         self.up3 = Up(initial_size*2, initial_size, emb_dim=self.time_dim)
         self.sa6 = SelfAttention(initial_size, image_size)
-        self.outc = nn.Conv2d(initial_size, input_channels, kernel_size=1)
+        self.outc = nn.Conv2d(initial_size, image_channels, kernel_size=1)
         
     def pos_encoding(self, t, channels):
         device = t.device
@@ -983,126 +1369,8 @@ class UNet_v1(nn.Module):
         
         return output
         
-'unet 2 from https://github.com/mikonvergence/DiffusionFastForward.git'
-def exists(x):
-    return x is not None
-
-def default(val, d):
-    if exists(val):
-        return val
-    return d() if isfunction(d) else d
-
-class Residual(nn.Module):
-    def __init__(self, fn):
-        super().__init__()
-        self.fn = fn
-
-    def forward(self, x, *args, **kwargs):
-        return self.fn(x, *args, **kwargs) + x
-
-class SinusoidalPosEmb(nn.Module):
-    """
-        Based on transformer-like embedding from 'Attention is all you need'
-        Note: 10,000 corresponds to the maximum sequence length
-    """
-    def __init__(self, dim):
-        super().__init__()
-        self.dim = dim
-
-    def forward(self, x):
-        device = x.device
-        half_dim = self.dim // 2
-        emb = math.log(10000) / (half_dim - 1)
-        emb = torch.exp(torch.arange(half_dim, device=device) * -emb)
-        emb = x[:, None] * emb[None, :]
-        emb = torch.cat((emb.sin(), emb.cos()), dim=-1)
-        return emb
-
-def Upsample(dim):
-    return nn.ConvTranspose2d(dim, dim, 4, 2, 1)
-
-def Downsample(dim):
-    return nn.Conv2d(dim, dim, 4, 2, 1)
-
-class LayerNorm(nn.Module):
-    def __init__(self, dim, eps = 1e-5):
-        super().__init__()
-        self.eps = eps
-        self.g = nn.Parameter(torch.ones(1, dim, 1, 1))
-        self.b = nn.Parameter(torch.zeros(1, dim, 1, 1))
-
-    def forward(self, x):
-        var = torch.var(x, dim = 1, unbiased = False, keepdim = True)
-        mean = torch.mean(x, dim = 1, keepdim = True)
-        return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
-
-class PreNorm(nn.Module):
-    def __init__(self, dim, fn):
-        super().__init__()
-        self.fn = fn
-        self.norm = LayerNorm(dim)
-
-    def forward(self, x):
-        x = self.norm(x)
-        return self.fn(x)
-
-# building block modules
-class ConvNextBlock(nn.Module):
-    """ https://arxiv.org/abs/2201.03545 """
-
-    def __init__(self, dim, dim_out, *, time_emb_dim = None, mult = 2, norm = True):
-        super().__init__()
-        self.mlp = nn.Sequential(
-            nn.GELU(),
-            nn.Linear(time_emb_dim, dim)
-        ) if exists(time_emb_dim) else None
-
-        self.ds_conv = nn.Conv2d(dim, dim, 7, padding = 3, groups = dim)
-
-        self.net = nn.Sequential(
-            LayerNorm(dim) if norm else nn.Identity(),
-            nn.Conv2d(dim, dim_out * mult, 3, padding = 1),
-            nn.GELU(),
-            nn.Conv2d(dim_out * mult, dim_out, 3, padding = 1)
-        )
-
-        self.res_conv = nn.Conv2d(dim, dim_out, 1) if dim != dim_out else nn.Identity()
-
-    def forward(self, x, time_emb = None):
-        h = self.ds_conv(x)
-
-        if exists(self.mlp):
-            assert exists(time_emb), 'time emb must be passed in'
-            condition = self.mlp(time_emb)
-            h = h + rearrange(condition, 'b c -> b c 1 1')
-
-        h = self.net(h)
-        return h + self.res_conv(x)
-
-class LinearAttention(nn.Module):
-    def __init__(self, dim, heads = 4, dim_head = 32):
-        super().__init__()
-        self.scale = dim_head ** -0.5
-        self.heads = heads
-        hidden_dim = dim_head * heads
-        self.to_qkv = nn.Conv2d(dim, hidden_dim * 3, 1, bias = False)
-        self.to_out = nn.Conv2d(hidden_dim, dim, 1)
-
-    def forward(self, x):
-        b, c, h, w = x.shape
-        qkv = self.to_qkv(x).chunk(3, dim = 1)
-        q, k, v = map(lambda t: rearrange(t, 'b (h c) x y -> b h c (x y)', h = self.heads), qkv)
-        q = q * self.scale
-
-        k = k.softmax(dim = -1)
-        context = torch.einsum('b h d n, b h e n -> b h d e', k, v)
-
-        out = torch.einsum('b h d e, b h d n -> b h e n', context, q)
-        out = rearrange(out, 'b h c (x y) -> b (h c) x y', h = self.heads, x = h, y = w)
-        return self.to_out(out)
-
+'unet v2'
 # Main Model
-
 class UnetConvNextBlock(nn.Module):
     def __init__(
         self,
@@ -1120,7 +1388,7 @@ class UnetConvNextBlock(nn.Module):
         except KeyError:
             dim = training_params['image_size']
             time_dim = dim
-        self.channels = network_params['input_channels']
+        self.channels = network_params['image_channels']
         dim_mults = network_params['dim_mult']
         out_dim = self.channels
          
@@ -1132,7 +1400,7 @@ class UnetConvNextBlock(nn.Module):
 
         if with_time_emb:
             self.time_mlp = nn.Sequential(
-                SinusoidalPosEmb(time_dim),
+                layers.SinusoidalPosEmb(time_dim),
                 nn.Linear(time_dim, time_dim * 4),
                 nn.GELU(),
                 nn.Linear(time_dim * 4, time_dim) # need to check if this should be all time_dim
@@ -1149,30 +1417,30 @@ class UnetConvNextBlock(nn.Module):
             is_last = ind >= (num_resolutions - 1)
 
             self.downs.append(nn.ModuleList([
-                ConvNextBlock(dim_in, dim_out, time_emb_dim = time_dim, norm = ind != 0),
-                ConvNextBlock(dim_out, dim_out, time_emb_dim = time_dim),
-                Residual(PreNorm(dim_out, LinearAttention(dim_out))),
-                Downsample(dim_out) if not is_last else nn.Identity()
+                layers.ConvNextBlock(dim_in, dim_out, time_emb_dim = time_dim, norm = ind != 0),
+                layers.ConvNextBlock(dim_out, dim_out, time_emb_dim = time_dim),
+                layers.Residual(layers.PreNorm(dim_out, layers.LinearAttention(dim_out))),
+                layers.Downsample(dim_out) if not is_last else nn.Identity()
             ]))
 
         mid_dim = dims[-1]
-        self.mid_block1 = ConvNextBlock(mid_dim, mid_dim, time_emb_dim = time_dim)
-        self.mid_attn = Residual(PreNorm(mid_dim, LinearAttention(mid_dim)))
-        self.mid_block2 = ConvNextBlock(mid_dim, mid_dim, time_emb_dim = time_dim)
+        self.mid_block1 = layers.ConvNextBlock(mid_dim, mid_dim, time_emb_dim = time_dim)
+        self.mid_attn = layers.Residual(layers.PreNorm(mid_dim, layers.LinearAttention(mid_dim)))
+        self.mid_block2 = layers.ConvNextBlock(mid_dim, mid_dim, time_emb_dim = time_dim)
 
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
             is_last = ind >= (num_resolutions - 1)
 
             self.ups.append(nn.ModuleList([
-                ConvNextBlock(dim_out * 2, dim_in, time_emb_dim = time_dim),
-                ConvNextBlock(dim_in, dim_in, time_emb_dim = time_dim),
-                Residual(PreNorm(dim_in, LinearAttention(dim_in))),
-                Upsample(dim_in) if not is_last else nn.Identity()
+                layers.ConvNextBlock(dim_out * 2, dim_in, time_emb_dim = time_dim),
+                layers.ConvNextBlock(dim_in, dim_in, time_emb_dim = time_dim),
+                layers.Residual(layers.PreNorm(dim_in, layers.LinearAttention(dim_in))),
+                layers.Upsample(dim_in) if not is_last else nn.Identity()
             ]))
 
-        out_dim = default(out_dim, self.channels)
+        out_dim = layers.default(out_dim, self.channels)
         self.final_conv = nn.Sequential(
-            ConvNextBlock(dim, dim),
+            layers.ConvNextBlock(dim, dim),
             nn.Conv2d(dim, out_dim, 1),
             #nn.Tanh() # ADDED
         )
@@ -1180,7 +1448,7 @@ class UnetConvNextBlock(nn.Module):
     def forward(self, x, time=None):
         orig_x = x
         t = None
-        if time is not None and exists(self.time_mlp):
+        if time is not None and layers.exists(self.time_mlp):
             t = self.time_mlp(time)
         
         original_mean = torch.mean(x, [1, 2, 3], keepdim=True)

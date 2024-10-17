@@ -5,7 +5,7 @@ import os
 import sys
 
 """RUN"""
-run = 'cwgan_6b'
+run = 'cwgan_7c'
 
 
 #################################################################################
@@ -110,9 +110,6 @@ class residualTester(dataLoader):
         else:
             return np.array([normalize_2d(self._make_gaussian(coord, self.blob_size, self.image_size))*self.blob_amplitude
                                for coord in centers]).sum(axis=0)
-        
-    # def realize_gaussian_from_points(self, samples_centers):
-        # return np.array([self._create_blobs(centers) for centers in samples_centers])
         
     def get_residuals(self):
         """Calculate residuals"""

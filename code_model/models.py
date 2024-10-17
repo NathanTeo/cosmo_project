@@ -462,8 +462,8 @@ class CWGAN(pl.LightningModule, ganUtils):
                 )
                 self.log("lp", lp, on_epoch=False)
             elif self.loss_method=='hinge':
-               d_loss_real = torch.nn.ReLU()(1.0 - dis_real).mean()
-               d_loss_fake = torch.nn.ReLU()(1.0 + dis_fake).mean()
+               d_loss_real = torch.nn.ReLU()(1. - dis_real).mean()
+               d_loss_fake = torch.nn.ReLU()(1. + dis_fake).mean()
                d_loss = d_loss_real + d_loss_fake
             
             # Log
