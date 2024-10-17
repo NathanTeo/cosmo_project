@@ -1490,7 +1490,6 @@ network_dict = {
     'gen_v5': Generator_v5,
     'gen_v6': Generator_v6,
     'gen_v7': Generator_v7,
-    'gen_v8': SaganGenerator,
     'dis_v1': Discriminator_v1,
     'dis_v2': Discriminator_v2,
     'dis_v3': Discriminator_v3,
@@ -1498,6 +1497,9 @@ network_dict = {
     'dis_v5': Discriminator_v5,
     'dis_v6': Discriminator_v6,
     'dis_v7': SaganDiscriminator,
+    'gen_v8': SaganGenerator,
+    'dis_v8': BigGanDiscriminator,
+    'gen_v9': BigGanGenerator,
     'unet_v1': UNet_v1,
     'unet_v2': UnetConvNextBlock
 }
