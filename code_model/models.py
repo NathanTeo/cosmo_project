@@ -411,6 +411,9 @@ class CWGAN(pl.LightningModule, ganUtils):
         return gradient_penalty
     
     def training_step(self, batch, batch_idx):
+        # Progress
+        print(f'Epoch {self.current_epoch}', end='\t')
+        
         # Load real imgs
         if len(batch) == 2: # if label exists eg. MNIST dataset
             real_imgs, _ = batch
@@ -532,7 +535,11 @@ class CWGAN(pl.LightningModule, ganUtils):
     # Method is run at the end of each training epoch
     def on_train_epoch_end(self):
         # Generate samples
-        z = self.validation_z.type_as(self.generator.linear[0].weight)
+        try:
+            z = self.validation_z.type_as(self.generator.linear[0].weight)
+        except TypeError: # BigGAN
+            z = self.validation_z.type_as(self.generator.linear.W_())
+        
         gen_sample_imgs = self(z)[:9]
         
         # Plot
@@ -549,6 +556,9 @@ class CWGAN(pl.LightningModule, ganUtils):
         # Backup every 20 epochs
         if ((self.current_epoch+1)%20)==0:
             self._backup()
+            
+        # Progress
+        print('complete')
     
     def on_test_epoch_start(self):
         self.test_output_list = {
@@ -715,6 +725,9 @@ class Diffusion(pl.LightningModule):
         self.ema_network.device = self.device
         
     def training_step(self, batch, batch_idx):
+        # Progress
+        print(f'Epoch {self.current_epoch}', end='\t')
+        
         # Load real imgs
         if len(batch)==2: # if label exists eg. MNIST dataset
             real_imgs, _ = batch
@@ -783,6 +796,9 @@ class Diffusion(pl.LightningModule):
         # Backup every 20 epochs
         if ((self.current_epoch+1)%20)==0:
             self._backup()
+        
+        # Progress
+        print('complete')
     
     def on_test_epoch_start(self):
         self.test_output_list = {

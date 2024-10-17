@@ -1,5 +1,5 @@
 ''' Layers
-    This file contains various layers for the BigGAN models.
+    This file contains various layers for the networks.
 '''
 import math
 import torch
@@ -9,7 +9,7 @@ from torch.nn import Parameter as P
 from inspect import isfunction
 from einops import rearrange
 
-from sync_batchnorm import SynchronizedBatchNorm2d as SyncBN2d
+from code_model.sync_batchnorm import SynchronizedBatchNorm2d as SyncBN2d
 
 # Projection of x onto y
 def proj(x, y):

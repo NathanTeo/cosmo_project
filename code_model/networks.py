@@ -13,7 +13,7 @@ from torch.nn.utils import spectral_norm
 import math
 import numpy as np
 
-import layers
+import code_model.layers as layers
 
 
 
@@ -939,7 +939,7 @@ class BigGanGenerator(nn.Module):
     # fp16?
     self.fp16 = False
     # Architecture dict
-    self.arch = G_arch(self.ch, self.attention)[self.resolution]
+    self.arch = G_arch(self.ch, attention=self.attention)[self.resolution]
     # Other params
     skip_init=False
     num_G_SVs=1
@@ -1027,7 +1027,7 @@ class BigGanGenerator(nn.Module):
     self.lr, self.B1, self.B2, self.adam_eps = G_lr, G_B1, G_B2, adam_eps
     if G_mixed_precision:
       print('Using fp16 adam in G...')
-      import utils
+      import utilsi
       self.optim = utils.Adam16(params=self.parameters(), lr=self.lr,
                            betas=(self.B1, self.B2), weight_decay=0,
                            eps=self.adam_eps)
@@ -1109,13 +1109,13 @@ class BigGanDiscriminator(nn.Module):
     # Initialization style
     self.init = 'ortho'
     # Parameterization style
-    self.D_param = 'LP'
+    self.D_param = 'SN'
     # Epsilon for Spectral Norm?
     self.SN_eps = 1e-12
     # Fp16?
     self.fp16 = False
     # Architecture
-    self.arch = D_arch(self.ch, self.attention, image_channels=image_channels)[self.resolution]
+    self.arch = D_arch(self.ch, attention=self.attention, image_channels=image_channels)[self.resolution]
     # Other params
     output_dim=1
     skip_init = False
@@ -1157,8 +1157,9 @@ class BigGanDiscriminator(nn.Module):
     # Linear output layer. The output dimension is typically 1, but may be
     # larger if we're e.g. turning this into a VAE with an inference output
     self.linear = self.which_linear(self.arch['out_channels'][-1], output_dim)
+    ## UNCONDITIONAL, embed not needed ##
     # Embedding for projection discrimination
-    self.embed = self.which_embedding(self.n_classes, self.arch['out_channels'][-1])
+    # self.embed = self.which_embedding(self.n_classes, self.arch['out_channels'][-1])
 
     # Initialize weights
     if not skip_init:
@@ -1209,8 +1210,9 @@ class BigGanDiscriminator(nn.Module):
     h = torch.sum(self.activation(h), [2, 3])
     # Get initial class-unconditional output
     out = self.linear(h)
+    ## UNCONDITIONAL, step not needed ##
     # Get projection of final featureset onto class vectors and add to evidence
-    out = out + torch.sum(self.embed(y) * h, 1, keepdim=True)
+    # out = out + torch.sum(self.embed(y) * h, 1, keepdim=True) 
     return out
 
 """Diffusion"""

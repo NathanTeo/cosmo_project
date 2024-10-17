@@ -1,1 +1,1 @@
-salloc --time=2:00:0 --ntasks=6 --gres=gpu:p100:1 --mem=16G --nodes=1
+salloc --time=2:00:0 --ntasks=1 --gres=gpu:p100:1 --mem=16G --nodes=1
