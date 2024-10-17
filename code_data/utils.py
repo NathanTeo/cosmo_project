@@ -1,4 +1,6 @@
 import random
+import os
+import shutil
 from scipy.stats import multivariate_normal
 import numpy as np
 import matplotlib.pyplot as plt
@@ -52,34 +54,60 @@ class blobDataset():
         else:
             return np.zeros((self.generation_matrix_size, self.generation_matrix_size))
         
-    def generate(self):
+    def generate(self, batch=10000, temp_root_path="temp"):
         """Generate all samples"""
-        self.samples = []
+        # Generate in batches, generation slows significantly when entire dataset is generated in one go, probably taking too much ram       
+        num_of_batches = int(np.ceil(self.sample_num / batch))
+        remainder = self.sample_num % batch
+        if remainder==0:
+            batch_sizes = np.repeat(batch, num_of_batches)
+        else:
+            batch_sizes = np.append(np.repeat(batch, num_of_batches),[remainder])
+        
+        temp_path = f'{temp_root_path}/temp'
+        if not os.path.exists(temp_path):
+            os.makedirs(temp_path)
         self.sample_counts = []
         self.sample_coords = []
-        for _ in tqdm(range(self.sample_num)):
-            # Generate points for centers
-            center_generator = centerGenerator(self.blob_num, self.image_size)
-            centers = center_generator.generate(self.num_distribution, self.clustering)
-            sample = self.create_blobs(centers)
-            
-            # Add noise
-            if self.noise!=0:
-                noise_img = np.random.normal(0, self.noise, (self.image_size, self.image_size))
-                sample = np.add(sample, noise_img)
+        
+        for i, batch_size in enumerate(batch_sizes):
+            print(f'batch {i+1}/{num_of_batches}')
+            samples = []
+            for _ in tqdm(range(batch_size)):
+                # Generate points for centers
+                center_generator = centerGenerator(self.blob_num, self.image_size)
+                centers = center_generator.generate(self.num_distribution, self.clustering)
+                sample = self.create_blobs(centers)
                 
-            # Unpad
-            pad_sample = sample
-            if self.pad != 0:
-                sample = sample[self.pad:-self.pad,self.pad:-self.pad]
-            
-            # Add sample to list
-            self.samples.append(sample)
-            
-            # Counts    
-            self.sample_counts.append(centers.shape[0])
-            self.sample_coords.append(centers)
-
+                # Add noise
+                if self.noise!=0:
+                    noise_img = np.random.normal(0, self.noise, (self.image_size, self.image_size))
+                    sample = np.add(sample, noise_img)
+                    
+                # Unpad
+                pad_sample = sample
+                if self.pad != 0:
+                    sample = sample[self.pad:-self.pad,self.pad:-self.pad]
+                
+                # Add sample to list
+                samples.append(sample)
+        
+                # Counts
+                self.sample_counts.append(centers.shape[0])
+                self.sample_coords.append(centers)
+                
+                # Save in temp
+                np.save(f'{temp_path}/temp{i}', samples)
+        
+        # Combine batches into single dataset
+        batches = []
+        for file in sorted(os.listdir(temp_path)):
+            batches.append(np.load(f'{temp_path}/{file}'))
+        self.samples = np.concatenate(batches)
+        
+        # Delete temporary folder
+        shutil.rmtree(temp_path)
+    
     def save(self, path):
         """Save data"""
         np.save(f'{path}/{self.file_name}', self.samples)
