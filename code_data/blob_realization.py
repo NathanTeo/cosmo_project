@@ -12,7 +12,7 @@ params = {
     'image_size': 128,
     'seed': 70,
     'blob_size': 5,
-    'sample_num': 10000,
+    'sample_num': 100000,
     'blob_num': 100,
     'num_distribution': 'poisson',
     'clustering': None,
@@ -34,7 +34,7 @@ if not os.path.exists(save_path):
 
 """Create dataset"""
 dataset = blobDataset(**params)
-dataset.generate()
+dataset.generate(temp_root_path=save_path)
 dataset.save(save_path)
 
 """Plot"""
