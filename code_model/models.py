@@ -640,7 +640,7 @@ class Diffusion(pl.LightningModule):
         self.root_path = training_params['root_path']
         
         self.img_size = training_params['image_size']
-        self.input_channels = training_params['network_params']['input_channels']
+        self.image_channels = training_params['network_params']['image_channels']
         self.noise_steps = training_params['network_params']['noise_steps']
         
         self.lr = training_params['lr']
@@ -688,7 +688,7 @@ class Diffusion(pl.LightningModule):
         network.eval()
         with torch.no_grad():
             # Random noise
-            x = torch.randn((n, self.input_channels, self.img_size, self.img_size), device=self.device)
+            x = torch.randn((n, self.image_channels, self.img_size, self.img_size), device=self.device)
             
             for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
                 # Tensor of the current t of length n (for each of the samples)
