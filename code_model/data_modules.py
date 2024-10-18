@@ -29,7 +29,6 @@ class BlobDataModule(pl.LightningDataModule):
         samples = np.load(data_file)
         self.num_samples = len(samples)
         self.scaling_factor = 1/np.max([np.max(samples), np.abs(np.min(samples))])
-        print(f'Data module scaling factor: {self.scaling_factor}')
         
         self.truncate_ratio = truncate_ratio
 
