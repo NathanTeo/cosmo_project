@@ -134,8 +134,6 @@ def run_training(training_params, generation_params, testing_params, training_re
                 # Transfer scaling factor from data module to model
                 model.scaling_factor = data.scaling_factor
                 
-                print(f'Model scaling factor: {model.scaling_factor}')
-
                 # Initialize trainer
                 if avail_gpus<2:
                         trainer = pl.Trainer(
@@ -143,7 +141,6 @@ def run_training(training_params, generation_params, testing_params, training_re
                                 logger=wandb_logger,
                                 callbacks=[checkpoint_callback],
                                 log_every_n_steps=data.num_training_batches(),
-                                enable_progress_bar=False,
                         )
                 elif avail_gpus>=2: # DDP for multi gpu 
                         trainer = pl.Trainer(
@@ -152,7 +149,6 @@ def run_training(training_params, generation_params, testing_params, training_re
                                 callbacks=[checkpoint_callback],
                                 log_every_n_steps=data.num_training_batches(),
                                 devices=avail_gpus, strategy='ddp',
-                                enable_progress_bar=False,
                         )
                 
                 # Train

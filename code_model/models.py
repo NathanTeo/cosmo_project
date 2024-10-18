@@ -412,7 +412,7 @@ class CWGAN(pl.LightningModule, ganUtils):
     
     def training_step(self, batch, batch_idx):
         # Progress
-        print(f'Epoch {self.current_epoch}', end='\t')
+        # print(f'Epoch {self.current_epoch}', end='\t')
         
         # Load real imgs
         if len(batch) == 2: # if label exists eg. MNIST dataset
@@ -558,7 +558,7 @@ class CWGAN(pl.LightningModule, ganUtils):
             self._backup()
             
         # Progress
-        print('complete')
+        # print('complete')
     
     def on_test_epoch_start(self):
         self.test_output_list = {
@@ -726,7 +726,7 @@ class Diffusion(pl.LightningModule):
         
     def training_step(self, batch, batch_idx):
         # Progress
-        print(f'Epoch {self.current_epoch}', end='\t')
+        # print(f'Epoch {self.current_epoch}', end='\t')
         
         # Load real imgs
         if len(batch)==2: # if label exists eg. MNIST dataset
@@ -798,7 +798,7 @@ class Diffusion(pl.LightningModule):
             self._backup()
         
         # Progress
-        print('complete')
+        # print('complete')
     
     def on_test_epoch_start(self):
         self.test_output_list = {
