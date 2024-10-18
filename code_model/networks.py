@@ -891,8 +891,8 @@ def D_arch(ch=64, image_channels=1, attention='64',ksize='333333', dilation='111
                               for i in range(2,7)}}
   arch[32]  = {'in_channels' :  [image_channels] + [item * ch for item in [4, 4, 4]],
                'out_channels' : [item * ch for item in [4, 4, 4, 4]],
-               'downsample' : [True, True, False, False],
-               'resolution' : [16, 16, 16, 16],
+               'downsample' : [True, True, True, False],
+               'resolution' : [16, 8, 4, 4],
                'attention' : {2**i: 2**i in [int(item) for item in attention.split('_')]
                               for i in range(2,6)}}
   return arch
@@ -915,7 +915,7 @@ class BigGanGenerator(nn.Module):
     # Kernel size?
     self.kernel_size = 3
     # Attention?
-    self.attention = '64'
+    self.attention = network_params['G_attention']
     # number of classes, for use in categorical conditional generation
     self.n_classes = None
     # Hierarchical latent space?
@@ -1084,7 +1084,8 @@ class BigGanGenerator(nn.Module):
         h = block(h, ys[index])
         
     # Apply batchnorm-relu-conv-tanh at output
-    return torch.tanh(self.output_layer(h))
+    out = torch.tanh(self.output_layer(h))
+    return out
 
 class BigGanDiscriminator(nn.Module):
   def __init__(self, **training_params):
@@ -1101,7 +1102,7 @@ class BigGanDiscriminator(nn.Module):
     # Kernel size
     self.kernel_size = 3
     # Attention?
-    self.attention = '64'
+    self.attention = network_params['D_attention']
     # Number of classes
     self.n_classes = None
     # Activation

@@ -516,8 +516,8 @@ class CWGAN(pl.LightningModule, ganUtils):
         
         # Log losses
         self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
-        self.epoch_d_losses.append(d_loss.cpu().detach().numpy())     
-    
+        self.epoch_d_losses.append(d_loss.cpu().detach().numpy()) 
+        
     def configure_optimizers(self):
         lr = self.lr
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=self.betas)
@@ -539,7 +539,7 @@ class CWGAN(pl.LightningModule, ganUtils):
             z = self.validation_z.type_as(self.generator.linear[0].weight)
         except TypeError: # BigGAN
             z = self.validation_z.type_as(self.generator.linear.W_())
-        
+
         gen_sample_imgs = self(z)[:9]
         
         # Plot
