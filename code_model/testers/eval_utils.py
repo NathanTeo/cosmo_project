@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage.feature import peak_local_max
 from scipy.ndimage import gaussian_filter
+from scipy import spatial
 from tqdm.auto import tqdm
 from scipy.stats import multivariate_normal
 from scipy.optimize import minimize
@@ -272,6 +273,39 @@ def mse(A, B):
     """
     return (np.square(A - B)).mean(axis=None)
 
+def n_slices(n, list_):
+    for i in range(len(list_) + 1 - n):
+        yield list_[i:i+n]
+
+def argSublist(list_, sub_list):
+    indexes=[]
+    for i, slice_ in enumerate(n_slices(len(sub_list), list_)):
+        if (slice_==sub_list).all():
+            indexes.append(i+1)
+    return indexes
+
+def find_local_min(y, x, nonnegative=True):
+    """Only returns first local minima found"""
+    # Sort by x
+    sort_indices = np.argsort(x)
+    sorted_x = np.array(x)[sort_indices]
+    sorted_y = np.array(y)[sort_indices]
+
+    # If nonnegative, ensure 0 can be a local minima
+    if nonnegative:
+        sorted_x = np.insert(sorted_x, 0, -1)
+        sorted_y= np.insert(sorted_y, 0, 1e10)
+
+    # Find local minima with differences
+    diff = sorted_x[1:] - sorted_x[:-1]
+    indexes = argSublist(diff, np.array([1,1]))
+    if len(indexes)!=0:
+        for index in indexes:
+            if sorted_y[index]<sorted_y[index-1] and sorted_y[index]<sorted_y[index+1]:
+                return sorted_x[index]
+    
+    return None
+
 class blobCounter():
     """
     Counts the number of blobs for each sample given a set of samples
@@ -293,6 +327,8 @@ class blobCounter():
         self.samples = samples      
         self.image_size = samples[0].shape[0]
         self.sample_size = len(samples)
+        
+        self.single_blob_err = self._single_blob_error()
  
     def _make_gaussian(self, center, var, image_size):
         """
@@ -310,7 +346,10 @@ class blobCounter():
         """
         Create a sample of gaussian blobs
         """
-        return np.array([normalize_2d(self._make_gaussian(coord, self.blob_size, self.image_size))*self.blob_amplitude
+        if len(centers)==0: # Zero case
+            return np.zeros((self.image_size, self.image_size))
+        else:
+            return np.array([normalize_2d(self._make_gaussian(coord, self.blob_size, self.image_size))*self.blob_amplitude
                             for coord in centers]).sum(axis=0)
 
     def plot_fit(self, sample, centers):
@@ -343,7 +382,10 @@ class blobCounter():
         push = circle_points([self.jit], [num])
         return np.array(coords) + push
 
-    def find_guess(self, sample, rel_peak_threshold=0.8, max_iters=30):
+    def _single_blob_error(self):
+        return create_blobs([(int(self.image_size/2),int(self.image_size/2))], self.blob_size, self.blob_amplitude, image_size=self.image_size).sum()
+
+    def find_guess(self, sample, rel_peak_threshold=0.8, max_iters=100):
         """
         Find an initial guess using gaussian decomposition
         """
@@ -356,6 +398,10 @@ class blobCounter():
             # Find max
             peak_coord = np.unravel_index(img_decomp.argmax(), img_decomp.shape)
             peak_val = np.max(img_decomp)
+            
+            # Stopping criterion
+            if peak_val<=self.blob_amplitude*rel_peak_threshold:
+                break
 
             # Remove gaussian with amplitude of maximum pixel
             x, y = np.mgrid[0:img_decomp.shape[0]:1, 0:img_decomp.shape[1]:1]
@@ -364,13 +410,9 @@ class blobCounter():
 
             img_decomp = np.subtract(img_decomp, gaussian)
 
-            # Stopping criterion
-            if peak_val<=self.blob_amplitude*rel_peak_threshold:
-                break
-
             # Record peak value and number of blobs for peak
             peak_coords.append(peak_coord)
-            peak_counts.append(int(np.round(peak_val/self.blob_amplitude*1.1))) # NOTE: 1.1 chosen arbitrarily, come back to this
+            peak_counts.append(int(np.round(peak_val/self.blob_amplitude*1.3))) # NOTE: scalar multiplier chosen arbitrarily, come back to this
 
         # Record guess, one coordinate for each count
         guess = []
@@ -383,12 +425,298 @@ class blobCounter():
                 coords = self._jitter(coords)
                 guess.extend(coords)
 
-        guess = np.array(guess).clip(-0.5, self.image_size-0.5)
+        if len(guess)>0:
+            guess = np.array(guess).clip(-0.5, self.image_size-0.5)
 
         return guess
-
-    def count_sample(self, sample, method='SLSQP', max_iters=10, plot_guess=False, plot_progress=False):
+    
+    def minimize_objective(self,
+        guess, sample, size, amplitude,
+        method='SLSQP',
+        plot_progress=False
+        ):
         """
+        Minimize the objective function
+        """
+        
+        def fit_objective(*args):
+            """
+            Function to minimize for fitting gaussian blobs
+            """
+            # args (centers, img, size, amplitude), the centers must be in format (y0, y1, ... , x0, x1, ...)
+            centers = (args[0][:int(len(args[0])/2)], args[0][int(len(args[0])/2):])
+            centers = list(zip(*centers))
+            img = args[1]
+            size = args[2]
+            amplitude = args[3]
+            image_size = img.shape[0]
+
+            # Grid for gaussian blob
+            blobs = create_blobs(centers, size, amplitude, image_size)
+
+            # Calculate error
+            error = mse(blobs, img)
+
+            return error*1e7
+        
+        # Print blob fitting
+        if plot_progress:
+            print(f'fitting for {len(guess)} blobs...', end=' ')
+
+        minimize_start = time.time()
+
+        # Sort for constraints
+        guess = guess[guess[:, 0].argsort()]
+
+        # Reshape centers guess to be [y0, y1, ..., x0, x1, ...]
+        guess_transfm = np.concatenate(list(zip(*guess)))
+
+        # Contraints and bounds
+        n = len(guess)
+        D = np.eye(n) - np.eye(n, k=-1)
+        cons = [{'type': 'ineq', 'fun': lambda x: D @ x[:n]}]
+
+        bnds = np.array([(-1, self.image_size) for _ in guess_transfm]) # CHANGE TO self.image_size?
+
+        # Minimize
+        result = minimize(fit_objective, guess_transfm, args=(sample, size, amplitude),
+                            method=method, bounds=bnds, constraints=cons)
+
+        # Reshape centers fit to be [(y0, x0), (y1, x1), ...]
+        fit = (result.x[:int(len(result.x)/2)], result.x[int(len(result.x)/2):])
+        fit = list(zip(*fit))
+
+        minimize_end = time.time()
+        if plot_progress:
+                print('{0:.4f}s'.format(minimize_end-minimize_start))
+
+        if plot_progress:
+            self.plot_fit(sample, fit)
+            print(result)
+
+        return fit, result.fun
+
+    def add_guess(self, residual, guess):
+        """"
+        Add single guess
+        """
+        # New guess is put at location with the largest error
+        new_guess = np.unravel_index(residual.argmax(), residual.shape)
+        return np.append(guess, [new_guess], axis=0)
+
+    def remove_guess(self, residual, guess):
+        """
+        Remove single guess
+        """
+        min = np.unravel_index(residual.argmin(), residual.shape)
+        # Nearest center to minimum residual point is removed
+        worst_guess = guess[spatial.KDTree(guess).query(min)[1]]
+        return np.delete(guess, np.where((guess==worst_guess).all(axis=1))[0], axis=0)
+
+    def remove_guesses(self, residual, guess, n):
+        """
+        Remove multiple guesses
+        """
+        # Clip to avoid index errors
+        guess_clip = guess.copy().clip(-0.5, self.image_size-0.5)
+        # Find n minimum centers
+        residual_at_centers = np.array([residual[int(center[0]), int(center[1])] for center in guess_clip])
+        worst_guess_idxs = residual_at_centers.argsort()[:np.min([n,len(guess)])]
+        return np.delete(guess, worst_guess_idxs, axis=0)
+
+    def add_guesses(self, residual, guess, n, jit=0.5):
+        """
+        Add multiple guesses using Gaussian decomp
+        """
+        img_decomp = residual.copy()
+        peak_coords = []
+        peak_counts = []
+
+        # Gaussian decomposition
+        for _ in range(n):
+            # Find max
+            peak_coord = np.unravel_index(img_decomp.argmax(), img_decomp.shape)
+            peak_val = np.max(img_decomp)
+
+            # Remove gaussian with amplitude of maximum pixel
+            x, y = np.mgrid[0:img_decomp.shape[0]:1, 0:img_decomp.shape[1]:1]
+            pos = np.dstack((x, y))
+            gaussian = normalize_2d(multivariate_normal(peak_coord, [[self.blob_size, 0], [0, self.blob_size]]).pdf(pos))*peak_val
+
+            img_decomp = np.subtract(img_decomp, gaussian)
+
+            # Record peak value and number of blobs for peak
+            peak_coords.append(peak_coord)
+            peak_counts.append(np.max([int(np.round(peak_val/self.blob_amplitude)*1.3), 1])) # NOTE: scaling value chosen arbitrarily, come back to this
+
+            if np.sum(peak_counts)>=n:
+                break
+        
+        # Record guess, one coordinate for each count
+        new_centers = []
+        for coord, count in zip(peak_coords, peak_counts):
+            if count==1:
+                new_centers.append(coord)
+            else:
+                # Jitter, put coord equally spaced on circle centered at maximum
+                coords = [coord for _ in range(count)]
+                coords = self._jitter(coords, jit)
+                new_centers.extend(coords)
+
+        new_centers = np.array(new_centers).clip(-1, residual.shape[0]) # CHANGE TO self.image_size?
+
+        return np.append(guess, new_centers, axis=0)
+
+    def count_recursive(self,
+        guesses, errs, counts,
+        sample, method,
+        step='error', curr_iter=0, max_iters=10, err_threshold_rel=0.2,
+        plot_progress=False
+        ):
+        """
+        Count the number of blobs on a sample recursively
+        """
+        # Initiate state
+        state = 'run'
+        if plot_progress:
+            print()
+            print(f'iteration {curr_iter}')
+        
+        # Find count
+        count = len(guesses[-1])
+        counts.append(count)
+
+        # Fit
+        if len(guesses[-1])>0:
+            fit_guess, err = self.minimize_objective(np.array(guesses[-1]), sample, self.blob_size, self.blob_amplitude, method=method, plot_progress=plot_progress)
+            fit_guess = np.array(fit_guess)
+            guesses[-1] = fit_guess
+            errs.append(err)  
+        else: # zero case
+            fit_guess = np.empty((0,2))
+            err = mse(sample, np.zeros(self.image_size))
+            errs.append(err)
+    
+        # Stop if exceed set max iterations
+        if curr_iter > max_iters:
+            if plot_progress:
+                print('max iters reached')
+            state = 'complete'
+            return fit_guess, errs, state 
+        curr_iter += 1
+    
+        # Stop if local minimum is found
+        best_count = find_local_min(errs, counts)
+        if best_count is not None:
+            if plot_progress:
+                print('local minima found')
+            state = 'complete'
+            return guesses, errs, state
+
+        # Find residual
+        residual = sample - create_blobs(fit_guess, self.blob_size, self.blob_amplitude, self.image_size)
+        residual_sum = residual.sum()
+        residual_sum_abs = np.abs(residual_sum)
+    
+        # Add/remove blobs based on sum of residual
+        if step=='error' and state=='run':
+            if residual_sum_abs<self.single_blob_err*1.5: # Take single steps once error is small
+                if plot_progress:    
+                    print('Switch to single step')
+                step='single'
+            elif residual_sum<0:
+                # remove
+                n = np.min([int(np.round(residual_sum_abs/self.single_blob_err)), count]) # Count cannot be negative
+                if plot_progress:
+                    print(f'removing {n} guesses')
+                guesses.append(self.remove_guesses(residual, fit_guess, n))
+                guesses, errs, state = self.count_recursive(guesses, errs, counts, 
+                                                            sample, self.blob_size, self.blob_amplitude, 
+                                                            method, step, curr_iter, max_iters, err_threshold_rel, 
+                                                            plot_progress)
+            elif residual_sum>=0:
+                # add
+                n = int(np.round(residual_sum/self.single_blob_err))
+                if plot_progress:    
+                    print(f'adding {n} guesses')
+                guesses.append(self.add_guesses(residual, fit_guess, n, self.blob_size, self.blob_amplitude))
+                guesses, errs, state = self.count_recursive(guesses, errs, counts, 
+                                                            sample, self.blob_size, self.blob_amplitude, 
+                                                            method, step, curr_iter, max_iters, err_threshold_rel, 
+                                                            plot_progress)
+        # Add/remove a single blob
+        if step=='single' and state=='run':
+            if residual_sum_abs<self.single_blob_err*err_threshold_rel: # Threshold 
+                if plot_progress:
+                    print('err threshold reached')
+                state = 'complete'
+                return guesses, errs, state
+            elif residual_sum<0:
+                if count - 1 in counts or count==0: # Add if n-1 counts already fit or if count is 0
+                    # Add
+                    if plot_progress:
+                        print('adding 1 guess')
+                    guesses.append(self.add_guess(residual, fit_guess))
+                    guesses, errs, state = self.count_recursive(guesses, errs, counts, 
+                                        sample, self.blob_size, self.blob_amplitude, 
+                                        method, step, curr_iter, max_iters, err_threshold_rel, 
+                                        plot_progress)
+                else: # Remove if residual is negative
+                    # Remove
+                    if plot_progress:
+                        print('removing 1 guess')
+                    guesses.append(self.remove_guess(residual, fit_guess))
+                    guesses, errs, state = self.count_recursive(guesses, errs, counts, 
+                                        sample, self.blob_size, self.blob_amplitude, 
+                                        method, step, curr_iter, max_iters, err_threshold_rel, 
+                                        plot_progress)
+            elif residual_sum>=0:
+                if count + 1 in counts: # Remove if n+1 counts already fit
+                    # Remove
+                    if plot_progress:
+                        print('removing 1 guess')
+                    guesses.append(self.remove_guess(residual, fit_guess))
+                    guesses, errs, state = self.count_recursive(guesses, errs, counts, 
+                                        sample, self.blob_size, self.blob_amplitude, 
+                                        method, step, curr_iter, max_iters, err_threshold_rel, 
+                                        plot_progress)
+                else: # Add if residual is positive
+                    # Add
+                    if plot_progress:
+                        print('adding 1 guess')
+                    guesses.append(self.add_guess(residual, fit_guess))
+                    guesses, errs, state = self.count_recursive(guesses, errs, counts, 
+                                        sample, self.blob_size, self.blob_amplitude, 
+                                        method, step, curr_iter, max_iters, err_threshold_rel, 
+                                        plot_progress)
+
+        if state=='complete':
+            return guesses, errs, state
+        
+    def count_sample(self, sample,
+                method='SLSQP', max_iters=10, err_threshold_rel=0.2,
+                plot_progress=False):
+        # Get guess of coordinates
+        initial_guess = self.find_guess(sample, self.blob_size, self.blob_amplitude)
+
+        initial_guess = np.append(initial_guess, [(14,16)], axis=0)
+        
+        # Count
+        guesses, errs, _ = self.count_recursive(
+            [initial_guess], [], [], sample, method, 
+            curr_iter=0, max_iters=max_iters, err_threshold_rel=err_threshold_rel,
+            plot_progress=plot_progress
+            )
+        counts = [len(guess) for guess in guesses]
+
+        # Index of best fit
+        idx = np.argmin(errs)
+
+        return guesses[idx], errs, counts
+            
+    def count_sample_single_step(self, sample, method='SLSQP', max_iters=10, plot_guess=False, plot_progress=False):
+        """
+        Old method, not in use
         Count the number of blobs in a sample by fitting with scipy minimize
         """
 
@@ -585,7 +913,7 @@ class blobCounter():
             counts = []
             
             for sample in tqdm(self.samples, disable=not progress_bar):
-                fit_coord, errs = self.count_sample(sample, method=method, plot_guess=False, plot_progress=plot_progress)
+                fit_coord, errs = self.count_sample(sample, method=method, plot_progress=plot_progress)
                 
                 fit_coords.append(fit_coord)
                 count = len(fit_coord)
