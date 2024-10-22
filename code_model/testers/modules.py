@@ -131,7 +131,7 @@ class testDataset():
     def load_models(self, model_dict):
         """Load models"""
         # Get checkpoints of models to be tested
-        filenames = os.listdir(f'{self.chkpt_path}')
+        filenames = os.listdir(self.chkpt_path)
         filenames.sort()
         self.filenames = [filenames[int(len(filenames)/4)], filenames[int(len(filenames)/2)], 'last.ckpt']
         

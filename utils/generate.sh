@@ -10,6 +10,8 @@
 
 run="$1"
 
+echo transferring to scratch...
+
 mkdir -p /home/nteo/scratch/cosmo_runs/$run
 rsync -a /home/nteo/projects/def-douglas/nteo/cosmo_runs/$run/ /home/nteo/scratch/cosmo_runs/$run
 
