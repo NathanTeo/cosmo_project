@@ -13,6 +13,8 @@ from torch.nn.utils import spectral_norm
 import math
 import numpy as np
 
+from tqdm.auto import tqdm
+
 import code_model.layers as layers
 
 
@@ -899,99 +901,99 @@ def D_arch(ch=64, image_channels=1, attention='64',ksize='333333', dilation='111
 
 
 class BigGanGenerator(nn.Module):
-  def __init__(self, **training_params):
-    super(BigGanGenerator, self).__init__()
-    network_params = training_params['network_params']
-    # Number of channels
-    image_channels = network_params['image_channels']
-    # Channel width mulitplier
-    self.ch = network_params['G_channels']
-    # Dimensionality of the latent space
-    self.dim_z = network_params['latent_dim']
-    # The initial spatial dimensions
-    self.bottom_width = network_params['bottom_width']
-    # Resolution of the output
-    self.resolution = training_params['image_size']
-    # Kernel size?
-    self.kernel_size = 3
-    # Attention?
-    self.attention = network_params['G_attention']
-    # number of classes, for use in categorical conditional generation
-    self.n_classes = None
-    # Hierarchical latent space?
-    self.hier = False
-    # Cross replica batchnorm?
-    self.cross_replica = False
-    # Use my batchnorm?
-    self.mybn = False
-    # nonlinearity for residual blocks
-    self.activation = nn.ReLU(inplace=False)
-    # Initialization style
-    self.init = 'ortho'
-    # Parameterization style
-    self.G_param = 'SN'
-    # Normalization style
-    self.norm_style = 'bn'
-    # Epsilon for BatchNorm?
-    self.BN_eps = 1e-5
-    # Epsilon for Spectral Norm?
-    self.SN_eps = 1e-12
-    # fp16?
-    self.fp16 = False
-    # Architecture dict
-    self.arch = G_arch(self.ch, attention=self.attention)[self.resolution]
-    # Other params
-    skip_init=False
-    num_G_SVs=1
-    num_G_SV_itrs=1
+    def __init__(self, **training_params):
+        super(BigGanGenerator, self).__init__()
+        network_params = training_params['network_params']
+        # Number of channels
+        image_channels = network_params['image_channels']
+        # Channel width mulitplier
+        self.ch = network_params['G_channels']
+        # Dimensionality of the latent space
+        self.dim_z = network_params['latent_dim']
+        # The initial spatial dimensions
+        self.bottom_width = network_params['bottom_width']
+        # Resolution of the output
+        self.resolution = training_params['image_size']
+        # Kernel size?
+        self.kernel_size = 3
+        # Attention?
+        self.attention = network_params['G_attention']
+        # number of classes, for use in categorical conditional generation
+        self.n_classes = None
+        # Hierarchical latent space?
+        self.hier = False
+        # Cross replica batchnorm?
+        self.cross_replica = False
+        # Use my batchnorm?
+        self.mybn = False
+        # nonlinearity for residual blocks
+        self.activation = nn.ReLU(inplace=False)
+        # Initialization style
+        self.init = 'ortho'
+        # Parameterization style
+        self.G_param = 'SN'
+        # Normalization style
+        self.norm_style = 'bn'
+        # Epsilon for BatchNorm?
+        self.BN_eps = 1e-5
+        # Epsilon for Spectral Norm?
+        self.SN_eps = 1e-12
+        # fp16?
+        self.fp16 = False
+        # Architecture dict
+        self.arch = G_arch(self.ch, attention=self.attention)[self.resolution]
+        # Other params
+        skip_init=True # init._orthogonal freezes on gpu
+        num_G_SVs=1
+        num_G_SV_itrs=1
 
-    # If using hierarchical latents, adjust z
-    if self.hier:
-      # Number of places z slots into
-      self.num_slots = len(self.arch['in_channels']) + 1
-      self.z_chunk_size = (self.dim_z // self.num_slots)
-      # Recalculate latent dimensionality for even splitting into chunks
-      self.dim_z = self.z_chunk_size *  self.num_slots
-    else:
-      self.num_slots = 1
-      self.z_chunk_size = 0
+        # If using hierarchical latents, adjust z
+        if self.hier:
+            # Number of places z slots into
+            self.num_slots = len(self.arch['in_channels']) + 1
+            self.z_chunk_size = (self.dim_z // self.num_slots)
+            # Recalculate latent dimensionality for even splitting into chunks
+            self.dim_z = self.z_chunk_size *  self.num_slots
+        else:
+            self.num_slots = 1
+            self.z_chunk_size = 0
 
-    # Which convs, batchnorms, and linear layers to use
-    if self.G_param == 'SN':
-      self.which_conv = functools.partial(layers.SNConv2d,
-                          kernel_size=3, padding=1,
-                          num_svs=num_G_SVs, num_itrs=num_G_SV_itrs,
-                          eps=self.SN_eps)
-      self.which_linear = functools.partial(layers.SNLinear,
-                          num_svs=num_G_SVs, num_itrs=num_G_SV_itrs,
-                          eps=self.SN_eps)
-    else:
-      self.which_conv = functools.partial(nn.Conv2d, kernel_size=3, padding=1)
-      self.which_linear = nn.Linear
+        # Which convs, batchnorms, and linear layers to use
+        if self.G_param == 'SN':
+            self.which_conv = functools.partial(layers.SNConv2d,
+                            kernel_size=3, padding=1,
+                            num_svs=num_G_SVs, num_itrs=num_G_SV_itrs,
+                            eps=self.SN_eps)
+            self.which_linear = functools.partial(layers.SNLinear,
+                            num_svs=num_G_SVs, num_itrs=num_G_SV_itrs,
+                            eps=self.SN_eps)
+        else:
+            self.which_conv = functools.partial(nn.Conv2d, kernel_size=3, padding=1)
+            self.which_linear = nn.Linear
       
-    # We use a non-spectral-normed embedding here regardless;
-    # For some reason applying SN to G's embedding seems to randomly cripple G
-    self.which_embedding = nn.Embedding
-    self.which_bn = functools.partial(layers.bn,
-                          cross_replica=self.cross_replica,
-                          mybn=self.mybn,
-                          eps=self.BN_eps)
+        # We use a non-spectral-normed embedding here regardless;
+        # For some reason applying SN to G's embedding seems to randomly cripple G
+        self.which_embedding = nn.Embedding
+        self.which_bn = functools.partial(layers.bn,
+                            cross_replica=self.cross_replica,
+                            mybn=self.mybn,
+                            eps=self.BN_eps)
 
 
-    # Prepare model
-    # If not using shared embeddings, self.shared is just a passthrough
-    # self.shared = (self.which_embedding(n_classes, self.shared_dim) if G_shared 
-                    # else layers.identity())
-    # First linear layer
-    self.linear = self.which_linear(self.dim_z // self.num_slots,
-                                    self.arch['in_channels'][0] * (self.bottom_width **2))
+        # Prepare model
+        # If not using shared embeddings, self.shared is just a passthrough
+        # self.shared = (self.which_embedding(n_classes, self.shared_dim) if G_shared 
+                        # else layers.identity())
+        # First linear layer
+        self.linear = self.which_linear(self.dim_z // self.num_slots,
+                                        self.arch['in_channels'][0] * (self.bottom_width **2))
 
-    # self.blocks is a doubly-nested list of modules, the outer loop intended
-    # to be over blocks at a given resolution (resblocks and/or self-attention)
-    # while the inner loop is over a given block
-    self.blocks = []
-    for index in range(len(self.arch['out_channels'])):
-      self.blocks += [[layers.GBlock(in_channels=self.arch['in_channels'][index],
+        # self.blocks is a doubly-nested list of modules, the outer loop intended
+        # to be over blocks at a given resolution (resblocks and/or self-attention)
+        # while the inner loop is over a given block
+        self.blocks = []
+        for index in range(len(self.arch['out_channels'])):
+            self.blocks += [[layers.GBlock(in_channels=self.arch['in_channels'][index],
                              out_channels=self.arch['out_channels'][index],
                              which_conv=self.which_conv,
                              which_bn=self.which_bn,
@@ -999,93 +1001,93 @@ class BigGanGenerator(nn.Module):
                              upsample=(functools.partial(F.interpolate, scale_factor=2)
                                        if self.arch['upsample'][index] else None))]]
 
-      # If attention on this block, attach it to the end
-      if self.arch['attention'][self.arch['resolution'][index]]:
-        print('Adding attention layer in G at resolution %d' % self.arch['resolution'][index])
-        self.blocks[-1] += [layers.Attention(self.arch['out_channels'][index], self.which_conv)]
-
-    # Turn self.blocks into a ModuleList so that it's all properly registered.
-    self.blocks = nn.ModuleList([nn.ModuleList(block) for block in self.blocks])
-
-    # output layer: batchnorm-relu-conv.
-    # Consider using a non-spectral conv here
-    self.output_layer = nn.Sequential(layers.bn(self.arch['out_channels'][-1],
-                                                cross_replica=self.cross_replica,
-                                                mybn=self.mybn),
-                                    self.activation,
-                                    self.which_conv(self.arch['out_channels'][-1], image_channels))
-
-    # Initialize weights. Optionally skip init for testing.
-    if not skip_init:
-      self.init_weights()
-
-    '''
-    # Set up optimizer
-    # If this is an EMA copy, no need for an optim, so just return now
-    if no_optim:
-      return
-    self.lr, self.B1, self.B2, self.adam_eps = G_lr, G_B1, G_B2, adam_eps
-    if G_mixed_precision:
-      print('Using fp16 adam in G...')
-      import utilsi
-      self.optim = utils.Adam16(params=self.parameters(), lr=self.lr,
-                           betas=(self.B1, self.B2), weight_decay=0,
-                           eps=self.adam_eps)
-    else:
-      self.optim = optim.Adam(params=self.parameters(), lr=self.lr,
-                           betas=(self.B1, self.B2), weight_decay=0,
-                           eps=self.adam_eps)
-    '''
-
-    # LR scheduling, left here for forward compatibility
-    # self.lr_sched = {'itr' : 0}# if self.progressive else {}
-    # self.j = 0
-
-  # Initialize
-  def init_weights(self):
-    self.param_count = 0
-    for module in self.modules():
-      if (isinstance(module, nn.Conv2d) 
-          or isinstance(module, nn.Linear) 
-          or isinstance(module, nn.Embedding)):
-        if self.init == 'ortho':
-          init.orthogonal_(module.weight)
-        elif self.init == 'N02':
-          init.normal_(module.weight, 0, 0.02)
-        elif self.init in ['glorot', 'xavier']:
-          init.xavier_uniform_(module.weight)
-        else:
-          print('Init style not recognized...')
-        self.param_count += sum([p.data.nelement() for p in module.parameters()])
-    print('Param count for G''s initialized parameters: %d' % self.param_count)
-
-  # Note on this forward function: we pass in a y vector which has
-  # already been passed through G.shared to enable easy class-wise
-  # interpolation later. If we passed in the one-hot and then ran it through
-  # G.shared in this forward function, it would be harder to handle.
-  def forward(self, z, y=None):
-    # If hierarchical, concatenate zs and ys
-    if self.hier:
-      zs = torch.split(z, self.z_chunk_size, 1)
-      z = zs[0]
-      ys = [torch.cat([y, item], 1) for item in zs[1:]]
-    else:
-      ys = [y] * len(self.blocks)
-      
-    # First linear layer
-    h = self.linear(z)
-    # Reshape
-    h = h.view(h.size(0), -1, self.bottom_width, self.bottom_width)
-    
-    # Loop over blocks
-    for index, blocklist in enumerate(self.blocks):
-      # Second inner loop in case block has multiple layers
-      for block in blocklist:
-        h = block(h, ys[index])
+            # If attention on this block, attach it to the end
+            if self.arch['attention'][self.arch['resolution'][index]]:
+                print('Adding attention layer in G at resolution %d' % self.arch['resolution'][index])
+                self.blocks[-1] += [layers.Attention(self.arch['out_channels'][index], self.which_conv)]
         
-    # Apply batchnorm-relu-conv-tanh at output
-    out = torch.tanh(self.output_layer(h))
-    return out
+        # Turn self.blocks into a ModuleList so that it's all properly registered.
+        self.blocks = nn.ModuleList([nn.ModuleList(block) for block in self.blocks])
+
+        # output layer: batchnorm-relu-conv.
+        # Consider using a non-spectral conv here
+        self.output_layer = nn.Sequential(layers.bn(self.arch['out_channels'][-1],
+                                                    cross_replica=self.cross_replica,
+                                                    mybn=self.mybn),
+                                        self.activation,
+                                        self.which_conv(self.arch['out_channels'][-1], image_channels))
+
+        # Initialize weights. Optionally skip init for testing.
+        if not skip_init:
+            self.init_weights()
+
+        '''
+        # Set up optimizer
+        # If this is an EMA copy, no need for an optim, so just return now
+        if no_optim:
+        return
+        self.lr, self.B1, self.B2, self.adam_eps = G_lr, G_B1, G_B2, adam_eps
+        if G_mixed_precision:
+        print('Using fp16 adam in G...')
+        import utilsi
+        self.optim = utils.Adam16(params=self.parameters(), lr=self.lr,
+                            betas=(self.B1, self.B2), weight_decay=0,
+                            eps=self.adam_eps)
+        else:
+        self.optim = optim.Adam(params=self.parameters(), lr=self.lr,
+                            betas=(self.B1, self.B2), weight_decay=0,
+                            eps=self.adam_eps)
+        '''
+
+        # LR scheduling, left here for forward compatibility
+        # self.lr_sched = {'itr' : 0}# if self.progressive else {}
+        # self.j = 0
+
+    # Initialize
+    def init_weights(self):
+        self.param_count = 0
+        for module in self.modules():
+            if (isinstance(module, nn.Conv2d) 
+                or isinstance(module, nn.Linear) 
+                or isinstance(module, nn.Embedding)):
+                if self.init == 'ortho':
+                    init.orthogonal_(module.weight)
+                elif self.init == 'N02':
+                    init.normal_(module.weight, 0, 0.02)
+                elif self.init in ['glorot', 'xavier']:
+                    init.xavier_uniform_(module.weight)
+                else:
+                    print('Init style not recognized...')
+                self.param_count += sum([p.data.nelement() for p in module.parameters()])
+        print('Param count for G''s initialized parameters: %d' % self.param_count)
+
+    # Note on this forward function: we pass in a y vector which has
+    # already been passed through G.shared to enable easy class-wise
+    # interpolation later. If we passed in the one-hot and then ran it through
+    # G.shared in this forward function, it would be harder to handle.
+    def forward(self, z, y=None):
+        # If hierarchical, concatenate zs and ys
+        if self.hier:
+            zs = torch.split(z, self.z_chunk_size, 1)
+            z = zs[0]
+            ys = [torch.cat([y, item], 1) for item in zs[1:]]
+        else:
+            ys = [y] * len(self.blocks)
+      
+        # First linear layer
+        h = self.linear(z)
+        # Reshape
+        h = h.view(h.size(0), -1, self.bottom_width, self.bottom_width)
+    
+        # Loop over blocks
+        for index, blocklist in enumerate(self.blocks):
+            # Second inner loop in case block has multiple layers
+            for block in blocklist:
+                h = block(h, ys[index])
+        
+        # Apply batchnorm-relu-conv-tanh at output
+        out = torch.tanh(self.output_layer(h))
+        return out
 
 class BigGanDiscriminator(nn.Module):
   def __init__(self, **training_params):
@@ -1119,7 +1121,7 @@ class BigGanDiscriminator(nn.Module):
     self.arch = D_arch(self.ch, attention=self.attention, image_channels=image_channels)[self.resolution]
     # Other params
     output_dim=1
-    skip_init = False
+    skip_init=True # init._orthogonal freezes on gpu
     num_D_SVs=1
     num_D_SV_itrs=1
 

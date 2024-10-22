@@ -130,9 +130,15 @@ def run_training(training_params, generation_params, testing_params, training_re
                 
                 # Load model
                 model = model_dict[model_version](**training_params)
+                print('done initiating model')
                 
                 # Transfer scaling factor from data module to model
                 model.scaling_factor = data.scaling_factor
+                print(model.scaling_factor)
+                
+                #### TEST ####
+                print('initiating trainer...')
+                print(f'gpus: {avail_gpus}')
                 
                 # Initialize trainer
                 if avail_gpus<2:
@@ -150,6 +156,8 @@ def run_training(training_params, generation_params, testing_params, training_re
                                 log_every_n_steps=data.num_training_batches(),
                                 devices=avail_gpus, strategy='ddp',
                         )
+                        
+                print('trainer initiated')
                 
                 # Train
                 if training_restart:
