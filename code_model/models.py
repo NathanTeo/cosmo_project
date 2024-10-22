@@ -518,6 +518,14 @@ class CWGAN(pl.LightningModule, ganUtils):
         self.epoch_g_losses.append(g_loss.cpu().detach().numpy())
         self.epoch_d_losses.append(d_loss.cpu().detach().numpy()) 
         
+        ##### FOR TESTING #####
+        # try:
+        #     z = self.validation_z.type_as(self.generator.linear[0].weight)
+        # except TypeError: # BigGAN
+        #     z = self.validation_z.type_as(self.generator.linear.W_())
+        # gen_sample_imgs = self(z)[:9]
+        # self._plot_imgs(gen_sample_imgs, self.real_sample_imgs)
+        
     def configure_optimizers(self):
         lr = self.lr
         opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=self.betas)
@@ -777,7 +785,7 @@ class Diffusion(pl.LightningModule):
     # Method is run at the end of each training epoch
     def on_train_epoch_end(self):
         # Generate samples
-        gen_sample_imgs = self.sample(self.network, n=9)
+        # gen_sample_imgs = self.sample(self.network, n=9)
         ema_gen_sample_imgs = self.sample(self.ema_network, n=9)       
 
         # Plot
@@ -787,7 +795,7 @@ class Diffusion(pl.LightningModule):
         self.epoch_losses = self._log_losses(self.epoch_losses)
 
         # Log sampled images
-        grid = torchvision.utils.make_grid(gen_sample_imgs)
+        # grid = torchvision.utils.make_grid(gen_sample_imgs)
         wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
 
         grid = torchvision.utils.make_grid(ema_gen_sample_imgs)
