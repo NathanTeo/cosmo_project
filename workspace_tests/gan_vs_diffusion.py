@@ -224,11 +224,11 @@ class compareUtils():
 
 
         _, max_ylim = plt.ylim()
-        plt.text(self.real_blob_count_mean*1.05, max_ylim*0.9,
+        plt.text(self.real_blob_count_mean*1.05, max_ylim*0.3,
                 'Mean: {:.2f}'.format(self.real_blob_count_mean), color=(self.real_color,1))
-        plt.text(self.gan_blob_count_mean*1.05, max_ylim*0.85,
-                    'Mean: {:.2f}'.format(self.gan_blob_count_mean), color=(self.gan_color,1))
-        plt.text(self.diff_blob_count_mean*1.05, max_ylim*0.8,
+        plt.text(self.gan_blob_count_mean*1.05, max_ylim*0.2,
+                'Mean: {:.2f}'.format(self.gan_blob_count_mean), color=(self.gan_color,1))
+        plt.text(self.diff_blob_count_mean*1.05, max_ylim*0.1,
                 'Mean: {:.2f}'.format(self.diff_blob_count_mean), color=(self.diff_color,1))
         
         # Format
