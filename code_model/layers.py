@@ -292,7 +292,7 @@ class ccbn(nn.Module):
     self.norm_style = norm_style
     
     if self.cross_replica:
-      self.bn = SyncBN2d(output_size, eps=self.eps, momentum=self.momentum, affine=False)
+      self.bn = nn.BatchNorm2d(output_size, eps=self.eps, momentum=self.momentum, affine=False) # Replace syncbatchnorm with batchnorm, no multigpu trianing
     elif self.mybn:
       self.bn = myBN(output_size, self.eps, self.momentum)
     elif self.norm_style in ['bn', 'in']:
@@ -345,7 +345,7 @@ class bn(nn.Module):
     self.mybn = mybn
     
     if self.cross_replica:
-      self.bn = SyncBN2d(output_size, eps=self.eps, momentum=self.momentum, affine=False)    
+      self.bn = nn.BatchNorm2d(output_size, eps=self.eps, momentum=self.momentum, affine=False)    
     elif mybn:
       self.bn = myBN(output_size, self.eps, self.momentum)
      # Register buffers if neither of the above
