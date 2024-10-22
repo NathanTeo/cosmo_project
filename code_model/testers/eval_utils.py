@@ -362,7 +362,7 @@ class blobCounter():
         axs[0].imshow(sample)
         axs[0].scatter(x, y, c='r', alpha=0.5)
 
-        residual = sample-self._create_blobs(centers, self.blob_size, self.blob_amplitude, sample.shape[0])
+        residual = sample-self._create_blobs(centers)
         max = np.unravel_index(residual.argmax(), residual.shape)
         min = np.unravel_index(residual.argmin(), residual.shape)
 
@@ -377,15 +377,15 @@ class blobCounter():
         plt.show()
         plt.close()
         
-    def _jitter(self, coords):
+    def _jitter(self, coords, jit):
         num = len(coords)
-        push = circle_points([self.jit], [num])
+        push = circle_points([jit], [num])
         return np.array(coords) + push
 
     def _single_blob_error(self):
-        return create_blobs([(int(self.image_size/2),int(self.image_size/2))], self.blob_size, self.blob_amplitude, image_size=self.image_size).sum()
+        return self._create_blobs([(int(self.image_size/2),int(self.image_size/2))]).sum()
 
-    def find_guess(self, sample, rel_peak_threshold=0.8, max_iters=100):
+    def find_guess(self, sample, rel_peak_threshold=0.8, max_iters=500):
         """
         Find an initial guess using gaussian decomposition
         """
@@ -394,7 +394,7 @@ class blobCounter():
         peak_counts = []
 
         # Gaussian decomposition
-        for _ in range(max_iters):
+        for _ in range(int(max_iters)):
             # Find max
             peak_coord = np.unravel_index(img_decomp.argmax(), img_decomp.shape)
             peak_val = np.max(img_decomp)
@@ -422,7 +422,7 @@ class blobCounter():
             else:
                 # Jitter, put coord equally spaced on circle centered at maximum
                 coords = [coord for _ in range(count)]
-                coords = self._jitter(coords)
+                coords = self._jitter(coords, self.jit)
                 guess.extend(coords)
 
         if len(guess)>0:
@@ -452,7 +452,7 @@ class blobCounter():
             image_size = img.shape[0]
 
             # Grid for gaussian blob
-            blobs = create_blobs(centers, size, amplitude, image_size)
+            blobs = create_blobs(centers, image_size, size, amplitude)
 
             # Calculate error
             error = mse(blobs, img)
@@ -560,7 +560,7 @@ class blobCounter():
             else:
                 # Jitter, put coord equally spaced on circle centered at maximum
                 coords = [coord for _ in range(count)]
-                coords = self._jitter(coords, jit)
+                coords = self._jitter(coords, 0.5)
                 new_centers.extend(coords)
 
         new_centers = np.array(new_centers).clip(-1, residual.shape[0]) # CHANGE TO self.image_size?
@@ -588,7 +588,10 @@ class blobCounter():
 
         # Fit
         if len(guesses[-1])>0:
-            fit_guess, err = self.minimize_objective(np.array(guesses[-1]), sample, self.blob_size, self.blob_amplitude, method=method, plot_progress=plot_progress)
+            fit_guess, err = self.minimize_objective(
+                np.array(guesses[-1]), sample, 
+                self.blob_size, self.blob_amplitude,
+                method=method, plot_progress=plot_progress)
             fit_guess = np.array(fit_guess)
             guesses[-1] = fit_guess
             errs.append(err)  
@@ -614,7 +617,7 @@ class blobCounter():
             return guesses, errs, state
 
         # Find residual
-        residual = sample - create_blobs(fit_guess, self.blob_size, self.blob_amplitude, self.image_size)
+        residual = sample - self._create_blobs(fit_guess)
         residual_sum = residual.sum()
         residual_sum_abs = np.abs(residual_sum)
     
@@ -630,20 +633,22 @@ class blobCounter():
                 if plot_progress:
                     print(f'removing {n} guesses')
                 guesses.append(self.remove_guesses(residual, fit_guess, n))
-                guesses, errs, state = self.count_recursive(guesses, errs, counts, 
-                                                            sample, self.blob_size, self.blob_amplitude, 
-                                                            method, step, curr_iter, max_iters, err_threshold_rel, 
-                                                            plot_progress)
+                guesses, errs, state = self.count_recursive(
+                    guesses, errs, counts, sample,
+                    method, step, curr_iter, max_iters, err_threshold_rel, 
+                    plot_progress
+                    )
             elif residual_sum>=0:
                 # add
                 n = int(np.round(residual_sum/self.single_blob_err))
                 if plot_progress:    
                     print(f'adding {n} guesses')
-                guesses.append(self.add_guesses(residual, fit_guess, n, self.blob_size, self.blob_amplitude))
-                guesses, errs, state = self.count_recursive(guesses, errs, counts, 
-                                                            sample, self.blob_size, self.blob_amplitude, 
-                                                            method, step, curr_iter, max_iters, err_threshold_rel, 
-                                                            plot_progress)
+                guesses.append(self.add_guesses(residual, fit_guess, n))
+                guesses, errs, state = self.count_recursive(
+                    guesses, errs, counts, sample,
+                    method, step, curr_iter, max_iters, err_threshold_rel, 
+                    plot_progress
+                    )
         # Add/remove a single blob
         if step=='single' and state=='run':
             if residual_sum_abs<self.single_blob_err*err_threshold_rel: # Threshold 
@@ -657,38 +662,42 @@ class blobCounter():
                     if plot_progress:
                         print('adding 1 guess')
                     guesses.append(self.add_guess(residual, fit_guess))
-                    guesses, errs, state = self.count_recursive(guesses, errs, counts, 
-                                        sample, self.blob_size, self.blob_amplitude, 
-                                        method, step, curr_iter, max_iters, err_threshold_rel, 
-                                        plot_progress)
+                    guesses, errs, state = self.count_recursive(
+                        guesses, errs, counts, sample,
+                        method, step, curr_iter, max_iters, err_threshold_rel, 
+                        plot_progress
+                        )
                 else: # Remove if residual is negative
                     # Remove
                     if plot_progress:
                         print('removing 1 guess')
                     guesses.append(self.remove_guess(residual, fit_guess))
-                    guesses, errs, state = self.count_recursive(guesses, errs, counts, 
-                                        sample, self.blob_size, self.blob_amplitude, 
-                                        method, step, curr_iter, max_iters, err_threshold_rel, 
-                                        plot_progress)
+                    guesses, errs, state = self.count_recursive(
+                        guesses, errs, counts, sample,
+                        method, step, curr_iter, max_iters, err_threshold_rel, 
+                        plot_progress
+                        )
             elif residual_sum>=0:
                 if count + 1 in counts: # Remove if n+1 counts already fit
                     # Remove
                     if plot_progress:
                         print('removing 1 guess')
                     guesses.append(self.remove_guess(residual, fit_guess))
-                    guesses, errs, state = self.count_recursive(guesses, errs, counts, 
-                                        sample, self.blob_size, self.blob_amplitude, 
-                                        method, step, curr_iter, max_iters, err_threshold_rel, 
-                                        plot_progress)
+                    guesses, errs, state = self.count_recursive(
+                        guesses, errs, counts, sample,
+                        method, step, curr_iter, max_iters, err_threshold_rel, 
+                        plot_progress
+                        )
                 else: # Add if residual is positive
                     # Add
                     if plot_progress:
                         print('adding 1 guess')
                     guesses.append(self.add_guess(residual, fit_guess))
-                    guesses, errs, state = self.count_recursive(guesses, errs, counts, 
-                                        sample, self.blob_size, self.blob_amplitude, 
-                                        method, step, curr_iter, max_iters, err_threshold_rel, 
-                                        plot_progress)
+                    guesses, errs, state = self.count_recursive(
+                        guesses, errs, counts, sample,
+                        method, step, curr_iter, max_iters, err_threshold_rel, 
+                        plot_progress
+                        )
 
         if state=='complete':
             return guesses, errs, state
@@ -698,8 +707,6 @@ class blobCounter():
                 plot_progress=False):
         # Get guess of coordinates
         initial_guess = self.find_guess(sample, self.blob_size, self.blob_amplitude)
-
-        initial_guess = np.append(initial_guess, [(14,16)], axis=0)
         
         # Count
         guesses, errs, _ = self.count_recursive(
@@ -923,7 +930,7 @@ class blobCounter():
         if mode=='multi':
             with concurrent.futures.ProcessPoolExecutor() as executor:
                 results = list(tqdm(executor.map(self.count_sample, self.samples),
-                                    disable=not progress_bar, total=self.sample_size         
+                                    disable=not progress_bar, total=int(self.sample_size)         
                                     ))
 
                 fit_coords = []
