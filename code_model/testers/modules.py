@@ -81,15 +81,15 @@ class testDataset():
         
         """Paths"""
         self.root_path = training_params['root_path']
-        self.data_path = 'data'
+        self.data_path = f'{self.root_path}/data'
         self.data_file_name = 'bn{}{}-cl{}-is{}-bs{}-sn{}-sd{}-ns{}.npy'.format(
             self.blob_num, self.num_distribution[0], 
             '{:.0e}_{:.0e}'.format(*self.clustering) if self.clustering is not None else '_',
             self.image_size, self.blob_size, self.real_sample_num,
             self.generation_seed, int(self.gen_noise)
         )
-        self.chkpt_path = 'checkpoints'
-        self.log_path = 'logs'
+        self.chkpt_path = f'{self.root_path}/checkpoints'
+        self.log_path = f'{self.root_path}/logs'
         self.plot_save_path = f'{self.root_path}/plots/images'
         self.output_save_path = f'{self.root_path}/plots/model_output'
         
@@ -99,10 +99,13 @@ class testDataset():
         if not os.path.exists(self.output_save_path):
             os.makedirs(self.output_save_path)
         
-        """Epochs"""
+        """Load logs"""
         # Load loss
-        self.losses = np.load(f'{self.root_path}/{self.log_path}/losses.npz')
+        self.losses = np.load(f'{self.log_path}/losses.npz')
         self.epoch_last = self.losses['epochs'][-1]
+        
+        logged_params = np.load(f'{self.log_path}/logged_params.npz')
+        self.scaling_factor = logged_params['scaling_factor']
         
         """Plotting style"""
         self.image_file_format = 'png'
@@ -118,9 +121,9 @@ class testDataset():
         
     def load_data(self, DataModule):
         """Load real data"""
-        self.real_imgs = np.load(f'{self.root_path}/{self.data_path}/{self.data_file_name}')[:self.subset_sample_num]
+        self.real_imgs = np.load(f'{self.data_path}/{self.data_file_name}')[:self.subset_sample_num]
         self.data = DataModule(
-            data_file=f'{self.root_path}/{self.data_path}/{self.data_file_name}',
+            data_file=f'{self.data_path}/{self.data_file_name}',
             batch_size=self.batch_size, num_workers=self.num_workers,
             truncate_ratio=self.subset_sample_num/self.real_sample_num
             )
@@ -128,7 +131,7 @@ class testDataset():
     def load_models(self, model_dict):
         """Load models"""
         # Get checkpoints of models to be tested
-        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
+        filenames = os.listdir(f'{self.chkpt_path}')
         filenames.sort()
         self.filenames = [filenames[int(len(filenames)/4)], filenames[int(len(filenames)/2)], 'last.ckpt']
         
@@ -136,9 +139,13 @@ class testDataset():
         self.model_epochs.append(self.epoch_last)
         
         self.models = [model_dict[self.model_version].load_from_checkpoint(
-            f'{self.root_path}/{self.chkpt_path}/{file}',
+            f'{self.chkpt_path}/{file}',
             **self.training_params
             ) for file in filenames]
+        
+        # Set scaling factor
+        for model in self.models:
+            model.scaling_factor = self.scaling_factor
     
     def generate_images(self, testing_restart):
         """Generate images given a list of models"""
@@ -687,7 +694,7 @@ class ganLogsPlotter(testDataset):
     
     def load_last_model(self, model_dict):
         self.last_model = model_dict[self.model_version].load_from_checkpoint(
-            f'{self.root_path}/{self.chkpt_path}/last.ckpt',
+            f'{self.chkpt_path}/last.ckpt',
             **self.training_params
             )
 
@@ -739,7 +746,7 @@ class ganLogsPlotter(testDataset):
 
     def score_models(self, model_dict):
         # Load models
-        filenames = os.listdir(f'{self.root_path}/{self.chkpt_path}')
+        filenames = os.listdir(f'{self.chkpt_path}')
         filenames.sort()
         filenames.remove('last.ckpt')
         
@@ -764,7 +771,7 @@ class ganLogsPlotter(testDataset):
             print('--------------')
 
             model = model_dict[self.model_version].load_from_checkpoint(
-                f'{self.root_path}/{self.chkpt_path}/{file}',
+                f'{self.chkpt_path}/{file}',
                 **self.training_params
             )
             

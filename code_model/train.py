@@ -73,24 +73,25 @@ def run_training(training_params, generation_params, testing_params, training_re
                 
         """Paths"""
         root_path = training_params['root_path']
-        data_path = 'data'
+        data_path = f'{root_path}/data'
+        log_path = f'{root_path}/logs'
         data_file_name = 'bn{}{}-cl{}-is{}-bs{}-sn{}-sd{}-ns{}.npy'.format(
                 blob_num, num_distribution[0], 
                 '{:.0e}_{:.0e}'.format(*clustering) if clustering is not None else '_',
                 image_size, blob_size, sample_num,
                 generation_seed, int(gen_noise)
         )
-        chkpt_path = 'checkpoints'
+        chkpt_path = f'{root_path}/checkpoints'
         training_params['model_name'] = model_name
         
         # Folder for backup
         if training_restart:
-                os.system(f'rm -r /{root_path}/logs')
-                os.system(f'rm -r /{root_path}/checkpoints')
-        if not os.path.exists(f'{root_path}/logs'):
-                os.makedirs(f'{root_path}/logs/images')
-        if not os.path.exists(f'{root_path}/checkpoints'):
-                os.makedirs(f'{root_path}/checkpoints')
+                os.system(f'rm -r /{log_path}')
+                os.system(f'rm -r /{chkpt_path}')
+        if not os.path.exists(f'{log_path}'):
+                os.makedirs(f'{log_path}/images')
+        if not os.path.exists(f'{chkpt_path}'):
+                os.makedirs(f'{chkpt_path}')
         
         # Folder for backup
         if not os.path.exists(f'{root_path}/backup'):
@@ -109,7 +110,7 @@ def run_training(training_params, generation_params, testing_params, training_re
         # Checkpoint
         checkpoint_callback = ModelCheckpoint(
                 monitor=None,
-                dirpath=f'{root_path}/{chkpt_path}',
+                dirpath=f'{chkpt_path}',
                 filename='{epoch:04d}',
                 every_n_epochs=20,
                 save_top_k=-1,
@@ -124,7 +125,7 @@ def run_training(training_params, generation_params, testing_params, training_re
         if __name__ == 'code_model.train':
                 # Load data
                 data = BlobDataModule(
-                        data_file=f'{root_path}/{data_path}/{data_file_name}',
+                        data_file=f'{data_path}/{data_file_name}',
                         batch_size=batch_size, num_workers=num_workers
                         )
                 
@@ -134,11 +135,9 @@ def run_training(training_params, generation_params, testing_params, training_re
                 
                 # Transfer scaling factor from data module to model
                 model.scaling_factor = data.scaling_factor
-                print(model.scaling_factor)
                 
-                #### TEST ####
-                print('initiating trainer...')
-                print(f'gpus: {avail_gpus}')
+                # Save logged params
+                np.savez(f'{log_path}/logged_params.npz', scaling_factor=data.scaling_factor)
                 
                 # Initialize trainer
                 if avail_gpus<2:
@@ -173,7 +172,7 @@ def run_training(training_params, generation_params, testing_params, training_re
                                 print('--------------------')
                                 trainer.fit(
                                         model, data,
-                                        ckpt_path=f'{root_path}/{chkpt_path}/last.ckpt'
+                                        ckpt_path=f'{chkpt_path}/last.ckpt'
                                 )                                
                         except(FileNotFoundError):
                                 print('--------------------------------------------')
