@@ -100,12 +100,14 @@ def run_training(training_params, generation_params, testing_params, training_re
         
         """Initialize callbacks"""
         # Logger
-        wandb.login()
-        wandb_logger = WandbLogger(
-                project='cosmo_project',
-                name=model_name
-                )
-        wandb_logger.experiment.config.update(training_params)
+        use_wandb = False
+        if use_wandb:
+                wandb.login()
+                wandb_logger = WandbLogger(
+                        project='cosmo_project',
+                        name=model_name
+                        )
+                wandb_logger.experiment.config.update(training_params)
 
         # Checkpoint
         checkpoint_callback = ModelCheckpoint(
@@ -143,14 +145,14 @@ def run_training(training_params, generation_params, testing_params, training_re
                 if avail_gpus<2:
                         trainer = pl.Trainer(
                                 max_epochs=max_epochs,
-                                logger=wandb_logger,
+                                logger=wandb_logger if use_wandb else None,
                                 callbacks=[checkpoint_callback],
                                 log_every_n_steps=data.num_training_batches(),
                         )
                 elif avail_gpus>=2: # DDP for multi gpu 
                         trainer = pl.Trainer(
                                 max_epochs=max_epochs,
-                                logger=wandb_logger,
+                                logger=wandb_logger if use_wandb else None,
                                 callbacks=[checkpoint_callback],
                                 log_every_n_steps=data.num_training_batches(),
                                 devices=avail_gpus, strategy='ddp',

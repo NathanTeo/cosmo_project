@@ -162,6 +162,7 @@ class CGAN(pl.LightningModule, ganUtils):
         self.epoch_g_losses = []
         
         # Initialize models
+        self.use_wandb = False
         self.generator = networks.network_dict[f'gen_v{gen_version}'](**training_params)
         self.discriminator = networks.network_dict[f'dis_v{dis_version}'](**training_params)
 
@@ -190,7 +191,8 @@ class CGAN(pl.LightningModule, ganUtils):
         if batch_idx==0:
             sample_imgs = real_imgs[:9]
             grid = torchvision.utils.make_grid(sample_imgs)
-            wandb.log({"real_images": wandb.Image(grid, caption="real_images")})
+            if self.use_wandb:
+                wandb.log({"real_images": wandb.Image(grid, caption="real_images")})
             self.real_sample_imgs = sample_imgs
         
         # Initialize optimizers
@@ -303,7 +305,8 @@ class CGAN(pl.LightningModule, ganUtils):
 
         # Log sampled images
         grid = torchvision.utils.make_grid(gen_sample_imgs)
-        wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
+        if self.use_wandb:
+            wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
 
     def on_test_epoch_start(self):
         self.test_output_list = {
@@ -360,6 +363,7 @@ class CWGAN(pl.LightningModule, ganUtils):
         self.epoch_g_losses = []
         
         # Initialize models
+        self.use_wandb = False
         self.generator = networks.network_dict[f'gen_v{gen_version}'](**training_params)
         self.discriminator = networks.network_dict[f'dis_v{dis_version}'](**training_params)
 
@@ -426,7 +430,8 @@ class CWGAN(pl.LightningModule, ganUtils):
         if batch_idx==0:
             sample_imgs = real_imgs[:9]
             grid = torchvision.utils.make_grid(sample_imgs)
-            wandb.log({"real_images": wandb.Image(grid, caption="real_images")})
+            if self.use_wandb:
+                wandb.log({"real_images": wandb.Image(grid, caption="real_images")})
             self.real_sample_imgs = sample_imgs
         
         # initialize optimizers
@@ -559,7 +564,8 @@ class CWGAN(pl.LightningModule, ganUtils):
 
         # Log sampled images
         grid = torchvision.utils.make_grid(gen_sample_imgs)
-        wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
+        if self.use_wandb:
+            wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"generated_images_{self.current_epoch}")})
         
         # Backup every 20 epochs
         if ((self.current_epoch+1)%20)==0:
@@ -641,8 +647,10 @@ class EMA():
 class Diffusion(pl.LightningModule):
     def __init__(self, scaling_factor=1, **training_params):
         super().__init__()
-        self.scaling_factor=scaling_factor
+        # Scaling 
+        self.scaling_factor = torch.tensor(scaling_factor)
         
+        # Training params
         self.unet_version = training_params['unet_version']
         self.training_params = training_params
         self.root_path = training_params['root_path']
@@ -655,14 +663,18 @@ class Diffusion(pl.LightningModule):
         self.scheduler_params = training_params['scheduler_params']
         self.loss_fn = torch.nn.MSELoss()
 
+        # Networks
+        self.use_wandb = False
         self.network = networks.network_dict[f'unet_v{self.unet_version}'](scaling_factor=scaling_factor, **self.training_params)
         self.ema = EMA(beta=0.995)
         self.ema_network = deepcopy(self.network).eval().requires_grad_(False)
         
+        # Schedules
         self.betas = self.cosine_schedule()
         self.alphas = 1. - self.betas
         self.alpha_hats = torch.cumprod(self.alphas, dim=0)
-    
+
+        # Losses list
         self.epoch_losses = []
     
     def setup(self, stage):
@@ -746,7 +758,8 @@ class Diffusion(pl.LightningModule):
         if batch_idx==0:
             sample_imgs = real_imgs[:9]
             grid = torchvision.utils.make_grid(sample_imgs)
-            wandb.log({"real_images": wandb.Image(grid, caption="real_images")})
+            if self.use_wandb:
+                wandb.log({"real_images": wandb.Image(grid, caption="real_images")})
             self.real_sample_imgs = sample_imgs       
            
         real_imgs.requires_grad_()
@@ -795,7 +808,8 @@ class Diffusion(pl.LightningModule):
 
         # Log sampled images
         grid = torchvision.utils.make_grid(ema_gen_sample_imgs)
-        wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"ema_generated_images_{self.current_epoch}")})
+        if self.use_wandb:
+            wandb.log({"validation_generated_images": wandb.Image(grid, caption=f"ema_generated_images_{self.current_epoch}")})
 
         # Backup every 20 epochs
         if ((self.current_epoch+1)%20)==0:
@@ -812,7 +826,8 @@ class Diffusion(pl.LightningModule):
         self.betas = self.betas.to(self.device)
         self.alphas = self.alphas.to(self.device)
         self.alpha_hats = self.alpha_hats.to(self.device)
-        
+        self.scaling_factor = torch.tensor(self.scaling_factor).to(self.device)
+         
         self.network.device = self.device
         self.ema_network.device = self.device
         
