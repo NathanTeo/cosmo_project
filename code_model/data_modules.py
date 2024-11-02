@@ -25,7 +25,7 @@ class BlobDataModule(pl.LightningDataModule):
         
         self.train_split = train_split
         
-        # Very bad way to handle, is there a way to get this without loading data?
+        # Is there a way to get this without loading data?
         samples = np.load(data_file)
         self.num_samples = len(samples)
         self.scaling_factor = 1/np.max([np.max(samples), np.abs(np.min(samples))])

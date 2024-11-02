@@ -523,7 +523,7 @@ class PreNorm(nn.Module):
 class ConvNextBlock(nn.Module):
     """ https://arxiv.org/abs/2201.03545 """
 
-    def __init__(self, dim, dim_out, *, time_emb_dim = None, mult = 2, norm = True):
+    def __init__(self, dim, dim_out, time_emb_dim = None, mult = 2, norm = True):
         super().__init__()
         self.mlp = nn.Sequential(
             nn.GELU(),

@@ -106,6 +106,7 @@ class testDataset():
         
         logged_params = np.load(f'{self.log_path}/logged_params.npz')
         self.scaling_factor = logged_params['scaling_factor']
+        print(f'scaling factor: {self.scaling_factor}')
         
         """Plotting style"""
         self.image_file_format = 'png'
@@ -263,15 +264,15 @@ class blobTester(testDataset):
             plt.savefig(f'{self.plot_save_path}/marg-sums_{n}_{self.model_name}.{self.image_file_format}')
             plt.close()
            
-            'Counts'
-            # Fitting blobs
+            'Counts' # Not very useful for large number of blobs
+            '''# Fitting blobs
             counter = blobCounter(blob_size=self.blob_size, blob_amplitude=self.blob_amplitude)
             
             counter.load_samples(real_imgs_subset)
-            real_blob_coords, real_blob_counts = counter.count(progress_bar=False)
-            
+            real_blob_coords, real_blob_counts = counter.count(err_threshold_rel=1, mode='multi', progress_bar=True, plot_progress=False)
+
             counter.load_samples(gen_imgs_subset)
-            gen_blob_coords, gen_img_blob_counts = counter.count(progress_bar=False)
+            gen_blob_coords, gen_img_blob_counts = counter.count(err_threshold_rel=1, mode='multi', progress_bar=True, plot_progress=False)
 
             # Plotting fit
             fig = plt.figure(figsize=(6,3))
@@ -286,19 +287,19 @@ class blobTester(testDataset):
             
             # Save plot
             plt.savefig(f'{self.plot_save_path}/counts-imgs_{n}_{self.model_name}.{self.image_file_format}')
-            plt.close()
+            plt.close()'''
             
             'FFT'
             # Fourier transform images
-            real_ffts = fourier_transform(real_imgs_subset)
-            gen_ffts = fourier_transform(gen_imgs_subset)
+            real_ffts = fourier_transform_samples(real_imgs_subset)
+            gen_ffts = fourier_transform_samples(gen_imgs_subset)
 
             # Plotting fft
             fig = plt.figure(figsize=(6,3))
             subfig = fig.subfigures(1, 2, wspace=0.2)
             
             plot_img_grid(subfig[0], real_ffts, self.grid_row_num, title='Real FFT')
-            plot_img_grid(subfig[1], gen_ffts, self.grid_row_num, title='Generated')
+            plot_img_grid(subfig[1], gen_ffts, self.grid_row_num, title='Generated FFT')
             
             # Save plot
             plt.savefig(f'{self.plot_save_path}/fft_{n}_{self.model_name}.{self.image_file_format}')
@@ -513,6 +514,7 @@ class blobTester(testDataset):
         plt.savefig(f'{self.plot_save_path}/max-peak_{self.model_name}.{self.image_file_format}')
         plt.close()
 
+    def flux_stats(self):
         'Total flux histogram'
         # Find flux
         print("calculating total flux...")
@@ -523,7 +525,7 @@ class blobTester(testDataset):
         fig = plt.figure()
 
         # Bins for histogram
-        bins = find_good_bins([real_img_fluxes, *all_gen_img_fluxes], method='linspace', num_bins=40)
+        bins = find_good_bins([real_img_fluxes, *all_gen_img_fluxes], method='linspace', num_bins=20, ignore_outliers=True)
         
         # Plot
         for i, fluxes in enumerate(all_gen_img_fluxes):
@@ -643,18 +645,20 @@ class blobTester(testDataset):
         plt.savefig(f'{self.plot_save_path}/pixel-stack-histogram_{self.model_name}.{self.image_file_format}')
         plt.close()
     
-    def test(self):
+    def test(self, count=True):
         """Run all testing methods"""
         self.images()
         self.stack()
-        if os.path.exists(f'{self.output_save_path}/counts.npz'):
-            print('previous counts found, loading counts...')
-            self.load_counts()
-        else:
-            self.count_blobs()
-            self.save_counts()
-        self.blob_num_stats()
-        self.two_point_correlation()
+        if count:
+            if os.path.exists(f'{self.output_save_path}/counts.npz'):
+                print('previous counts found, loading counts...')
+                self.load_counts()
+            else:
+                self.count_blobs()
+                self.save_counts()
+            self.blob_num_stats()
+            self.two_point_correlation()
+        self.flux_stats()
         self.pixel_stats()
         
 class pointTester(testDataset):
