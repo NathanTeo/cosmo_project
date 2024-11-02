@@ -109,18 +109,18 @@ def plot_peak_grid(subfig, imgs, imgs_coords,
             # Img and peak coords 
             img = imgs[(grid_row_num)*i+j]
             coords = np.array(imgs_coords[(grid_row_num)*i+j])
-            coords_x = coords[:, 1]
-            coords_y = coords[:, 0]
-            
             
             # Plot
             axs[i, j].imshow(img, interpolation='none', vmin=vmin, vmax=vmax)
-            axs[i, j].scatter(coords_x, coords_y, c='r', marker='x', alpha=0.5)
+            if len(coords)>0: # skip if zero blob case    
+                coords_x = coords[:, 1]
+                coords_y = coords[:, 0]
+                axs[i, j].scatter(coords_x, coords_y, c='r', marker='x', alpha=0.5)
             axs[i, j].set_xticks([])
             axs[i, j].set_yticks([])
             axs[i, j].axis('off')
             
-            if imgs_peak_values is not None:
+            if imgs_peak_values is not None and len(coords)>0:
                 peak_values = imgs_peak_values[(grid_row_num)*i+j]
                 for k in range(len(peak_values)):    
                     if isinstance(peak_values[0], int): # I don't like how this works. Find a more general way to do this?
