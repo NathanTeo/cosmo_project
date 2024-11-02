@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
 import astropy.units as u
 from scipy.special import gamma
+import concurrent.futures
 
 class blobDataset():
     """generate real data for training"""
@@ -34,7 +35,11 @@ class blobDataset():
             seed, self.noise
         )
         
+        # Set seed
         np.random.seed(seed)
+  
+        # Initiate center generator
+        self.center_generator = centerGenerator(self.blob_num, self.image_size)
         
     def make_gaussian(self, center, var, image_size):
             """ Make a square gaussian kernel"""
@@ -53,8 +58,26 @@ class blobDataset():
                             for coord in centers]).sum(axis=0)
         else:
             return np.zeros((self.generation_matrix_size, self.generation_matrix_size))
+    
+    def realize_batch(self, dummy):
+        # Generate points for centers
+        centers = self.center_generator.generate(self.num_distribution, self.clustering)
+        count = centers.shape[0]
+        sample = self.create_blobs(centers)
         
-    def generate(self, batch=10000, temp_root_path="temp"):
+        # Add noise
+        if self.noise!=0:
+            noise_img = np.random.normal(0, self.noise, (self.image_size, self.image_size))
+            sample = np.add(sample, noise_img)
+            
+        # Unpad
+        pad_sample = sample
+        if self.pad != 0:
+            sample = sample[self.pad:-self.pad,self.pad:-self.pad]
+        
+        return sample, centers, count
+    
+    def realize(self, batch=1000, temp_root_path="temp", mode='single'):
         """Generate all samples"""
         # Generate in batches, generation slows significantly when entire dataset is generated in one go, probably taking too much ram       
         num_of_batches = int(np.ceil(self.sample_num / batch))
@@ -64,57 +87,69 @@ class blobDataset():
         else:
             batch_sizes = np.append(np.repeat(batch, num_of_batches),[remainder])
         
+        # Create temporary save path
         temp_path = f'{temp_root_path}/temp'
         if not os.path.exists(temp_path):
             os.makedirs(temp_path)
-        self.sample_counts = []
-        self.sample_coords = []
         
+        # Realize
         for i, batch_size in enumerate(batch_sizes):
-            print(f'batch {i+1}/{num_of_batches}')
+            # Reset sample list
             samples = []
-            for _ in tqdm(range(batch_size)):
-                # Generate points for centers
-                center_generator = centerGenerator(self.blob_num, self.image_size)
-                centers = center_generator.generate(self.num_distribution, self.clustering)
-                sample = self.create_blobs(centers)
-                
-                # Add noise
-                if self.noise!=0:
-                    noise_img = np.random.normal(0, self.noise, (self.image_size, self.image_size))
-                    sample = np.add(sample, noise_img)
+            sample_counts = []
+            sample_centers = []
+            
+            # Single core
+            if mode=='single':
+                for _ in tqdm(range(batch_size), desc=f'batch {i+1}/{num_of_batches}'):
+                    # Realize sample
+                    sample, centers, count = self.realize_batch(self.center_generator)
                     
-                # Unpad
-                pad_sample = sample
-                if self.pad != 0:
-                    sample = sample[self.pad:-self.pad,self.pad:-self.pad]
-                
-                # Add sample to list
-                samples.append(sample)
-        
-                # Counts
-                self.sample_counts.append(centers.shape[0])
-                self.sample_coords.append(centers)
-                
-                # Save in temp
-                np.save(f'{temp_path}/temp{i}', samples)
-        
+                    # Add sample to list
+                    samples.append(sample)
+                    
+                    # Counts
+                    sample_counts.append(count)
+                    sample_centers.append(centers)
+
+            # Count using multi core    
+            if mode=='multi':
+                with concurrent.futures.ProcessPoolExecutor() as executor:
+                    results = list(tqdm(
+                        executor.map(self.realize_batch, np.repeat(1,batch_size)),
+                        desc=f'batch {i+1}/{num_of_batches}', total=int(batch_size)         
+                        ))
+
+                    for result in results:
+                        # Save in temp
+                        samples.append(result[0])
+                        sample_centers.append(result[1])
+                        sample_counts.append(result[2])
+            
+            # Save samples in temp
+            np.savez(f'{temp_path}/temp{i}', 
+                     samples=samples, 
+                     centers=np.array(sample_centers, dtype=object), 
+                     counts=sample_counts)
+            
         # Combine batches into single dataset
-        batches = []
-        for file in sorted(os.listdir(temp_path)):
-            batches.append(np.load(f'{temp_path}/{file}'))
-        self.samples = np.concatenate(batches)
-        
+        print('combining dataset...')
+        self.samples, self.sample_centers, self.sample_counts = [], [], []
+        for file in tqdm(sorted(os.listdir(temp_path))):
+            with np.load(f'{temp_path}/{file}', allow_pickle=True) as batch:
+                self.samples.extend(batch['samples'])
+                self.sample_centers.extend(list(batch['centers']))
+                self.sample_counts.extend(batch['counts'])    
+            
         # Delete temporary folder
         shutil.rmtree(temp_path)
+        print('temporary files deleted')
     
     def save(self, path):
         """Save data"""
         np.save(f'{path}/{self.file_name}', self.samples)
-        
         np.save(f'{path}/{self.file_name}_counts', self.sample_counts)
-        
-        np.save(f'{path}/{self.file_name}_coords', np.array(self.sample_coords, dtype=object))
+        np.save(f'{path}/{self.file_name}_coords', np.array(self.sample_centers, dtype=object))
     
     def plot_example(self, sample, path, file_type='png'):
         """Plot first sample"""
