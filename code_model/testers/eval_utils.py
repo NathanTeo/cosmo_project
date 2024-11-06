@@ -146,24 +146,25 @@ def fourier_transform_samples(samples, progress_bar=False):
     return [np.abs(np.fft.fftshift(np.fft.fft2(apodize(sample)))) 
             for sample in tqdm(samples, disable=not progress_bar)]
 
-def ell_coordinates(image_size_pxl, pixel_size_deg):
+def ell_coordinates(image_size_pixel, pixel_size_deg):
     """make a 2d ell coordinate system""" 
-    ones = np.ones(image_size_pxl)
-    inds  = (np.arange(image_size_pxl)+.5 - image_size_pxl/2.) /(image_size_pxl-1.)
+    ones = np.ones(image_size_pixel)
+    inds  = (np.arange(image_size_pixel)+.5 - image_size_pixel/2.) /(image_size_pixel-1.)
     kX = np.outer(ones,inds) / (pixel_size_deg * np.pi/180.)
     kY = np.transpose(kX)
     K = np.sqrt(kX**2. + kY**2.)
     ell_scale_factor = 2. * np.pi
     return K * ell_scale_factor
     
-def power_spectrum(Map1, Map2, delta_ell, ell_max, ell2d=None, image_size_deg=1, taper=True):
+def power_spectrum(Map1, Map2, delta_ell, ell_max, ell2d=None, image_size_angular=1, 
+                   taper=True, detrend='constant'):
     """calcualtes the power spectrum of a 2d map by FFTing, squaring, and azimuthally averaging"""
-    image_size_pxl = Map1.shape[0]
-    pixel_size_deg = image_size_deg / image_size_pxl
+    image_size_pixel = Map1.shape[0]
+    pixel_size_angular = image_size_angular / image_size_pixel
     
     if ell2d is None: # Find ell coordinates if not provided
         # make a 2d ell coordinate system 
-        ell2d = ell_coordinates(image_size_pxl, pixel_size_deg)
+        ell2d = ell_coordinates(image_size_pixel, pixel_size_angular)
     
     # make an array to hold the power spectrum results
     N_bins = int(ell_max/delta_ell)
@@ -171,6 +172,9 @@ def power_spectrum(Map1, Map2, delta_ell, ell_max, ell2d=None, image_size_deg=1,
     CL_array = np.zeros(N_bins)
     
     # get the 2d fourier transform of the map
+    if detrend=='constant':
+        Map1 = Map1 - np.mean(Map1)
+        Map2 = Map2 - np.mean(Map2)
     if taper:
         Map1 = apodize(Map1)
         Map2 = apodize(Map2)
@@ -185,7 +189,20 @@ def power_spectrum(Map1, Map2, delta_ell, ell_max, ell2d=None, image_size_deg=1,
         CL_array[i] = np.mean(PSMap[idxs_in_bin])
 
     # return the power spectrum and ell bins
-    return ell_array, CL_array * np.sqrt(pixel_size_deg * np.pi/180.) * 2.
+    return ell_array, CL_array * np.sqrt(pixel_size_angular * np.pi/180.) * 2.
+
+def power_spectrum_stack(samples, 
+                         delta_ell=500, ell_max=15000, ell2d=None, image_size_angular=1, 
+                         progress_bar=False):
+    cls = []   
+    for sample in tqdm(samples, disable=not progress_bar):
+        bins, cl = power_spectrum(sample, sample, delta_ell, ell_max, ell2d, image_size_angular, taper=True)
+        cls.append(cl)
+    
+    mean = np.mean(cls, axis=0)
+    errs = np.std(cls, axis=0, ddof=1) # ddof=1 for sample estimate of popln
+    
+    return mean, errs, bins
 
 """2-point correlation"""
 def calculate_two_point(coords, image_size, angular_size=1, bins=10, bootstrap=True, logscale=True):
@@ -222,7 +239,7 @@ def two_point_stack(samples, image_size, bins=10, bootstrap=True, progress_bar=F
         
     # Calculate mean, ignoring nan values in corr
     corrs = np.nanmean(all_corrs, axis=0) # is nanmean correct here?
-    errs = np.nanstd(all_corrs, axis=0)
+    errs = np.nanstd(all_corrs, axis=0, ddof=1) # ddof=1 for sample estimate of popln
     '''
     nonnan_counts = np.count_nonzero(~np.isnan(all_corrs), axis=0)
     all_errs = np.where(np.isnan(all_corrs), np.nan, all_errs)

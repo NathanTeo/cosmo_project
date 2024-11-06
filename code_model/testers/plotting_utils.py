@@ -193,24 +193,25 @@ def plot_histogram_stack(ax, hist, edges,
     if fill_color is not None:
         ax.fill_between(x, 0, y, color=fill_color)
         
-def plot_two_point(ax, corrs, edges, errs=None, interp='cubic',
+def plot_smooth_line(ax, y, x, errs=None, interp='cubic',
                    color=(('darkorange', 1), ('darkorange', 0.5)), linewidth=1, capsize=2,
-                   label=None, errorbars=True, logscale=True):
+                   label=None, errorbars=True, scale='semilog_x'):
     """Plots the interpolated 2 point correlation with errors is available"""
-    # Get midpoints and interpolate
-    midpoints = midpoints_of_bins(edges)
-    smooth = interp1d(midpoints, corrs, kind=interp)
+    # Interpolate
+    smooth = interp1d(x, y, kind=interp)
     
     # Plot
-    x = np.linspace(midpoints[0], midpoints[-1], 100)
-    ax.plot(x, smooth(x), color=color[0], linewidth=linewidth, label=label)
+    lin = np.linspace(x[0], x[-1], 100)
+    ax.plot(lin, smooth(lin), color=color[0], linewidth=linewidth, label=label)
+    
     if errorbars:
-        ax.errorbar(midpoints, corrs, yerr=errs, fmt='.', capsize=capsize, color=color[1])
+        ax.errorbar(x, y, yerr=errs, fmt='.', capsize=capsize, color=color[1])
         
-    if logscale:
-        ax.set_xscale('log')
-        ax.set_yscale('log')
-
+    if scale=='log' or scale=='semilog_y':
+      ax.set_yscale('log')
+    if scale=='log' or scale=='semilog_x':
+      ax.set_xscale('log')
+        
 def midpoints_of_bins(edges):
     """Returns midpoints of bin edges for plotting"""
     return (edges[:-1]+edges[1:])/2 

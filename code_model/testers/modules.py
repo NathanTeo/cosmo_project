@@ -238,11 +238,14 @@ class blobTester(testDataset):
             
             'Images'
             # Plotting grid of images
-            fig = plt.figure(figsize=(6,3))
-            subfig = fig.subfigures(1, 2, wspace=0.2)
+            fig = plt.figure(figsize=(5,2.5))
+            subfig = fig.subfigures(1, 2, wspace=0.1)
             
-            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_num, title='Real Imgs')
-            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs')
+            vmin = np.min(np.concatenate([real_imgs_subset, gen_imgs_subset]))
+            vmax = np.max(np.concatenate([real_imgs_subset, gen_imgs_subset]))
+            
+            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_num, title='Real Imgs', vmin=vmin, vmax=vmax)
+            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs', vmin=vmin, vmax=vmax)
             
             # Save plot
             plt.savefig(f'{self.plot_save_path}/gen-imgs_{n}_{self.model_name}.{self.image_file_format}')
@@ -312,13 +315,14 @@ class blobTester(testDataset):
     def stack(self):
         """Stack images"""
         'Stack'
-        print('stacking...')
+        print('stacking...', end='   ')
         stacked_real_img = stack_imgs(self.real_imgs_subset)
         stacked_gen_img = stack_imgs(self.all_gen_imgs_subset[-1]) # Only stack for last model
-
+        print('complete')
+        
         'Plot image'
         # Create figure
-        fig, axs = plt.subplots(1, 2)
+        fig, axs = plt.subplots(1, 2, figsize=(4,3))
 
         # Plot
         plot_stacked_imgs(axs[0], stacked_real_img, title=f"real\n{self.subset_sample_num} samples")
@@ -334,7 +338,7 @@ class blobTester(testDataset):
         
         'Stacked image histogram'
         # Create figure
-        fig = plt.figure()
+        fig = plt.figure(figsize=(4,3))
 
         # Plot
         plt.hist(stacked_real_img.ravel(), histtype='step', label='real', color=(self.real_color,0.8))
@@ -434,10 +438,11 @@ class blobTester(testDataset):
         """Number of blob analysis"""
         'Histogram'
         # Create figure
-        fig = plt.figure()
+        fig = plt.figure(figsize=(5,3.5))
 
         # Bins for histogram
-        bins = find_good_bins([self.real_blob_counts, *self.all_gen_blob_counts], method='arange')
+        bins = find_good_bins([self.real_blob_counts, *self.all_gen_blob_counts], method='arange',
+                              ignore_outliers=True, percentile_range=(1,99))
         
         # Plot histogram
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
@@ -471,19 +476,19 @@ class blobTester(testDataset):
 
         'Extreme number of blobs'
         # Create figure
-        fig = plt.figure(figsize=(3,5))
+        fig = plt.figure(figsize=(4,2.5))
         subfig = fig.subfigures(1, 2, wspace=0.2)
 
         # Plot
         plot_extremum_num_blobs(
             subfig[0], self.real_imgs_subset,
             self.real_blob_coords, self.real_blob_counts,
-            extremum='min', title='real'
+            k=1, extremum='min', title='real'
             )
         plot_extremum_num_blobs(
             subfig[1], self.all_gen_imgs_subset[-1],
             self.all_gen_blob_coords[-1], self.all_gen_blob_counts[-1],
-            extremum='min', title='generated'
+            k=1, extremum='min', title='generated'
             )  # Only perform for last model
 
         # Format
@@ -495,19 +500,19 @@ class blobTester(testDataset):
         plt.close()
 
         # Create figure
-        fig = plt.figure(figsize=(3,5))
+        fig = plt.figure(figsize=(4,2.5))
         subfig = fig.subfigures(1, 2, wspace=0.2)
 
         # Plot
         plot_extremum_num_blobs(
             subfig[0], self.real_imgs_subset,
             self.real_blob_coords, self.real_blob_counts,
-            extremum='max', title='real'
+            k=1, extremum='max', title='real'
             )
         plot_extremum_num_blobs(
             subfig[1], self.all_gen_imgs_subset[-1],
             self.all_gen_blob_coords[-1], self.all_gen_blob_counts[-1],
-            extremum='max', title='generated'
+            k=1, extremum='max', title='generated'
             )  
 
         # Format
@@ -517,16 +522,70 @@ class blobTester(testDataset):
         # Save
         plt.savefig(f'{self.plot_save_path}/max-peak_{self.model_name}.{self.image_file_format}')
         plt.close()
+        
+    def power_spec(self):
+        'Power spectrum'
+        print('Calculating power spectrum...')
+        
+        # Get Cls
+        image_size_angular = 1
+        delta_ell = 500
+        max_ell = 15000
+        ell2d = ell_coordinates(self.image_size, image_size_angular/self.image_size)
+        
+        real_cl, real_err, bins = power_spectrum_stack(self.real_imgs_subset, 
+                                                       delta_ell, max_ell, ell2d, image_size_angular,
+                                                       progress_bar=True)
+        all_gen_cl, all_gen_err, _ = map(
+            list, zip(*[power_spectrum_stack(
+                samples, 
+                delta_ell, max_ell, ell2d, image_size_angular,
+                progress_bar=True
+                ) for samples in self.all_gen_imgs_subset])
+        )
+        
+        # Create figure
+        fig, ax = plt.subplots(figsize=(4,3))
+        
+        # Plot
+        plot_smooth_line(
+            ax, real_cl, bins, real_err, 
+            color=((self.real_color,1), (self.real_color,0.5)),
+            label='real', scale='semilog_x', errorbars=False
+        )
+         
+        for i, (cl, err) in enumerate(zip(all_gen_cl, all_gen_err)):
+            plot_smooth_line(
+                ax, cl, bins, err, 
+                color=((self.gen_color,self.line_alphas[i]), (self.gen_color,0.5)),
+                linewidth=set_linewidth(i, len(all_gen_cl)),
+                label=f'epoch {self.model_epochs[i]}', errorbars=False, # self.select_last_epoch[i]
+                scale='semilog_x'
+            )
+        
+        # Format
+        fig.suptitle(f"Power spectrum, {self.subset_sample_num} samples")
+        plt.xlabel(r'$l$')
+        plt.ylabel(r'$C_l$')
+        plt.xlim(np.min(bins),np.max(bins))
+        plt.tight_layout()
+        
+        # plt.legend(loc='lower right')
+
+        # Save
+        plt.savefig(f'{self.plot_save_path}/power-spec_{self.model_name}.{self.image_file_format}')
+        plt.close() 
 
     def flux_stats(self):
         'Total flux histogram'
         # Find flux
-        print("calculating total flux...")
+        print("calculating total flux...", end="   ")
         real_img_fluxes = find_total_fluxes(self.real_imgs_subset)
         all_gen_img_fluxes = [find_total_fluxes(subset) for subset in self.all_gen_imgs_subset]
-
+        print('complete')
+        
         # Create figure
-        fig = plt.figure()
+        fig = plt.figure(figsize=(4,3))
 
         # Bins for histogram
         bins = find_good_bins([real_img_fluxes, *all_gen_img_fluxes], method='linspace', num_bins=20, ignore_outliers=True)
@@ -535,7 +594,8 @@ class blobTester(testDataset):
         for i, fluxes in enumerate(all_gen_img_fluxes):
             plt.hist(fluxes, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}', 
-                    color=(self.gen_color,self.hist_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                    color=(self.gen_color,self.hist_alphas[i]), 
+                    linewidth=set_linewidth(i, len(self.models)),
                     fill=self.select_last_epoch[i]
                     )
         plt.hist(real_img_fluxes, bins=bins,
@@ -555,8 +615,10 @@ class blobTester(testDataset):
     def two_point_correlation(self):
         """2-point correlation analysis"""
         print('calculating 2 point correlation...')
-        real_corrs, real_errs, edges = two_point_stack(self.real_blob_coords, self.image_size, bins=20, progress_bar=True,
-                                                       logscale=True if self.clustering is not None else False)
+        real_corrs, real_errs, edges = two_point_stack(
+            self.real_blob_coords, self.image_size, bins=20, progress_bar=True,
+            logscale=True if self.clustering is not None else False
+            )
         all_gen_corrs, all_gen_errs, _ = map(
             list, zip(*[two_point_stack(
                 blob_coords, self.image_size, bins=20, progress_bar=True,
@@ -565,30 +627,38 @@ class blobTester(testDataset):
         )
 
         # Create figure
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(5,3.5))
+        
         # Plot
-        plot_two_point(
-            ax, real_corrs, edges, real_errs, 
+        if self.clustering is None:
+            n = 10
+            lin = np.linspace(-10, edges[-1]+10, n)
+            plt.plot(lin, [0]*n, color=('black', 0.3), linestyle='dashed')
+        
+        plot_smooth_line(
+            ax, real_corrs, midpoints_of_bins(edges), real_errs, 
             color=((self.real_color,1), (self.real_color,0.5)),
             label='real',
-            logscale=True if self.clustering is not None else False
+            scale='log' if self.clustering is not None else 'linear'
         )
          
         for i, (corrs, errs) in enumerate(zip(all_gen_corrs, all_gen_errs)):
-            plot_two_point(
-                ax, corrs, edges, errs, 
-                color=((self.gen_color,self.line_alphas[i]), (self.gen_color,0.5)), linewidth=set_linewidth(i, len(all_gen_corrs)),
+            plot_smooth_line(
+                ax, corrs, midpoints_of_bins(edges), errs, 
+                color=((self.gen_color,self.line_alphas[i]), (self.gen_color,0.5)), 
+                linewidth=set_linewidth(i, len(all_gen_corrs)),
                 label=f'epoch {self.model_epochs[i]}', errorbars=self.select_last_epoch[i],
-                logscale=True if self.clustering is not None else False
+                scale='log' if self.clustering is not None else 'linear'
             )
         
         # Format
         fig.suptitle(f"2-point correlation, {self.subset_sample_num} samples")
         plt.xlabel('pair distance')
         plt.ylabel('2-point correlation')
+        plt.xlim(0, edges[-1]+1)
         plt.tight_layout()
         
-        plt.legend(loc='lower right')
+        plt.legend()
 
         # Save
         plt.savefig(f'{self.plot_save_path}/2-pt-corr_{self.model_name}.{self.image_file_format}')
@@ -602,7 +672,7 @@ class blobTester(testDataset):
         gen_imgs_subset_sh = self.all_gen_imgs_subset[-1][:histogram_num]
 
         # Create figure
-        fig, axs = plt.subplots(1,2)
+        fig, axs = plt.subplots(1,2, figsize=(4,3))
 
         # Plot
         plot_pixel_histogram(axs[0], real_imgs_subset_sh, color=(self.real_color,0.5), bins=20)
@@ -624,7 +694,7 @@ class blobTester(testDataset):
         all_gen_hist_stack = [stack_histograms(subset) for subset in self.all_gen_imgs_subset]
 
         # Create figure
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(4,3))
 
         # Plot
         fill = [None, None, (self.gen_color, self.hist_alphas[-1])]
@@ -649,7 +719,7 @@ class blobTester(testDataset):
         plt.savefig(f'{self.plot_save_path}/pixel-stack-histogram_{self.model_name}.{self.image_file_format}')
         plt.close()
     
-    def test(self, count=True):
+    def test(self, count=False):
         """Run all testing methods"""
         self.images()
         self.stack()
@@ -662,6 +732,7 @@ class blobTester(testDataset):
                 self.save_counts()
             self.blob_num_stats()
             self.two_point_correlation()
+        self.power_spec()
         self.flux_stats()
         self.pixel_stats()
         
