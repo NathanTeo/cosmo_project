@@ -9,6 +9,12 @@ import astropy.units as u
 from scipy.special import gamma
 import concurrent.futures
 
+def sample_power_law(a, b, p, size=1):
+    """Sample x^{-p} for a<=x<=b"""
+    r = np.random.random(size=size)*(b-a) + a
+    print(r)
+    return r**(-p)
+
 class blobDataset():
     """generate real data for training"""
     def __init__(self, **params):
@@ -19,6 +25,8 @@ class blobDataset():
         self.sample_num = params['sample_num']
         self.blob_num =  params['blob_num']
         self.num_distribution = params['num_distribution']
+        self.blob_amplitude = params['blob_amplitude']
+        self.amplitude_distribution = params['amplitude_distribution']
         self.clustering = params['clustering']
         self.pad = params['pad']
         self.noise = params['noise']
@@ -26,12 +34,13 @@ class blobDataset():
         if self.pad == 'auto':
             self.pad = self.blob_size 
         self.generation_matrix_size = self.image_size + self.pad*2
-        self.blob_amplitude = 1/self.blob_num
         
-        self.file_name = 'bn{}{}-cl{}-is{}-bs{}-sn{}-sd{}-ns{}'.format(
+        self.file_name = 'bn{}{}-cl{}-is{}-bs{}-ba{}{}-sn{}-sd{}-ns{}'.format(
             self.blob_num, self.num_distribution[0], 
             '{:.0e}_{:.0e}'.format(*self.clustering) if self.clustering is not None else '_',
-            self.image_size, self.blob_size, self.sample_num,
+            self.image_size, self.blob_size, 
+            '{:.0e}'.format(self.blob_amplitude), self.amplitude_distribution[0], 
+            self.sample_num,
             seed, self.noise
         )
         
@@ -51,11 +60,16 @@ class blobDataset():
 
             return np.exp(-0.5 * ((x-x0)**2 + (y-y0)**2) / var)
 
-    def create_blobs(self, centers):
-        """Create an image of gaussian blobs"""
+    def create_blobs(self, centers, blob_amplitudes=None):
+        """Create an image of gaussian blobs""" ### Add in blob_amplitudes, if fixed - send in array of same blob amps
         if centers.shape[0]>0:
-            return np.array([normalize_2d(self.make_gaussian(coord, self.blob_size, self.generation_matrix_size))*self.blob_amplitude
-                            for coord in centers]).sum(axis=0)
+            if blob_amplitudes is None:
+                return np.array([normalize_2d(self.make_gaussian(coord, self.blob_size, self.generation_matrix_size))*self.blob_amplitude
+                                for coord in centers]).sum(axis=0)
+            else:
+                return np.array([normalize_2d(self.make_gaussian(coord, self.blob_size, self.generation_matrix_size))*blob_amplitude
+                    for coord, blob_amplitude in zip(centers, blob_amplitudes)]).sum(axis=0)
+            
         else:
             return np.zeros((self.generation_matrix_size, self.generation_matrix_size))
     
@@ -63,7 +77,15 @@ class blobDataset():
         # Generate points for centers
         centers = self.center_generator.generate(self.num_distribution, self.clustering)
         count = centers.shape[0]
-        sample = self.create_blobs(centers)
+        
+        # Sample amplitudes
+        if self.amplitude_distribution=='delta':
+            amps = None
+        elif self.amplitude_distribution=='power':
+            amps = sample_power_law(0.1, 1, 1, count)*self.blob_amplitude # minimum of 1 maximum of 10
+        
+        # Create blobs
+        sample = self.create_blobs(centers, amps)
         
         # Add noise
         if self.noise!=0:
@@ -75,7 +97,7 @@ class blobDataset():
         if self.pad != 0:
             sample = sample[self.pad:-self.pad,self.pad:-self.pad]
         
-        return sample, centers, count
+        return sample, centers, count, amps
     
     def realize(self, batch=1000, temp_root_path="temp", mode='single'):
         """Generate all samples"""
@@ -98,19 +120,21 @@ class blobDataset():
             samples = []
             sample_counts = []
             sample_centers = []
+            sample_amps = []
             
             # Single core
             if mode=='single':
                 for _ in tqdm(range(batch_size), desc=f'batch {i+1}/{num_of_batches}'):
                     # Realize sample
-                    sample, centers, count = self.realize_batch(self.center_generator)
+                    sample, centers, count, amps = self.realize_batch(self.center_generator)
                     
                     # Add sample to list
                     samples.append(sample)
                     
-                    # Counts
+                    # Log
                     sample_counts.append(count)
                     sample_centers.append(centers)
+                    sample_amps.append(amps)
 
             # Count using multi core    
             if mode=='multi':
@@ -125,21 +149,24 @@ class blobDataset():
                         samples.append(result[0])
                         sample_centers.append(result[1])
                         sample_counts.append(result[2])
+                        sample_amps.append(result[3])
             
             # Save samples in temp
             np.savez(f'{temp_path}/temp{i}', 
                      samples=samples, 
                      centers=np.array(sample_centers, dtype=object), 
-                     counts=sample_counts)
+                     counts=sample_counts,
+                     amps=np.array(sample_amps, dtype=object))
             
         # Combine batches into single dataset
         print('combining dataset...')
-        self.samples, self.sample_centers, self.sample_counts = [], [], []
+        self.samples, self.sample_centers, self.sample_counts, self.sample_amps = [], [], [], []
         for file in tqdm(sorted(os.listdir(temp_path))):
             with np.load(f'{temp_path}/{file}', allow_pickle=True) as batch:
                 self.samples.extend(batch['samples'])
                 self.sample_centers.extend(list(batch['centers']))
-                self.sample_counts.extend(batch['counts'])    
+                self.sample_counts.extend(batch['counts'])
+                self.sample_amps.extend(list(batch['amps']))
             
         # Delete temporary folder
         shutil.rmtree(temp_path)
@@ -159,16 +186,28 @@ class blobDataset():
         plt.savefig(f'{path}/sample_{self.file_name}.{file_type}')
         plt.close()
     
-    def plot_distribution(self, path, file_type='png'):
+    def plot_count_distribution(self, path, file_type='png'):
         """Plot distribution"""
         bins = np.arange(np.min(self.sample_counts)-1, np.max(self.sample_counts)+1, 1)
         
         fig = plt.figure()
-        fig.suptitle(f'num of blobs: {self.blob_num} | image size: {self.image_size} | blob size: {self.blob_size}')
+        fig.suptitle(f'Histogram of blob counts in the dataset')
         plt.hist(self.sample_counts, bins=bins)
         plt.xlabel('blob counts')
         plt.ylabel('image counts')
-        plt.savefig(f'{path}/distr_{self.file_name}.{file_type}')
+        plt.savefig(f'{path}/count_distr_{self.file_name}.{file_type}')
+        plt.close()
+        
+    def plot_amplitude_distribution(self, path, file_type='png'):
+        """Plot distribution"""
+        bins = np.linspace(np.min(self.sample_amps)-1, np.max(self.amps)+1, 40)
+        
+        fig = plt.figure()
+        fig.suptitle(f'Histogram of all blob amplitudes in the dataset')
+        plt.hist(np.concatenate(self.sample_amps), bins=bins)
+        plt.xlabel('blob amplitudes')
+        plt.ylabel('image counts')
+        plt.savefig(f'{path}/amp_distr_{self.file_name}.{file_type}')
         plt.close()
         
     def _normalize_2d(self, matrix): 
@@ -181,7 +220,7 @@ class centerGenerator():
         self.image_size = image_size
 
     def unclustered_centers(self, num_distribution):
-        if num_distribution=='uniform':
+        if num_distribution=='delta':
             # Create sample
             self.centers = np.random.rand(self.num_centers,2)*self.image_size - 0.5
         elif num_distribution=='poisson':
@@ -314,7 +353,7 @@ class centerGenerator():
         meangrid = gendens2d(nx,ny,lxrad,lyrad,pkin,wingrid)
         
         # Sample number grid
-        if num_distribution=='uniform':
+        if num_distribution=='delta':
             # Ravel
             mean_ravel = meangrid.ravel()/float(meangrid.sum())
 

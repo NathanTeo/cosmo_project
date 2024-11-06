@@ -25,7 +25,9 @@ def run_training(training_params, generation_params, testing_params, training_re
         lr = training_params['lr']
 
         blob_num = generation_params['blob_num']
-        num_distribution = generation_params['distribution']
+        num_distribution = generation_params['num_distribution']
+        blob_amplitude = generation_params['blob_amplitude']
+        amplitude_distribution = generation_params['amplitude_distribution']
         clustering = generation_params['clustering']
         generation_seed = generation_params['seed']
         blob_size = generation_params['blob_size']
@@ -40,18 +42,18 @@ def run_training(training_params, generation_params, testing_params, training_re
         max_epochs = training_params['max_epochs']
         avail_gpus = training_params['avail_gpus']
 
-
         if 'GAN' in model_version:
                 gen_version = training_params['generator_version']
                 dis_version = training_params['discriminator_version']
                 
-                model_name = '{}-g{}-d{}-bn{}{}-cl{}-bs{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
+                model_name = '{}-g{}-d{}-bn{}{}-cl{}-bs{}-ba{}{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
                         model_version,
                         gen_version, dis_version,
                         blob_num, num_distribution[0],
                         '{:.0e}_{:.0e}'.format(*clustering) if clustering is not None else '_',
-                        blob_size, "{:.0e}".format(sample_num), image_size,
-                        training_seed, "{:.0e}".format(lr),
+                        blob_size, '{:.0e}'.format(blob_amplitude), amplitude_distribution[0], 
+                        "{:.0g}".format(sample_num), image_size,
+                        training_seed, "{:.0g}".format(lr),
                         list(network_params.values()),
                         str(training_noise[1])[2:] if training_noise is not None else '_'
                 )
@@ -59,28 +61,32 @@ def run_training(training_params, generation_params, testing_params, training_re
         elif 'Diffusion' in model_version:
                 unet_version = training_params['unet_version']
                 
-                model_name = '{}-n{}-bn{}{}-cl{}-bs{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
+                model_name = '{}-n{}-bn{}{}-cl{}-bs{}-ba{}{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
                         model_version,
                         unet_version,
                         blob_num, num_distribution[0],
                         '{:.0e}_{:.0e}'.format(*clustering) if clustering is not None else '_',
-                        blob_size, "{:.0g}".format(sample_num), image_size,
+                        blob_size, '{:.0e}'.format(blob_amplitude), amplitude_distribution[0], 
+                        "{:.0g}".format(sample_num), image_size,
                         training_seed, "{:.0g}".format(lr),
-                        list(network_params.values()), 
+                        list(network_params.values()),
                         str(training_noise[1])[2:] if training_noise is not None else '_'
-                )       
+                )
                 
                 
         """Paths"""
         root_path = training_params['root_path']
         data_path = f'{root_path}/data'
         log_path = f'{root_path}/logs'
-        data_file_name = 'bn{}{}-cl{}-is{}-bs{}-sn{}-sd{}-ns{}.npy'.format(
-                blob_num, num_distribution[0], 
-                '{:.0e}_{:.0e}'.format(*clustering) if clustering is not None else '_',
-                image_size, blob_size, sample_num,
-                generation_seed, int(gen_noise)
+        data_file_name = 'bn{}{}-cl{}-is{}-bs{}-ba{}{}-sn{}-sd{}-ns{}'.format(
+            blob_num, num_distribution[0], 
+            '{:.0e}_{:.0e}'.format(*clustering) if clustering is not None else '_',
+            image_size, blob_size, 
+            '{:.0e}'.format(blob_amplitude), amplitude_distribution[0], 
+            sample_num,
+            generation_seed, int(gen_noise)
         )
+        
         chkpt_path = f'{root_path}/checkpoints'
         training_params['model_name'] = model_name
         

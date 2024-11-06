@@ -26,7 +26,9 @@ class testDataset():
         self.lr = training_params['lr']
 
         self.blob_num = generation_params['blob_num']
-        self.num_distribution = generation_params['distribution']
+        self.num_distribution = generation_params['num_distribution']
+        self.blob_amplitude = generation_params['blob_amplitude']
+        self.amplitude_distribution = generation_params['amplitude_distribution']
         self.clustering = generation_params['clustering']
         self.generation_seed = generation_params['seed']
         self.blob_size = generation_params['blob_size']
@@ -45,12 +47,13 @@ class testDataset():
                 gen_version = training_params['generator_version']
                 dis_version = training_params['discriminator_version']
                 
-                self.model_name = '{}-g{}-d{}-bn{}{}-cl{}-bs{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
+                self.model_name = '{}-g{}-d{}-bn{}{}-cl{}-bs{}-ba{}{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
                         self.model_version,
                         gen_version, dis_version,
                         self.blob_num, self.num_distribution[0],
                         '{:.0e}_{:.0e}'.format(*self.clustering) if self.clustering is not None else '_',
-                        self.blob_size, "{:.0e}".format(self.real_sample_num), self.image_size,
+                        self.blob_size, '{:.0e}'.format(self.blob_amplitude), self.amplitude_distribution[0], 
+                        "{:.0e}".format(self.real_sample_num), self.image_size,
                         self.training_seed, "{:.0e}".format(self.lr),
                         list(network_params.values()),
                         str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
@@ -59,16 +62,17 @@ class testDataset():
         elif 'Diffusion' in self.model_version:
                 unet_version = training_params['unet_version']
                 
-                self.model_name = '{}-n{}-bn{}{}-cl{}-bs{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
+                self.model_name = '{}-n{}-bn{}{}-cl{}-bs{}-ba{}{}-sn{}-is{}-ts{}-lr{}-net{}-ns{}'.format(
                         self.model_version,
                         unet_version,
                         self.blob_num, self.num_distribution[0],
                         '{:.0e}_{:.0e}'.format(*self.clustering) if self.clustering is not None else '_',
-                        self.blob_size, "{:.0g}".format(self.real_sample_num), self.image_size,
+                        self.blob_size, '{:.0e}'.format(self.blob_amplitude), self.amplitude_distribution[0], 
+                        "{:.0g}".format(self.real_sample_num), self.image_size,
                         self.training_seed, "{:.0g}".format(self.lr),
                         list(network_params.values()),
                         str(self.training_noise[1])[2:] if self.training_noise is not None else '_'
-                )  
+                )
                 
         self.training_params['model_name'] = self.model_name
         
@@ -82,10 +86,12 @@ class testDataset():
         """Paths"""
         self.root_path = training_params['root_path']
         self.data_path = f'{self.root_path}/data'
-        self.data_file_name = 'bn{}{}-cl{}-is{}-bs{}-sn{}-sd{}-ns{}.npy'.format(
+        self.data_file_name = 'bn{}{}-cl{}-is{}-bs{}-ba{}{}-sn{}-sd{}-ns{}'.format(
             self.blob_num, self.num_distribution[0], 
             '{:.0e}_{:.0e}'.format(*self.clustering) if self.clustering is not None else '_',
-            self.image_size, self.blob_size, self.real_sample_num,
+            self.image_size, self.blob_size, 
+            '{:.0e}'.format(self.blob_amplitude), self.amplitude_distribution[0], 
+            self.real_sample_num,
             self.generation_seed, int(self.gen_noise)
         )
         self.chkpt_path = f'{self.root_path}/checkpoints'
@@ -122,9 +128,9 @@ class testDataset():
         
     def load_data(self, DataModule):
         """Load real data"""
-        self.real_imgs = np.load(f'{self.data_path}/{self.data_file_name}')[:self.subset_sample_num]
+        self.real_imgs = np.load(f'{self.data_path}/{self.data_file_name}.npy')[:self.subset_sample_num]
         self.data = DataModule(
-            data_file=f'{self.data_path}/{self.data_file_name}',
+            data_file=f'{self.data_path}/{self.data_file_name}.npy',
             batch_size=self.batch_size, num_workers=self.num_workers,
             truncate_ratio=self.subset_sample_num/self.real_sample_num
             )
@@ -222,8 +228,6 @@ class blobTester(testDataset):
             self.__dict__ = args[0].__dict__.copy()
         else:
             super().__init__(*args)
-        
-        self.blob_amplitude = 1/self.blob_num
     
     def images(self):
         """Plot generated images - grid of images, marginal sums, blob coordinates"""
