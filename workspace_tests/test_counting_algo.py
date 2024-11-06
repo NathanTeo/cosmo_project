@@ -5,12 +5,12 @@ import numpy as np
 generation_params = {
         'blob_num': 10,
         'distribution': 'poisson',
-        'clustered': None,
+        'clustering': None,
         'blob_size': 5,
-        'image_size': 28,
+        'image_size': 32,
         'sample_num': 50000,
         'seed': 70,
-        'noise': False
+        'noise': 0
         }
 
 blob_threshold_rel = 0.7
@@ -55,7 +55,7 @@ if __name__=="__main__":
     from cosmo_project.code_model.testers.eval_utils import *
 
     # Count with fitting
-    file_counts_path = f'{project_path}/{save_folder}/counts-{sample_size}_{data_file_name}'
+    file_counts_path = f'{project_path}/{save_folder}/counts-{sample_size}_{data_file_name}.npz'
     if os.path.exists(file_counts_path):
         print('previous counts found')
         
@@ -84,16 +84,17 @@ if __name__=="__main__":
         )
         
     # Plot
-    all_counts = np.concatenate((true_counts, algo_counts_1, algo_counts_2))
+    all_counts = np.concatenate((true_counts, algo_counts_2))
     bins = np.arange(np.min(all_counts)-1.5, np.max(all_counts)+1.5, 1)
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=(5,3.5))
     fig.suptitle(f'samples: {sample_size}')
     plt.hist(true_counts, bins=bins, color='black', histtype='step', label='true')
-    plt.hist(algo_counts_1, bins=bins, color=('orange', 0.7), histtype='step', label='algorithm-old')
-    plt.hist(algo_counts_2, bins=bins, color=('red', 0.7), histtype='step', label='algorithm-new')
+    # plt.hist(algo_counts_1, bins=bins, color=('orange', 0.7), histtype='step', label='algorithm-old')
+    plt.hist(algo_counts_2, bins=bins, color=('red', 0.9), linestyle='dashed', histtype='step', label='algorithm')
     plt.xlabel('blob counts')
     plt.ylabel('image counts')
     plt.legend()
+    plt.tight_layout()
     plt.savefig(f'{project_path}/{save_folder}/counting-algorithm-check-{sample_size}_{data_file_name}')
     plt.close()
