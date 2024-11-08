@@ -1,3 +1,9 @@
+"""
+Author: Nathan Teo
+
+This script tests generation of clustered coordinates with the two-point correlation
+"""
+
 import numpy as np
 from scipy.special import gamma
 import matplotlib.pyplot as plt

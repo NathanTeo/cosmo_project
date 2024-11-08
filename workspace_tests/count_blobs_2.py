@@ -1,3 +1,9 @@
+"""
+Author: Nathan Teo
+
+This script tests the fitting blob counting algorithm 
+"""
+
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt

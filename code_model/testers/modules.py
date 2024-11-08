@@ -1,3 +1,9 @@
+"""
+Author: Nathan Teo
+
+This script contains classes that loads, tests, and plots for model evaluation
+"""
+
 import os
 
 import numpy as np
@@ -362,7 +368,7 @@ class blobTester(testDataset):
         blob_threshold_rel = self.counting_params[1]
 
         # Real
-        self.real_blob_coords, self.real_blob_nums, self.real_peak_vals = imgs_blob_finder(
+        self.real_blob_coords, self.real_blob_nums, self.real_peak_vals = samples_blob_counter_fast(
             self.real_imgs_subset, 
             blob_size=self.blob_size, min_peak_threshold=(1/self.blob_num)*blob_threshold_rel,
             filter_sd=filter_sd,
@@ -372,7 +378,7 @@ class blobTester(testDataset):
 
         # Generated
         self.all_gen_blob_coords, self.all_gen_blob_nums, self.all_gen_peak_vals = map(
-            list, zip(*[imgs_blob_finder(
+            list, zip(*[samples_blob_counter_fast(
                 subset, 
                 blob_size=self.blob_size, min_peak_threshold=(1/self.blob_num)*blob_threshold_rel,
                 filter_sd=filter_sd,
@@ -570,7 +576,7 @@ class blobTester(testDataset):
         plt.xlim(np.min(bins),np.max(bins))
         plt.tight_layout()
         
-        # plt.legend(loc='lower right')
+        plt.legend()
 
         # Save
         plt.savefig(f'{self.plot_save_path}/power-spec_{self.model_name}.{self.image_file_format}')

@@ -1,7 +1,7 @@
 """
 Author: Nathan Teo
 
-This script contains functions used for plotting during model testing
+This script contains functions used for model evaluation plotting in the modules.py file
 """
 
 import matplotlib.pyplot as plt

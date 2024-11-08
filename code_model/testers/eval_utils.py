@@ -1,7 +1,7 @@
 """
 Author: Nathan Teo
 
-This script contains functions useful for model evaluation
+This script contains functions and classes for model evaluation in the modules.py file
 """
 
 import numpy as np
@@ -22,17 +22,13 @@ import concurrent.futures
 """Ungrouped"""
 
 def marginal_sums(img):
-    """
-    Calculate marginal sums along x and y for sample images 
-    """
+    """Calculate marginal sums along x and y for sample images """
     y_sum = [y for y in img.sum(axis=1)]
     x_sum = [x for x in img.sum(axis=0)]
     return y_sum, x_sum
 
 def stack_imgs(imgs):
-    """
-    Stack images into single image
-    """
+    """Stack images into single image"""
     for i, sample in enumerate(imgs):
         if i == 0:
             # Add first sample image to stacked image
@@ -43,10 +39,8 @@ def stack_imgs(imgs):
     return stacked_img
 
 def stack_histograms(imgs, bins=np.arange(-0.1,1,0.05), mean=True, progress_bar=True):
-    """
-    Find the mean/total of a series of histograms.
-    Returns edges for plotting purposes. 
-    """
+    """Find the mean/total of a series of histograms.
+    Returns edges for plotting purposes."""
     if isinstance(bins, int):
         stack = np.zeros(bins)
     else:
@@ -66,9 +60,7 @@ def stack_histograms(imgs, bins=np.arange(-0.1,1,0.05), mean=True, progress_bar=
         return stack, edges
     
 def normalize_2d(matrix):
-    """
-    Normalized entire matrix to minimum and maximum of the matrix
-    """
+    """Normalize 2d matrix to [0,1]"""
     return (matrix-np.min(matrix))/(np.max(matrix)-np.min(matrix))
 
 def find_total_fluxes(samples):
@@ -124,11 +116,11 @@ def super_gaussian_window(N):
     return np.outer(general_gaussian(N,6,N*0.45-1),general_gaussian(N,6,N*0.45-1))
 
 def tukey_window(N, alpha=0.5):
-    """Makes a tucker window for apodizing to avoid edges effects in the 2d FFT"""
+    """Makes a tuckey window for apodizing to avoid edges effects in the 2d FFT"""
     return np.outer(tukey(N, alpha), tukey(N, alpha))
 
 def apodize(sample, method='tukey'):
-    """Apodize a sample"""
+    """Apodize a sample, supports cosine, supergaussian and tukey windows"""
     if method=='cosine':
         return cosine_window(sample.shape[0]) * sample
 
@@ -147,7 +139,7 @@ def fourier_transform_samples(samples, progress_bar=False):
             for sample in tqdm(samples, disable=not progress_bar)]
 
 def ell_coordinates(image_size_pixel, pixel_size_deg):
-    """make a 2d ell coordinate system""" 
+    """Make a 2d ell coordinate system for a FFT sample""" 
     ones = np.ones(image_size_pixel)
     inds  = (np.arange(image_size_pixel)+.5 - image_size_pixel/2.) /(image_size_pixel-1.)
     kX = np.outer(ones,inds) / (pixel_size_deg * np.pi/180.)
@@ -158,20 +150,22 @@ def ell_coordinates(image_size_pixel, pixel_size_deg):
     
 def power_spectrum(Map1, Map2, delta_ell, ell_max, ell2d=None, image_size_angular=1, 
                    taper=True, detrend='constant'):
-    """calcualtes the power spectrum of a 2d map by FFTing, squaring, and azimuthally averaging"""
+    """Calcualtes the power spectrum of a 2d map by FFTing, squaring, and azimuthally averaging"""
     image_size_pixel = Map1.shape[0]
     pixel_size_angular = image_size_angular / image_size_pixel
     
-    if ell2d is None: # Find ell coordinates if not provided
-        # make a 2d ell coordinate system 
+    # Option to find ell2d outside this function is added to avoid repeating this initialization 
+    # for multiple samples
+    if ell2d is None: # Find ell coordinates if not provided 
+        # Make a 2d ell coordinate system 
         ell2d = ell_coordinates(image_size_pixel, pixel_size_angular)
     
-    # make an array to hold the power spectrum results
+    # Make an array to hold the power spectrum results
     N_bins = int(ell_max/delta_ell)
     ell_array = np.arange(N_bins)
     CL_array = np.zeros(N_bins)
     
-    # get the 2d fourier transform of the map
+    # Get the 2d fourier transform of the map
     if detrend=='constant':
         Map1 = Map1 - np.mean(Map1)
         Map2 = Map2 - np.mean(Map2)
@@ -182,25 +176,28 @@ def power_spectrum(Map1, Map2, delta_ell, ell_max, ell2d=None, image_size_angula
     FMap2 = np.fft.ifft2(np.fft.fftshift(Map2))
     PSMap = np.fft.fftshift(np.real(np.conj(FMap1) * FMap2))
     
-    # fill out the spectra
+    # Fill out the spectra
     for i in range(N_bins):
         ell_array[i] = (i + 0.5) * delta_ell
         idxs_in_bin = ((ell2d >= (i* delta_ell)) * (ell2d < ((i+1)* delta_ell))).nonzero()
         CL_array[i] = np.mean(PSMap[idxs_in_bin])
 
-    # return the power spectrum and ell bins
+    # Return the power spectrum and ell bins
     return ell_array, CL_array * np.sqrt(pixel_size_angular * np.pi/180.) * 2.
 
 def power_spectrum_stack(samples, 
                          delta_ell=500, ell_max=15000, ell2d=None, image_size_angular=1, 
                          progress_bar=False):
+    """Calculate the mean power spectrum and variance given a set of samples"""
+    # Find power spectrum of samples
     cls = []   
     for sample in tqdm(samples, disable=not progress_bar):
         bins, cl = power_spectrum(sample, sample, delta_ell, ell_max, ell2d, image_size_angular, taper=True)
         cls.append(cl)
     
+    # Find mean and std dev
     mean = np.mean(cls, axis=0)
-    errs = np.std(cls, axis=0, ddof=1) # ddof=1 for sample estimate of popln
+    errs = np.std(cls, axis=0, ddof=1) # ddof=1 for sample estimate of popln std dev
     
     return mean, errs, bins
 
@@ -238,9 +235,9 @@ def two_point_stack(samples, image_size, bins=10, bootstrap=True, progress_bar=F
         all_errs.append(errs)
         
     # Calculate mean, ignoring nan values in corr
-    corrs = np.nanmean(all_corrs, axis=0) # is nanmean correct here?
-    errs = np.nanstd(all_corrs, axis=0, ddof=1) # ddof=1 for sample estimate of popln
-    '''
+    corrs = np.nanmean(all_corrs, axis=0)
+    errs = np.nanstd(all_corrs, axis=0, ddof=1) # ddof=1 for sample estimate of popln std dev
+    ''' Don't use the bootstrap errors
     nonnan_counts = np.count_nonzero(~np.isnan(all_corrs), axis=0)
     all_errs = np.where(np.isnan(all_corrs), np.nan, all_errs)
     errs = np.sqrt(np.nansum(((1/nonnan_counts)*np.array(all_errs))**2, axis=0)) if bootstrap else None
@@ -250,11 +247,8 @@ def two_point_stack(samples, image_size, bins=10, bootstrap=True, progress_bar=F
 
 
 """Counting"""
-
 def create_circular_mask(h, w, center, radius=None):
-    """
-    Creates a circular mask on an image of size (h,w) at a specified coordinate
-    """
+    """Creates a circular mask on an image of size (h,w) at a specified coordinate"""
     if radius is None: # use the smallest distance between the center and image walls
         radius = min(center[0], center[1], w-center[0], h-center[1])
 
@@ -265,10 +259,7 @@ def create_circular_mask(h, w, center, radius=None):
     return mask
 
 def gaussian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=20):
-    """
-    Gaussian decomposition on a single image for blob counting and blob coordinates
-    """
-
+    """Gaussian decomposition on a single image for blob counting and blob coordinates"""
     # Initiate variables
     img_decomp = img.copy()
     peak_coords = []
@@ -315,10 +306,8 @@ def gaussian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=20
         
     return peak_coords, peak_vals
 
-def imgs_blob_finder(imgs, blob_size, min_peak_threshold, max_iters=20, filter_sd=None, progress_bar=True):
-    """
-    Return coordinates of blobs and the corresponding peak values for an array of images
-    """
+def samples_blob_counter_fast(imgs, blob_size, min_peak_threshold, max_iters=20, filter_sd=None, progress_bar=True):
+    """Return coordinates of blobs and the corresponding peak values for an array of images"""
     blob_coords = []
     blob_nums = []
     peak_vals = []
@@ -337,9 +326,7 @@ def imgs_blob_finder(imgs, blob_size, min_peak_threshold, max_iters=20, filter_s
     return blob_coords, blob_nums, peak_vals
 
 def count_blobs_from_peaks(imgs_peak_vals, generation_blob_number):
-    """
-    Find the counts for each peak and the total number of peaks for a series of images
-    """
+    """Find the counts for each peak and the total number of peaks for a series of images"""
     imgs_peak_counts = []
     imgs_total_blob_counts = []
     
@@ -382,7 +369,7 @@ def argSublist(list_, sub_list):
     return indexes
 
 def find_local_min(y, x, nonnegative=True):
-    """Only returns first local minima found"""
+    """Find first local minima found in a list"""
     # Sort by x without duplicates, taking minimum of y for duplicates
     sorted_x, idxs = np.unique(x, return_inverse=True)
     sorted_y = np.full(len(sorted_x), None)
@@ -408,7 +395,9 @@ def find_local_min(y, x, nonnegative=True):
     return None
 
 def find_dist_to_next_consec(x, val, direction=1):
-    """Find nearest consecutive number in list starting from a specific value"""
+    """Find nearest consecutive number not in a list, 
+    starting from a specific value and going in a specified direction
+    eg. x=[5,7,6,0] val=5, direction=1 => 8"""
     if val not in x:
       return None
 
@@ -433,14 +422,10 @@ def find_dist_to_next_consec(x, val, direction=1):
     
 
 class blobCounter():
-    """
-    Counts the number of blobs for each sample given a set of samples
-    """
-    
+    """Counts the number of blobs for each sample given a set of samples
+    Blobs on samples must have the same amplitude"""
     def __init__(self, blob_size, blob_amplitude, jit=0.5, error_scaling=1e7):
-        """
-        Initialize params
-        """
+        """Initialize params"""
         self.blob_size = blob_size
         self.blob_amplitude = blob_amplitude
         self.jit = jit
@@ -448,9 +433,7 @@ class blobCounter():
         
     
     def load_samples(self, samples):
-        """
-        Loads samples and initialize sample params
-        """
+        """Loads samples and initialize sample params"""
         self.samples = samples      
         self.image_size = samples[0].shape[0]
         self.sample_size = len(samples)
@@ -459,9 +442,7 @@ class blobCounter():
         self.single_blob_l1, self.single_blob_l2 = self._single_blob_error()
  
     def _make_gaussian(self, center, var, image_size):
-        """
-        Make a square gaussian kernel
-        """
+        """Make a 2D symmetric gaussian"""
         x = np.arange(0, image_size, 1, float)
         y = x[:,np.newaxis]
 
@@ -471,9 +452,7 @@ class blobCounter():
         return np.exp(-0.5 * ((x-x0)**2 + (y-y0)**2) / var)
 
     def _create_blobs(self, centers):
-        """
-        Create a sample of gaussian blobs
-        """
+        """Create a sample of gaussian blobs"""
         if len(centers)==0: # Zero case
             return np.zeros((self.image_size, self.image_size))
         else:
@@ -481,9 +460,7 @@ class blobCounter():
                             for coord in centers]).sum(axis=0)
 
     def plot_fit(self, sample, centers):
-        """
-        Plot the best fit and the residual
-        """
+        """Plot the best fit and the residual"""
         fig, axs = plt.subplots(1, 2, figsize=(8, 4))
 
         y, x = zip(*centers)
@@ -518,9 +495,7 @@ class blobCounter():
         return l1, l2
 
     def find_guess(self, sample, rel_peak_threshold=0.8, max_iters=500):
-        """
-        Find an initial guess using gaussian decomposition
-        """
+        """Find an initial guess using gaussian decomposition"""
         img_decomp = sample.copy()
         peak_coords = []
         peak_counts = []
@@ -561,364 +536,6 @@ class blobCounter():
             guess = np.array(guess).clip(*self.bounds)
 
         return guess
-    
-    def minimize_objective(self,
-        guess, sample, size, amplitude,
-        method='SLSQP',
-        plot_progress=False
-        ):
-        """
-        Minimize the objective function
-        """
-        
-        def fit_objective(*args):
-            """
-            Function to minimize for fitting gaussian blobs
-            """
-            # args (centers, img, size, amplitude), the centers must be in format (y0, y1, ... , x0, x1, ...)
-            centers = (args[0][:int(len(args[0])/2)], args[0][int(len(args[0])/2):])
-            centers = list(zip(*centers))
-            img = args[1]
-            size = args[2]
-            amplitude = args[3]
-            image_size = img.shape[0]
-
-            # Grid for gaussian blob
-            blobs = create_blobs(centers, image_size, size, amplitude)
-
-            # Calculate error
-            error = mse(blobs, img)
-
-            return error*1e7
-        
-        # Print blob fitting
-        if plot_progress:
-            print(f'fitting for {len(guess)} blobs...', end=' ')
-
-        minimize_start = time.time()
-
-        # Sort for constraints
-        guess = guess[guess[:, 0].argsort()]
-
-        # Reshape centers guess to be [y0, y1, ..., x0, x1, ...]
-        guess_transfm = np.concatenate(list(zip(*guess)))
-
-        # Contraints and bounds
-        n = len(guess)
-        D = np.eye(n) - np.eye(n, k=-1)
-        cons = [{'type': 'ineq', 'fun': lambda x: D @ x[:n]}]
-
-        bnds = np.array([self.bounds for _ in guess_transfm])
-
-        # Minimize
-        result = minimize(fit_objective, guess_transfm, args=(sample, size, amplitude),
-                            method=method, bounds=bnds, constraints=cons)
-
-        # Reshape centers fit to be [(y0, x0), (y1, x1), ...]
-        fit = (result.x[:int(len(result.x)/2)], result.x[int(len(result.x)/2):])
-        fit = list(zip(*fit))
-
-        minimize_end = time.time()
-        if plot_progress:
-            print('{0:.4f}s'.format(minimize_end-minimize_start))
-
-        if plot_progress:
-            self.plot_fit(sample, fit)
-            print(result)
-
-        return fit, result.fun
-
-    def add_guess(self, residual, guess):
-        """"
-        Add single guess
-        """
-        # New guess is put at location with the largest error
-        new_guess = np.unravel_index(residual.argmax(), residual.shape)
-        return np.append(guess, [new_guess], axis=0)
-
-    def remove_guess(self, residual, guess):
-        """
-        Remove single guess
-        """
-        min = np.unravel_index(residual.argmin(), residual.shape)
-        # Nearest center to minimum residual point is removed
-        worst_guess = guess[spatial.KDTree(guess).query(min)[1]]
-        return np.delete(guess, np.where((guess==worst_guess).all(axis=1))[0], axis=0)
-
-    def remove_guesses(self, residual, guess, n):
-        """
-        Remove multiple guesses
-        """
-        # Clip to avoid index errors
-        guess_clip = guess.copy().clip(-0.5, self.image_size-0.5)
-        
-        # Get residual at center
-        residual_at_centers = np.array([residual[int(center[0]), int(center[1])] for center in guess_clip])
-        
-        # Mask to only look at values sufficiently negative
-        masked_residual = residual_at_centers[residual_at_centers<=-self.blob_amplitude*0.5]
-    
-        # Find minimum centers    
-        worst_guess_idxs = masked_residual.argsort()[:np.min([n,len(guess),len(masked_residual)])]
-        
-        return np.delete(guess, worst_guess_idxs, axis=0)
-
-    def add_guesses(self, residual, guess, n):
-        """
-        Add multiple guesses using Gaussian decomp
-        """
-        img_decomp = residual.copy()
-        peak_coords = []
-        peak_counts = []
-
-        # Gaussian decomposition
-        for _ in range(n):
-            # Find max
-            peak_coord = np.unravel_index(img_decomp.argmax(), img_decomp.shape)
-            peak_val = np.max(img_decomp)
-            
-            # Early stopping criterion
-            if peak_val<=self.blob_amplitude*0.5:
-                break
-
-            # Remove gaussian with amplitude of maximum pixel
-            x, y = np.mgrid[0:img_decomp.shape[0]:1, 0:img_decomp.shape[1]:1]
-            pos = np.dstack((x, y))
-            gaussian = normalize_2d(multivariate_normal(peak_coord, [[self.blob_size, 0], [0, self.blob_size]]).pdf(pos))*peak_val
-
-            img_decomp = np.subtract(img_decomp, gaussian)
-
-            # Record peak value and number of blobs for peak
-            peak_coords.append(peak_coord)
-            peak_counts.append(np.max([int(np.round(peak_val/self.blob_amplitude)*1.3), 1])) # NOTE: scaling value chosen arbitrarily, come back to this
-
-            # Stop when n guesses are added
-            if np.sum(peak_counts)>=n:
-                break
-        
-        # Record guess, one coordinate for each count
-        new_centers = []
-        for coord, count in zip(peak_coords, peak_counts):
-            if count==1:
-                new_centers.append(coord)
-            else:
-                # Jitter, put coord equally spaced on circle centered at maximum
-                coords = [coord for _ in range(count)]
-                coords = self._jitter(coords, 0.5)
-                new_centers.extend(coords)
-
-        new_centers = np.array(new_centers).clip(*self.bounds)
-        
-        if len(new_centers)==0: # No new added centers case
-            new_guess = guess
-        else:
-            new_guess = np.append(guess, new_centers, axis=0)
-        
-        return new_guess 
-
-    def count_recursive(self,
-        guesses, errs, counts,
-        sample, method,
-        step='error', curr_iter=0, max_iters=10, err_threshold_rel=0.3,
-        plot_progress=False
-        ):
-        """
-        Count the number of blobs on a sample recursively
-        """
-        # Initiate state
-        state = 'run'
-        if plot_progress:
-            print()
-            print(f'iteration {curr_iter}')
-        
-        # Find count
-        count = len(guesses[-1])
-        counts.append(count)
-
-        # Fit
-        if len(guesses[-1])>0:
-            fit_guess, err = self.minimize_objective(
-                np.array(guesses[-1]), sample, 
-                self.blob_size, self.blob_amplitude,
-                method=method, plot_progress=plot_progress)
-            fit_guess = np.array(fit_guess)
-            guesses[-1] = fit_guess
-            errs.append(err)
-        else: # zero case
-            fit_guess = np.empty((0,2))
-            err = mse(sample, np.zeros(self.image_size))
-            guesses[-1] = fit_guess
-            errs.append(err)
-    
-        # Stop if exceed set max iterations
-        if curr_iter > max_iters:
-            if plot_progress:
-                print('max iters reached')
-            state = 'complete'
-            return fit_guess, errs, state 
-        curr_iter += 1
-    
-        # Stop if local minimum is found
-        best_count = find_local_min(errs, counts)
-        if best_count is not None:
-            if plot_progress:
-                print('local minima found')
-            state = 'complete'
-            return guesses, errs, state
-
-        # Find residual
-        residual = sample - self._create_blobs(fit_guess)
-        residual_sum = residual.sum()
-        residual_l1 = np.abs(residual).sum()
-        residual_l1 = np.where(residual_l1>self.single_blob_l1*0.05, 
-                               residual_l1, 0) # Remove sources of small error, simple low-pass (not sure if this helps?)
-        
-        # Check error threshold
-        if residual_l1<self.single_blob_l1*err_threshold_rel: 
-            if plot_progress:
-                print('err threshold reached')
-            state = 'complete'
-            return guesses, errs, state
-
-        # Add/remove multiple guesses
-        if step=='error' and state=='run':
-            # Check condition to change step state
-            if residual_l1<self.single_blob_l1*5:
-                # Change step state
-                step='single'
-                if plot_progress:
-                    print('error threshold reached: switch to single step')
-                
-            else:
-                if residual_sum<0:
-                    # Get estimate of number of guesses to remove
-                    masked_l1 = -np.where(residual<=-self.blob_amplitude/10, residual, 0).sum()
-                    n = np.min([int(np.round(masked_l1/self.single_blob_l1)), count]) # Count cannot be negative
-                    
-                    # Remove a maximum of n guesses
-                    if n!=0: 
-                        new_guess = self.remove_guesses(residual, fit_guess, n)
-                    else: # No guesses to remove
-                        new_guess = fit_guess
-                    
-                    # Actual number of guesses removed    
-                    n_removed = len(fit_guess) - len(new_guess)
-                    
-                    # Switch to single step if only 1 guess is removed
-                    if n_removed>1:
-                        if plot_progress:
-                            print(f'removed {n_removed} guesses')
-                    else:
-                        step = 'single'
-                        if plot_progress:
-                            print('only 1 guess to remove: switch to single step')
-
-                elif residual_sum>=0:
-                    # Get estimate of number of guesses to add
-                    masked_l1 = np.where(residual>=self.blob_amplitude/10, residual, 0).sum()
-                    n = int(np.round(masked_l1/self.single_blob_l1))
-                    
-                    # Add a maximum of n guesses
-                    if n!=0: 
-                        new_guess = self.add_guesses(residual, fit_guess, n)
-                    else: # No guesses to add
-                        new_guess = fit_guess
-                        
-                    # Actual number of guesses added     
-                    n_added = len(new_guess) - len(fit_guess)
-                    
-                    # Switch to single step if only 1 guess is added
-                    if n_added>1:
-                        if plot_progress:
-                            print(f'added {n_added} guesses')
-                    else:
-                        step = 'single'
-                        if plot_progress:
-                            print('only 1 guess to add: switch to single step')
-            
-            # Fit new guess             
-            if step=='error':
-                # Append new guess
-                guesses.append(new_guess)
-                
-                # Keep fitting
-                guesses, errs, state = self.count_recursive(
-                    guesses, errs, counts, sample,
-                    method, step, curr_iter, max_iters, err_threshold_rel, 
-                    plot_progress
-                    )
-            elif step=='single':
-                # Step from lowest error
-                min_idx = np.argmin(errs)
-                fit_guess = guesses[min_idx]
-                
-                # Take first single step
-                if residual_sum<0 and count!=0:
-                    # Remove
-                    if plot_progress:
-                        print('removing 1 guess')
-                    guesses.append(self.remove_guess(residual, fit_guess))
-                    
-                    # Keep fitting
-                    guesses, errs, state = self.count_recursive(
-                        guesses, errs, counts, sample,
-                        method, step, curr_iter, max_iters, err_threshold_rel, 
-                        plot_progress
-                        )
-                elif residual_sum>=0 or count==0:
-                    # Add
-                    if plot_progress:
-                        print('adding 1 guess')
-                    guesses.append(self.add_guess(residual, fit_guess))
-                    
-                    # Keep fitting
-                    guesses, errs, state = self.count_recursive(
-                        guesses, errs, counts, sample,
-                        method, step, curr_iter, max_iters, err_threshold_rel, 
-                        plot_progress
-                        )
-                
-        # Add/remove single guess
-        if step=='single' and state=='run':
-            # Find gradient
-            grad = (errs[-1] - errs[-2]) / (counts[-1] - counts[-2])
-
-            if grad<0 or count==0: # Add for negative gradient
-                # Find nearest count that has not been fit
-                target_count = count + find_dist_to_next_consec(counts, count, 1)
-                
-                # Add
-                fit_guess = guesses[int(np.where(counts==target_count-1)[0][0])]
-                if plot_progress:
-                    print('adding 1 guess')
-                guesses.append(self.add_guess(residual, fit_guess))
-                
-                # Keep fitting
-                guesses, errs, state = self.count_recursive(
-                    guesses, errs, counts, sample,
-                    method, step, curr_iter, max_iters, err_threshold_rel, 
-                    plot_progress
-                    )
-            elif grad>=0: # Remove for positive gradient
-                # Find nearest count that has not been fit
-                target_count = np.max([count - find_dist_to_next_consec(counts, count, -1), 0])
-                
-                # Remove
-                fit_guess = guesses[int(np.where(counts==target_count+1)[0][0])]
-                if plot_progress:
-                    print('removing 1 guess')
-                guesses.append(self.remove_guess(residual, fit_guess))
-                
-                # Keep fitting
-                guesses, errs, state = self.count_recursive(
-                    guesses, errs, counts, sample,
-                    method, step, curr_iter, max_iters, err_threshold_rel, 
-                    plot_progress
-                    )
-
-        # Exit once complete state is reached
-        if state=='complete':
-            return guesses, errs, state
         
     def count_sample(self, sample,
                 method='SLSQP', max_iters=20, err_threshold_rel=0.2,
@@ -941,8 +558,8 @@ class blobCounter():
             
     def count_sample_single_step(self, sample, method='SLSQP', max_iters=10, plot_guess=False, plot_progress=False):
         """
-        Old method, not in use
-        Count the number of blobs in a sample by fitting with scipy minimize
+        Count the number of blobs in a sample by fitting
+        Keep fitting for counts at increments of 1 until a local error minima is found. 
         """
 
         # Get guess of coordinates
@@ -1167,7 +784,360 @@ class blobCounter():
             print('per sample: {:4f}s | total: {:4f}s'.format((end-start)/self.sample_size, end-start))
             print()
             
-        return fit_coords, np.array(counts)        
+        return fit_coords, np.array(counts)
+    
+    """
+    Not in use
+    New counting method that takes steps (of count) based on the gradient,
+    Too volatile for small number of blobs and not fast enough for large number of blobs
+    Error threshold stopping criterion is very dependent on the blob count --> needs to be carefully set  
+    """
+    def minimize_objective(self,
+        guess, sample, size, amplitude,
+        method='SLSQP',
+        plot_progress=False
+        ):
+        """Minimize the objective function"""
+        
+        def fit_objective(*args):
+            """Function to minimize for fitting gaussian blobs"""
+            # args (centers, img, size, amplitude), the centers must be in format (y0, y1, ... , x0, x1, ...)
+            centers = (args[0][:int(len(args[0])/2)], args[0][int(len(args[0])/2):])
+            centers = list(zip(*centers))
+            img = args[1]
+            size = args[2]
+            amplitude = args[3]
+            image_size = img.shape[0]
+
+            # Grid for gaussian blob
+            blobs = create_blobs(centers, image_size, size, amplitude)
+
+            # Calculate error
+            error = mse(blobs, img)
+
+            return error*1e7
+        
+        # Print blob fitting
+        if plot_progress:
+            print(f'fitting for {len(guess)} blobs...', end=' ')
+
+        minimize_start = time.time()
+
+        # Sort for constraints
+        guess = guess[guess[:, 0].argsort()]
+
+        # Reshape centers guess to be [y0, y1, ..., x0, x1, ...]
+        guess_transfm = np.concatenate(list(zip(*guess)))
+
+        # Contraints and bounds
+        n = len(guess)
+        D = np.eye(n) - np.eye(n, k=-1)
+        cons = [{'type': 'ineq', 'fun': lambda x: D @ x[:n]}]
+
+        bnds = np.array([self.bounds for _ in guess_transfm])
+
+        # Minimize
+        result = minimize(fit_objective, guess_transfm, args=(sample, size, amplitude),
+                            method=method, bounds=bnds, constraints=cons)
+
+        # Reshape centers fit to be [(y0, x0), (y1, x1), ...]
+        fit = (result.x[:int(len(result.x)/2)], result.x[int(len(result.x)/2):])
+        fit = list(zip(*fit))
+
+        minimize_end = time.time()
+        if plot_progress:
+            print('{0:.4f}s'.format(minimize_end-minimize_start))
+
+        if plot_progress:
+            self.plot_fit(sample, fit)
+            print(result)
+
+        return fit, result.fun
+
+    def add_guess(self, residual, guess):
+        """"Add single guess"""
+        # New guess is put at location with the largest error
+        new_guess = np.unravel_index(residual.argmax(), residual.shape)
+        return np.append(guess, [new_guess], axis=0)
+
+    def remove_guess(self, residual, guess):
+        """Remove single guess"""
+        min = np.unravel_index(residual.argmin(), residual.shape)
+        # Nearest center to minimum residual point is removed
+        worst_guess = guess[spatial.KDTree(guess).query(min)[1]]
+        return np.delete(guess, np.where((guess==worst_guess).all(axis=1))[0], axis=0)
+
+    def remove_guesses(self, residual, guess, n):
+        """Remove multiple guesses"""
+        # Clip to avoid index errors
+        guess_clip = guess.copy().clip(-0.5, self.image_size-0.5)
+        
+        # Get residual at center
+        residual_at_centers = np.array([residual[int(center[0]), int(center[1])] for center in guess_clip])
+        
+        # Mask to only look at values sufficiently negative
+        masked_residual = residual_at_centers[residual_at_centers<=-self.blob_amplitude*0.5]
+    
+        # Find minimum centers    
+        worst_guess_idxs = masked_residual.argsort()[:np.min([n,len(guess),len(masked_residual)])]
+        
+        return np.delete(guess, worst_guess_idxs, axis=0)
+
+    def add_guesses(self, residual, guess, n):
+        """Add multiple guesses using Gaussian decomp"""
+        img_decomp = residual.copy()
+        peak_coords = []
+        peak_counts = []
+
+        # Gaussian decomposition
+        for _ in range(n):
+            # Find max
+            peak_coord = np.unravel_index(img_decomp.argmax(), img_decomp.shape)
+            peak_val = np.max(img_decomp)
+            
+            # Early stopping criterion
+            if peak_val<=self.blob_amplitude*0.5:
+                break
+
+            # Remove gaussian with amplitude of maximum pixel
+            x, y = np.mgrid[0:img_decomp.shape[0]:1, 0:img_decomp.shape[1]:1]
+            pos = np.dstack((x, y))
+            gaussian = normalize_2d(multivariate_normal(peak_coord, [[self.blob_size, 0], [0, self.blob_size]]).pdf(pos))*peak_val
+
+            img_decomp = np.subtract(img_decomp, gaussian)
+
+            # Record peak value and number of blobs for peak
+            peak_coords.append(peak_coord)
+            peak_counts.append(np.max([int(np.round(peak_val/self.blob_amplitude)*1.3), 1])) # NOTE: scaling value chosen arbitrarily, come back to this
+
+            # Stop when n guesses are added
+            if np.sum(peak_counts)>=n:
+                break
+        
+        # Record guess, one coordinate for each count
+        new_centers = []
+        for coord, count in zip(peak_coords, peak_counts):
+            if count==1:
+                new_centers.append(coord)
+            else:
+                # Jitter, put coord equally spaced on circle centered at maximum
+                coords = [coord for _ in range(count)]
+                coords = self._jitter(coords, 0.5)
+                new_centers.extend(coords)
+
+        new_centers = np.array(new_centers).clip(*self.bounds)
+        
+        if len(new_centers)==0: # No new added centers case
+            new_guess = guess
+        else:
+            new_guess = np.append(guess, new_centers, axis=0)
+        
+        return new_guess 
+
+    def count_recursive(self,
+        guesses, errs, counts,
+        sample, method,
+        step='error', curr_iter=0, max_iters=10, err_threshold_rel=0.3,
+        plot_progress=False
+        ):
+        """
+        Count the number of blobs on a sample recursively by fitting.
+        Keep fitting for counts at increments decided based on the error until certain conditions are met.
+        """
+        # Initiate state
+        state = 'run'
+        if plot_progress:
+            print()
+            print(f'iteration {curr_iter}')
+        
+        # Find count
+        count = len(guesses[-1])
+        counts.append(count)
+
+        # Fit
+        if len(guesses[-1])>0:
+            fit_guess, err = self.minimize_objective(
+                np.array(guesses[-1]), sample, 
+                self.blob_size, self.blob_amplitude,
+                method=method, plot_progress=plot_progress)
+            fit_guess = np.array(fit_guess)
+            guesses[-1] = fit_guess
+            errs.append(err)
+        else: # zero case
+            fit_guess = np.empty((0,2))
+            err = mse(sample, np.zeros(self.image_size))
+            guesses[-1] = fit_guess
+            errs.append(err)
+    
+        # Stop if exceed set max iterations
+        if curr_iter > max_iters:
+            if plot_progress:
+                print('max iters reached')
+            state = 'complete'
+            return fit_guess, errs, state 
+        curr_iter += 1
+    
+        # Stop if local minimum is found
+        best_count = find_local_min(errs, counts)
+        if best_count is not None:
+            if plot_progress:
+                print('local minima found')
+            state = 'complete'
+            return guesses, errs, state
+
+        # Find residual
+        residual = sample - self._create_blobs(fit_guess)
+        residual_sum = residual.sum()
+        residual_l1 = np.abs(residual).sum()
+        residual_l1 = np.where(residual_l1>self.single_blob_l1*0.05, 
+                               residual_l1, 0) # Remove sources of small error, simple low-pass (not sure if this helps?)
+        
+        # Check error threshold
+        if residual_l1<self.single_blob_l1*err_threshold_rel: 
+            if plot_progress:
+                print('err threshold reached')
+            state = 'complete'
+            return guesses, errs, state
+
+        # Add/remove multiple guesses
+        if step=='error' and state=='run':
+            # Check condition to change step state
+            if residual_l1<self.single_blob_l1*5:
+                # Change step state
+                step='single'
+                if plot_progress:
+                    print('error threshold reached: switch to single step')
+                
+            else:
+                if residual_sum<0:
+                    # Get estimate of number of guesses to remove
+                    masked_l1 = -np.where(residual<=-self.blob_amplitude/10, residual, 0).sum()
+                    n = np.min([int(np.round(masked_l1/self.single_blob_l1)), count]) # Count cannot be negative
+                    
+                    # Remove a maximum of n guesses
+                    if n!=0: 
+                        new_guess = self.remove_guesses(residual, fit_guess, n)
+                    else: # No guesses to remove
+                        new_guess = fit_guess
+                    
+                    # Actual number of guesses removed    
+                    n_removed = len(fit_guess) - len(new_guess)
+                    
+                    # Switch to single step if only 1 guess is removed
+                    if n_removed>1:
+                        if plot_progress:
+                            print(f'removed {n_removed} guesses')
+                    else:
+                        step = 'single'
+                        if plot_progress:
+                            print('only 1 guess to remove: switch to single step')
+
+                elif residual_sum>=0:
+                    # Get estimate of number of guesses to add
+                    masked_l1 = np.where(residual>=self.blob_amplitude/10, residual, 0).sum()
+                    n = int(np.round(masked_l1/self.single_blob_l1))
+                    
+                    # Add a maximum of n guesses
+                    if n!=0: 
+                        new_guess = self.add_guesses(residual, fit_guess, n)
+                    else: # No guesses to add
+                        new_guess = fit_guess
+                        
+                    # Actual number of guesses added     
+                    n_added = len(new_guess) - len(fit_guess)
+                    
+                    # Switch to single step if only 1 guess is added
+                    if n_added>1:
+                        if plot_progress:
+                            print(f'added {n_added} guesses')
+                    else:
+                        step = 'single'
+                        if plot_progress:
+                            print('only 1 guess to add: switch to single step')
+            
+            # Fit new guess             
+            if step=='error':
+                # Append new guess
+                guesses.append(new_guess)
+                
+                # Keep fitting
+                guesses, errs, state = self.count_recursive(
+                    guesses, errs, counts, sample,
+                    method, step, curr_iter, max_iters, err_threshold_rel, 
+                    plot_progress
+                    )
+            elif step=='single':
+                # Step from lowest error
+                min_idx = np.argmin(errs)
+                fit_guess = guesses[min_idx]
+                
+                # Take first single step
+                if residual_sum<0 and count!=0:
+                    # Remove
+                    if plot_progress:
+                        print('removing 1 guess')
+                    guesses.append(self.remove_guess(residual, fit_guess))
+                    
+                    # Keep fitting
+                    guesses, errs, state = self.count_recursive(
+                        guesses, errs, counts, sample,
+                        method, step, curr_iter, max_iters, err_threshold_rel, 
+                        plot_progress
+                        )
+                elif residual_sum>=0 or count==0:
+                    # Add
+                    if plot_progress:
+                        print('adding 1 guess')
+                    guesses.append(self.add_guess(residual, fit_guess))
+                    
+                    # Keep fitting
+                    guesses, errs, state = self.count_recursive(
+                        guesses, errs, counts, sample,
+                        method, step, curr_iter, max_iters, err_threshold_rel, 
+                        plot_progress
+                        )
+                
+        # Add/remove single guess
+        if step=='single' and state=='run':
+            # Find gradient
+            grad = (errs[-1] - errs[-2]) / (counts[-1] - counts[-2])
+
+            if grad<0 or count==0: # Add for negative gradient
+                # Find nearest count that has not been fit
+                target_count = count + find_dist_to_next_consec(counts, count, 1)
+                
+                # Add
+                fit_guess = guesses[int(np.where(counts==target_count-1)[0][0])]
+                if plot_progress:
+                    print('adding 1 guess')
+                guesses.append(self.add_guess(residual, fit_guess))
+                
+                # Keep fitting
+                guesses, errs, state = self.count_recursive(
+                    guesses, errs, counts, sample,
+                    method, step, curr_iter, max_iters, err_threshold_rel, 
+                    plot_progress
+                    )
+            elif grad>=0: # Remove for positive gradient
+                # Find nearest count that has not been fit
+                target_count = np.max([count - find_dist_to_next_consec(counts, count, -1), 0])
+                
+                # Remove
+                fit_guess = guesses[int(np.where(counts==target_count+1)[0][0])]
+                if plot_progress:
+                    print('removing 1 guess')
+                guesses.append(self.remove_guess(residual, fit_guess))
+                
+                # Keep fitting
+                guesses, errs, state = self.count_recursive(
+                    guesses, errs, counts, sample,
+                    method, step, curr_iter, max_iters, err_threshold_rel, 
+                    plot_progress
+                    )
+
+        # Exit once complete state is reached
+        if state=='complete':
+            return guesses, errs, state        
 
 
 """Depreciated"""

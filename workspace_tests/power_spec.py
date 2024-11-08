@@ -1,3 +1,9 @@
+"""
+Author: Nathan Teo
+
+This script compares the power spectrum of two real datasets
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import os

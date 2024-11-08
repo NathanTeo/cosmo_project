@@ -24,11 +24,10 @@ class ganUtils():
     Contains plotting and logging functions that are common.
     """
     def __init__(self):
-        # Nothing initialized (yet)
         pass
     
-    # Plots a grid of real and generated images with the discriminator scores
     def _plot_imgs(self, gen_sample_imgs, real_sample_imgs):
+        """Plots a grid of real and generated images with the discriminator scores"""
         # Get discriminator scores for the samples
         real_disc_scores = self.discriminator(real_sample_imgs).cpu().detach().numpy()[:,0]
         gen_disc_scores = self.discriminator(gen_sample_imgs).cpu().detach().numpy()[:,0]
@@ -59,6 +58,7 @@ class ganUtils():
         plt.close('all')
     
     def _log_losses(self, epoch_g_losses, epoch_d_losses):
+        """Save generator and discriminator losses in a npz file"""
         # Log save file
         filename = f'{self.root_path}/logs/losses.npz'
         
@@ -81,6 +81,7 @@ class ganUtils():
         return imgs + (std_dev)*torch.randn(*imgs.size(), device=self.device) + torch.Tensor([mean]).type_as(imgs)
     
     def _backup(self):
+        """Create backup of checkpoints and logs"""
         os.system(f'rsync -a {self.root_path}/checkpoints/ {self.root_path}/backup/checkpoints --delete')
         os.system(f'rsync -a {self.root_path}/logs/ {self.root_path}/backup/logs --delete')
         print('\ncheckpoints and logs backed up')
@@ -649,6 +650,7 @@ class EMA():
         
         
 class Diffusion(pl.LightningModule):
+    """Pytorch Lightning module for diffusion training and testing"""
     def __init__(self, scaling_factor=1, **training_params):
         super().__init__()
         # Scaling 
@@ -704,11 +706,11 @@ class Diffusion(pl.LightningModule):
         return sqrt_alpha_hats*x + sqrt_one_minus_alpha_hats*noise, noise
 
     def sample_timesteps(self, n):
-        """Return randomly sampled timesteps"""
+        """Return random timesteps to noise samples during training"""
         return torch.randint(low=1, high=self.noise_steps, size=(n,), device=self.device)
     
     def sample(self, network, n, scale=False):
-        """Return n sampled noised image at all timesteps"""
+        """Generate n samples from pure noise"""
         network.eval()
         with torch.no_grad():
             # Random noise
@@ -741,7 +743,7 @@ class Diffusion(pl.LightningModule):
         return x
     
     def on_train_epoch_start(self):
-        # Move to device
+        # Move to device, these are initialted on CPU and not moved to GPU by pl
         self.betas = self.betas.to(self.device)
         self.alphas = self.alphas.to(self.device)
         self.alpha_hats = self.alpha_hats.to(self.device)
@@ -749,9 +751,6 @@ class Diffusion(pl.LightningModule):
         self.ema_network.device = self.device
         
     def training_step(self, batch, batch_idx):
-        # Progress
-        # print(f'Epoch {self.current_epoch}', end='\t')
-        
         # Load real imgs
         if len(batch)==2: # if label exists eg. MNIST dataset
             real_imgs, _ = batch
@@ -827,6 +826,7 @@ class Diffusion(pl.LightningModule):
             'gen_imgs': []
         }
 
+        # Move to device, these are initialted on CPU and not moved to GPU by pl
         self.betas = self.betas.to(self.device)
         self.alphas = self.alphas.to(self.device)
         self.alpha_hats = self.alpha_hats.to(self.device)
@@ -847,12 +847,13 @@ class Diffusion(pl.LightningModule):
         
         self.test_output_list['gen_imgs'].extend(gen_imgs)
 
-    # Track generated output image samples
     def on_test_epoch_end(self):
+        # Initialize generated samples from test step as a variable
         gen_imgs = self.test_output_list['gen_imgs']
         self.outputs =  np.array(gen_imgs)
 
-    def _plot_imgs(self, real_imgs, gen_imgs):        
+    def _plot_imgs(self, real_imgs, gen_imgs):
+        """Plot a grid of samples for logging purposes"""        
         # Reshape and send sample images to cpu 
         real_imgs = real_imgs.cpu().detach()[:,0,:,:]
         gen_imgs = gen_imgs.cpu().detach()[:,0,:,:]
@@ -878,6 +879,7 @@ class Diffusion(pl.LightningModule):
         plt.close('all')
     
     def _log_losses(self, losses_epoch):
+        """Save losses in a npz file"""
         # Log save file
         filename = f'{self.root_path}/logs/losses.npz'
         
@@ -895,11 +897,13 @@ class Diffusion(pl.LightningModule):
         return [] # For resetting epoch_losses
     
     def _backup(self):
+        """Create backup of checkpoints and logs"""
         os.system(f'rsync -a {self.root_path}/checkpoints/ {self.root_path}/backup/checkpoints --delete')
         os.system(f'rsync -a {self.root_path}/logs/ {self.root_path}/backup/logs --delete')
         print('\ncheckpoints and logs backed up')
     
     def count_learnable_params(self):
+        """Return number of learnable parameters of the model"""
         params_count  = sum(p.numel() for p in self.network.parameters() if p.requires_grad)
         return params_count 
 

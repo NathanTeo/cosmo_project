@@ -1,3 +1,9 @@
+"""
+Author: Nathan Teo
+
+This script compares the result of two models
+"""
+
 import time as t
 import sys
 import os

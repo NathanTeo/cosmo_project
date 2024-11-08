@@ -1,3 +1,9 @@
+"""
+Author: Nathan Teo
+
+This script plots the residuals of the real and generated samples of a chosen run
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import torch

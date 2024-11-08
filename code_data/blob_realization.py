@@ -1,7 +1,7 @@
 """
 Author: Nathan Teo
 
-This script generates and saves real samples for the GAN.
+This script generates and saves real sample datasets for the neural networks.
 The samples are saved in a single .npy file along with a single sample plot.
 """
 
@@ -13,7 +13,7 @@ params = {
     'seed': 70,
     'blob_size': 5,
     'blob_amplitude': 1,
-    'amplitude_distribution': 'delta',
+    'amplitude_distribution': 'power',
     'sample_num': 100000,
     'blob_num': 500,
     'num_distribution': 'poisson',

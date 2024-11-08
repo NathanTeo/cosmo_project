@@ -1,3 +1,9 @@
+"""
+Author: Nathan Teo
+
+This script contains all functions and classes used to realize samples in the script blob_realization.py
+"""
+
 import random
 import os
 import shutil
@@ -12,11 +18,10 @@ import concurrent.futures
 def sample_power_law(a, b, p, size=1):
     """Sample x^{-p} for a<=x<=b"""
     r = np.random.random(size=size)*(b-a) + a
-    print(r)
     return r**(-p)
 
 class blobDataset():
-    """generate real data for training"""
+    """Create real dataset for training, realize blobs"""
     def __init__(self, **params):
         """Initialize parameters"""
         self.image_size = params['image_size']
@@ -51,7 +56,7 @@ class blobDataset():
         self.center_generator = centerGenerator(self.blob_num, self.image_size)
         
     def make_gaussian(self, center, var, image_size):
-            """ Make a square gaussian kernel"""
+            """ Make a symmetric 2D gaussian"""
             x = np.arange(0, image_size, 1, float)
             y = x[:,np.newaxis]
 
@@ -61,19 +66,20 @@ class blobDataset():
             return np.exp(-0.5 * ((x-x0)**2 + (y-y0)**2) / var)
 
     def create_blobs(self, centers, blob_amplitudes=None):
-        """Create an image of gaussian blobs""" ### Add in blob_amplitudes, if fixed - send in array of same blob amps
+        """Create an image of gaussian blobs given the centers and amplitudes of the blobs"""
         if centers.shape[0]>0:
-            if blob_amplitudes is None:
+            if blob_amplitudes is None: # realize blobs of the same size
                 return np.array([normalize_2d(self.make_gaussian(coord, self.blob_size, self.generation_matrix_size))*self.blob_amplitude
                                 for coord in centers]).sum(axis=0)
             else:
                 return np.array([normalize_2d(self.make_gaussian(coord, self.blob_size, self.generation_matrix_size))*blob_amplitude
                     for coord, blob_amplitude in zip(centers, blob_amplitudes)]).sum(axis=0)
             
-        else:
+        else: # Empty image if there are no blob centers
             return np.zeros((self.generation_matrix_size, self.generation_matrix_size))
     
-    def realize_batch(self, dummy):
+    def realize_sample(self, dummy):
+        """Realize a single sample for the dataset"""
         # Generate points for centers
         centers = self.center_generator.generate(self.num_distribution, self.clustering)
         count = centers.shape[0]
@@ -100,7 +106,7 @@ class blobDataset():
         return sample, centers, count, amps
     
     def realize(self, batch=1000, temp_root_path="temp", mode='single'):
-        """Generate all samples"""
+        """Realize all samples by batches"""
         # Generate in batches, generation slows significantly when entire dataset is generated in one go, probably taking too much ram       
         num_of_batches = int(np.ceil(self.sample_num / batch))
         remainder = self.sample_num % batch
@@ -122,11 +128,11 @@ class blobDataset():
             sample_centers = []
             sample_amps = []
             
-            # Single core
+            # Realize samples using single core
             if mode=='single':
                 for _ in tqdm(range(batch_size), desc=f'batch {i+1}/{num_of_batches}'):
                     # Realize sample
-                    sample, centers, count, amps = self.realize_batch(self.center_generator)
+                    sample, centers, count, amps = self.realize_sample(self.center_generator)
                     
                     # Add sample to list
                     samples.append(sample)
@@ -136,11 +142,11 @@ class blobDataset():
                     sample_centers.append(centers)
                     sample_amps.append(amps)
 
-            # Count using multi core    
+            # Realize samples using multi core    
             if mode=='multi':
                 with concurrent.futures.ProcessPoolExecutor() as executor:
                     results = list(tqdm(
-                        executor.map(self.realize_batch, np.repeat(1,batch_size)),
+                        executor.map(self.realize_sample, np.repeat(1,batch_size)),
                         desc=f'batch {i+1}/{num_of_batches}', total=int(batch_size)         
                         ))
 
@@ -200,26 +206,30 @@ class blobDataset():
         
     def plot_amplitude_distribution(self, path, file_type='png'):
         """Plot distribution"""
-        bins = np.linspace(np.min(self.sample_amps)-1, np.max(self.amps)+1, 40)
+        amps = np.concatenate(self.sample_amps)
+        bins = np.arange(np.min(amps)-1, np.max(amps)+1, 0.5)
         
         fig = plt.figure()
         fig.suptitle(f'Histogram of all blob amplitudes in the dataset')
-        plt.hist(np.concatenate(self.sample_amps), bins=bins)
+        plt.hist(amps, bins=bins)
         plt.xlabel('blob amplitudes')
         plt.ylabel('image counts')
         plt.savefig(f'{path}/amp_distr_{self.file_name}.{file_type}')
         plt.close()
         
-    def _normalize_2d(self, matrix): 
+    def _normalize_2d(self, matrix):
+        """Normalize to [0, 1]"""
         return (matrix-np.min(matrix))/(np.max(matrix)-np.min(matrix)) 
 
 
 class centerGenerator():
+    """Generates 2D center coordinates for blobs, supports clustering"""
     def __init__(self, num_centers, image_size):
         self.num_centers = num_centers
         self.image_size = image_size
 
     def unclustered_centers(self, num_distribution):
+        """Generate random coordinates"""
         if num_distribution=='delta':
             # Create sample
             self.centers = np.random.rand(self.num_centers,2)*self.image_size - 0.5
@@ -236,7 +246,8 @@ class centerGenerator():
         return self.centers
     
     def clustered_centers(self, num_distribution, clustering, track_progress=False):
-        # Survey configuration
+        """Generate clustered coordinates according to a power-law 2-point correlation function"""
+        # Survey configuration, assume all samples are 1' by 1' patches
         lxdeg = 1                    # Length of x-dimension [deg]
         lydeg = 1                    # Length of y-dimension [deg]
         nx = 1000                    # Grid size of x-dimension
@@ -251,10 +262,10 @@ class centerGenerator():
         
         # Initializations
         lxrad,lyrad = np.radians(lxdeg),np.radians(lydeg)
-                # Transform the power spectrum P --> P' so that the lognormal
-        # realization of P' will be the same as a Gaussian realization of P
+
         def transpk2d(nx,ny,lx,ly,kmod,pkmod):
-            # print('Transforming to input P(k)...')
+            """Transform the power spectrum P --> P' so that the lognormal
+            realization of P' will be the same as a Gaussian realization of P"""
             area,nc = lx*ly,float(nx*ny)
             # Obtain 2D grid of k-modes
             kx = 2.*np.pi*np.fft.fftfreq(nx,d=lx/nx)
@@ -272,9 +283,8 @@ class centerGenerator():
             pkspec = np.real(np.fft.rfftn(xigrid))
             return pkspec
 
-        # Generate a 2D log-normal density field of a Gaussian power spectrum
         def gendens2d(nx,ny,lx,ly,pkspec,wingrid):
-            # print('Generating lognormal density field...')
+            """Generate a 2D log-normal density field of a Gaussian power spectrum"""
             # Generate complex Fourier amplitudes
             nc = float(nx*ny)
             ktot = pkspec.size
@@ -294,8 +304,8 @@ class centerGenerator():
             meangrid = wingrid*np.exp(deltax)/lmean
             return meangrid
 
-        # Impose complex conjugate properties on Fourier amplitudes
         def doconj2d(nx,ny,deltak):
+            """Impose complex conjugate properties on Fourier amplitudes"""
             for ix in range(int(nx/2+1),nx):
                 deltak[ix,0] = np.conj(deltak[nx-ix,0])
                 deltak[ix,int(ny/2)] = np.conj(deltak[nx-ix,int(ny/2)])
@@ -305,10 +315,8 @@ class centerGenerator():
                 deltak[int(nx/2),int(ny/2)] = np.real(deltak[int(nx/2),int(ny/2)]) + 0.*1j
             return
 
-        # Convert 2D number grid to positions
         def genpos2d(nx,ny,lx,ly,datgrid):
-            # print('Populating density field...')
-
+            """Convert 2D number grid to positions"""
             # Create grid of x and y positions
             dx,dy = lx/nx,ly/ny
             x,y = dx*np.arange(nx),dy*np.arange(ny)
@@ -386,6 +394,7 @@ class centerGenerator():
         return self.centers
     
     def generate(self, num_distribution, clustering):
+        """Generate coordinates for one sample"""
         if clustering is None:
             self.unclustered_centers(num_distribution)
         else:
