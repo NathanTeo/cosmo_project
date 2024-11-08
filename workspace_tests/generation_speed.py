@@ -1,6 +1,9 @@
 """
+Author: Nathan Teo
 
-
+This script compares the generation speed of 
+- the algorithm used to create the real dataset
+- the neural network  
 """
 
 import time as t

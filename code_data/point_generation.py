@@ -1,6 +1,8 @@
 """
 Author: Nathan Teo
 
+NO LONGER USED
+
 This script generates and saves real samples for the GAN.
 The samples are saved in a single .npy file along with a single sample plot.
 """
