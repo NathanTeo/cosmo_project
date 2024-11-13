@@ -182,9 +182,9 @@ class compareUtils():
         
         'FFT'
         # Fourier transform images
-        real_ffts = fourier_transform(real_samples_subset)
-        gan_ffts = fourier_transform(gan_samples_subset)
-        diff_ffts = fourier_transform(diff_samples_subset)
+        real_ffts = fourier_transform_samples(real_samples_subset)
+        gan_ffts = fourier_transform_samples(gan_samples_subset)
+        diff_ffts = fourier_transform_samples(diff_samples_subset)
 
         # Plotting fft
         fig = plt.figure(figsize=(8,3))
