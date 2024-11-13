@@ -14,6 +14,7 @@ from tqdm.auto import tqdm
 import astropy.units as u
 from scipy.special import gamma
 import concurrent.futures
+import time
 
 def sample_power_law(a, b, p, size=1):
     """Sample x^{-p} for a<=x<=b"""
@@ -80,6 +81,9 @@ class blobDataset():
     
     def realize_sample(self, dummy):
         """Realize a single sample for the dataset"""
+        # Set new random seed, necessary for multiprocessing to ensure each task is assigned a unique rng
+        np.random.seed((os.getpid() * int(time.time())) % 123456789)
+        
         # Generate points for centers
         centers = self.center_generator.generate(self.num_distribution, self.clustering)
         count = centers.shape[0]
