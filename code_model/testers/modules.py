@@ -556,16 +556,16 @@ class blobTester(testDataset):
         # Plot
         plot_smooth_line(
             ax, real_cl, bins, real_err, 
-            color=((self.real_color,1), (self.real_color,0.5)),
-            label='real', scale='semilog_x', errorbars=False
+            color=((self.real_color,1), (self.real_color,0.5)), capsize=4, elinewidth=2,
+            label='real', scale='semilog_x', errorbars=True
         )
          
         for i, (cl, err) in enumerate(zip(all_gen_cl, all_gen_err)):
             plot_smooth_line(
                 ax, cl, bins, err, 
-                color=((self.gen_color,self.line_alphas[i]), (self.gen_color,0.5)),
+                color=((self.gen_color,self.line_alphas[i]), (self.gen_color,0.8)),
                 linewidth=set_linewidth(i, len(all_gen_cl)),
-                label=f'epoch {self.model_epochs[i]}', errorbars=False, # self.select_last_epoch[i]
+                label=f'epoch {self.model_epochs[i]}', errorbars=self.select_last_epoch[i],
                 scale='semilog_x'
             )
         
@@ -573,7 +573,7 @@ class blobTester(testDataset):
         fig.suptitle(f"Power spectrum, {self.subset_sample_num} samples")
         plt.xlabel(r'$l$')
         plt.ylabel(r'$C_l$')
-        plt.xlim(np.min(bins),np.max(bins))
+        plt.xlim(np.min(bins)*.9,np.max(bins)*1.1)
         plt.tight_layout()
         
         plt.legend()

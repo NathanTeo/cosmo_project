@@ -194,7 +194,7 @@ def plot_histogram_stack(ax, hist, edges,
         ax.fill_between(x, 0, y, color=fill_color)
         
 def plot_smooth_line(ax, y, x, errs=None, interp='cubic',
-                   color=(('darkorange', 1), ('darkorange', 0.5)), linewidth=1, capsize=2,
+                   color=(('darkorange', 1), ('darkorange', 0.5)), linewidth=1, capsize=2, elinewidth=1,
                    label=None, errorbars=True, scale='semilog_x'):
     """Plots the interpolated 2 point correlation with errors is available"""
     # Interpolate
@@ -205,7 +205,7 @@ def plot_smooth_line(ax, y, x, errs=None, interp='cubic',
     ax.plot(lin, smooth(lin), color=color[0], linewidth=linewidth, label=label)
     
     if errorbars:
-        ax.errorbar(x, y, yerr=errs, fmt='.', capsize=capsize, color=color[1])
+        ax.errorbar(x, y, yerr=errs, fmt='.', capsize=capsize, elinewidth=elinewidth, color=color[1])
         
     if scale=='log' or scale=='semilog_y':
       ax.set_yscale('log')
@@ -248,3 +248,4 @@ def find_good_bins(arrs, spacing=(1.5, 1.5),
 
 def blank_plot(ax):
     ax.set_axis_off()
+

@@ -186,7 +186,8 @@ def power_spectrum(Map1, Map2, delta_ell, ell_max, ell2d=None, image_size_angula
     return ell_array, CL_array * np.sqrt(pixel_size_angular * np.pi/180.) * 2.
 
 def power_spectrum_stack(samples, 
-                         delta_ell=500, ell_max=15000, ell2d=None, image_size_angular=1, 
+                         delta_ell=500, ell_max=15000, ell2d=None, image_size_angular=1,
+                         errorbar='percentile',
                          progress_bar=False):
     """Calculate the mean power spectrum and variance given a set of samples"""
     # Find power spectrum of samples
@@ -197,7 +198,12 @@ def power_spectrum_stack(samples,
     
     # Find mean and std dev
     mean = np.mean(cls, axis=0)
-    errs = np.std(cls, axis=0, ddof=1) # ddof=1 for sample estimate of popln std dev
+    if errorbar=='std':
+        errs = np.std(cls, axis=0, ddof=1) # ddof=1 for sample estimate of popln std dev
+    if errorbar=='percentile':
+        lower = np.percentile(cls, 10, axis=0)
+        upper = np.percentile(cls, 90, axis=0)
+        errs = [lower, upper]
     
     return mean, errs, bins
 
