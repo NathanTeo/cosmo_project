@@ -17,7 +17,7 @@ from code_model.testers.plotting_utils import *
 from code_model.testers.eval_utils import *
 from code_model.testers.modules import *
 
-def run_training(training_params, generation_params, testing_params, training_restart=False, generate_samples=False):
+def run_training(training_params, generation_params, testing_params, training_restart=False, generate_samples=True):
         """Initialize Params"""
         model_version = training_params['model_version']
 
