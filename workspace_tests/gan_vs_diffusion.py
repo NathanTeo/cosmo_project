@@ -148,7 +148,7 @@ class compareUtils():
         fig = plt.figure(figsize=(7,3))
         subfig = fig.subfigures(1, 3, wspace=0.3)
         
-        plot_img_grid(subfig[0], real_samples_subset, grid_row_num, title='Real', wspace=0.1)
+        plot_img_grid(subfig[0], real_samples_subset, grid_row_num, title='Target', wspace=0.1)
         plot_img_grid(subfig[1], gan_samples_subset, grid_row_num, title='GAN', wspace=0.1) 
         plot_img_grid(subfig[2], diff_samples_subset, grid_row_num, title='Diffusion', wspace=0.1)
         
@@ -167,7 +167,7 @@ class compareUtils():
         fig = plt.figure(figsize=(8,6))
         subfig = fig.subfigures(1, 3)
         
-        plot_marginal_sums(real_marginal_sums, subfig[0], grid_row_num, title='Real')
+        plot_marginal_sums(real_marginal_sums, subfig[0], grid_row_num, title='Target')
         plot_marginal_sums(gan_marginal_sums, subfig[1], grid_row_num, title='GAN')
         plot_marginal_sums(diff_marginal_sums, subfig[2], grid_row_num, title='Diffusion')
         
@@ -190,7 +190,7 @@ class compareUtils():
         fig = plt.figure(figsize=(8,3))
         subfig = fig.subfigures(1, 3, wspace=0.2)
         
-        plot_img_grid(subfig[0], real_ffts, grid_row_num, title='Real FFT')
+        plot_img_grid(subfig[0], real_ffts, grid_row_num, title='Target FFT')
         plot_img_grid(subfig[1], gan_ffts, grid_row_num, title='GAN FFT')
         plot_img_grid(subfig[2], diff_ffts, grid_row_num, title='Diffusion FFT')
         
@@ -215,7 +215,7 @@ class compareUtils():
         
         # Plot histogram
         plt.hist(self.real_blob_counts, bins=bins,
-                histtype='step', label=f'Real',
+                histtype='step', label='target',
                 color=(self.real_color, 0.8)
                 )
         plt.axvline(self.real_blob_count_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1) # Only label mean for last model
@@ -225,7 +225,7 @@ class compareUtils():
         plt.axvline(self.gan_blob_count_mean, color=(self.gan_color,0.5), linestyle='dashed', linewidth=1)
  
         plt.hist(self.diff_blob_counts, bins=bins, 
-                    histtype='step', label='Diffusion', color=(self.diff_color,0.8))
+                    histtype='step', label='diffusion', color=(self.diff_color,0.8))
         plt.axvline(self.diff_blob_count_mean, color=(self.diff_color,0.5), linestyle='dashed', linewidth=1)
 
 
@@ -260,7 +260,7 @@ class compareUtils():
         fig, axs = plt.subplots(1, 3, figsize=(4,2.5))
 
         # Plot
-        plot_stacked_imgs(axs[0], stacked_real_img, title=f"Real\n{self.subset_sample_num} samples")
+        plot_stacked_imgs(axs[0], stacked_real_img, title=f"Target\n{self.subset_sample_num} samples")
         plot_stacked_imgs(axs[1], stacked_gan_img, title=f"GAN\n{self.subset_sample_num} samples")
         plot_stacked_imgs(axs[2], stacked_diff_img, title=f"Diffusion\n{self.subset_sample_num} samples")
         
@@ -277,9 +277,9 @@ class compareUtils():
         fig = plt.figure(figsize=(4,3))
 
         # Plot
-        plt.hist(stacked_real_img.ravel(), histtype='step', label='Real', color=(self.real_color,0.8))
+        plt.hist(stacked_real_img.ravel(), histtype='step', label='target', color=(self.real_color,0.8))
         plt.hist(stacked_gan_img.ravel(), histtype='step', label='GAN', color=(self.gan_color,0.8))
-        plt.hist(stacked_diff_img.ravel(), histtype='step', label='Diffusion', color=(self.diff_color,0.8))
+        plt.hist(stacked_diff_img.ravel(), histtype='step', label='diffusion', color=(self.diff_color,0.8))
         
         # Format
         plt.ylabel('pixel count')
@@ -306,9 +306,9 @@ class compareUtils():
         fig, ax = plt.subplots()
 
         # Plot
-        plot_histogram_stack(ax, *real_hist_stack, color=(self.real_color,0.8), label='Real')
+        plot_histogram_stack(ax, *real_hist_stack, color=(self.real_color,0.8), label='target')
         plot_histogram_stack(ax, *gan_hist_stack, color=(self.gan_color,0.8), label='GAN')
-        plot_histogram_stack(ax, *diff_hist_stack, color=(self.diff_color,0.8), label='Diff')
+        plot_histogram_stack(ax, *diff_hist_stack, color=(self.diff_color,0.8), label='diffusion')
 
         # Format
         plt.ylabel('image count')
@@ -332,7 +332,7 @@ class compareUtils():
         plot_extremum_num_blobs(
             subfig[0], self.real_samples,
             self.real_blob_coords, self.real_blob_counts,
-            extremum='min', title='Real', title_y=0.87, k=k
+            extremum='min', title='Target', title_y=0.87, k=k
             )
         plot_extremum_num_blobs(
             subfig[1], self.gan_samples,
@@ -360,7 +360,7 @@ class compareUtils():
         plot_extremum_num_blobs(
             subfig[0], self.real_samples,
             self.real_blob_coords, self.real_blob_counts,
-            extremum='max', title='Real', title_y=0.87, k=k
+            extremum='max', title='Target', title_y=0.87, k=k
             )
         plot_extremum_num_blobs(
             subfig[1], self.gan_samples,
@@ -402,9 +402,9 @@ class compareUtils():
         bins = np.arange(bin_min-3, bin_max+3,bin_max/50)
 
         # Plot
-        plt.hist(real_img_fluxes, bins=bins, histtype='step', label='Real', color=(self.real_color,0.8))
+        plt.hist(real_img_fluxes, bins=bins, histtype='step', label='target', color=(self.real_color,0.8))
         plt.hist(gan_img_fluxes, bins=bins, histtype='step', label='GAN', color=(self.gan_color,0.8))
-        plt.hist(diff_img_fluxes, bins=bins, histtype='step', label='Diffusion', color=(self.diff_color,0.8))
+        plt.hist(diff_img_fluxes, bins=bins, histtype='step', label='diffusion', color=(self.diff_color,0.8))
  
         # Format   
         plt.ylabel('image count')

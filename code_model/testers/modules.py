@@ -250,7 +250,7 @@ class blobTester(testDataset):
             vmin = np.min(np.concatenate([real_imgs_subset, gen_imgs_subset]))
             vmax = np.max(np.concatenate([real_imgs_subset, gen_imgs_subset]))
             
-            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_num, title='Real Imgs', vmin=vmin, vmax=vmax)
+            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_num, title='Target Imgs', vmin=vmin, vmax=vmax)
             plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs', vmin=vmin, vmax=vmax)
             
             # Save plot
@@ -265,7 +265,7 @@ class blobTester(testDataset):
             fig = plt.figure(figsize=(4,6))
             subfig = fig.subfigures(1, 2)
             
-            plot_marginal_sums(real_marginal_sums, subfig[0], self.grid_row_num, title='Real')
+            plot_marginal_sums(real_marginal_sums, subfig[0], self.grid_row_num, title='Target')
             plot_marginal_sums(gen_marginal_sums, subfig[1], self.grid_row_num, title='Generated')
             
             # Format
@@ -292,7 +292,7 @@ class blobTester(testDataset):
             subfig = fig.subfigures(1, 2, wspace=0.2)
             
             plot_peak_grid(subfig[0], real_imgs_subset, real_blob_coords, self.grid_row_num, 
-                            title='real imgaes', subplot_titles=real_blob_counts)
+                            title='target imgaes', subplot_titles=real_blob_counts)
             plot_peak_grid(subfig[1], gen_imgs_subset, gen_blob_coords, self.grid_row_num, 
                             title='generated imgaes', subplot_titles=gen_img_blob_counts)
             
@@ -311,7 +311,7 @@ class blobTester(testDataset):
             fig = plt.figure(figsize=(6,3))
             subfig = fig.subfigures(1, 2, wspace=0.2)
             
-            plot_img_grid(subfig[0], real_ffts, self.grid_row_num, title='Real FFT')
+            plot_img_grid(subfig[0], real_ffts, self.grid_row_num, title='Target FFT')
             plot_img_grid(subfig[1], gen_ffts, self.grid_row_num, title='Generated FFT')
             
             # Save plot
@@ -331,7 +331,7 @@ class blobTester(testDataset):
         fig, axs = plt.subplots(1, 2, figsize=(4,3))
 
         # Plot
-        plot_stacked_imgs(axs[0], stacked_real_img, title=f"real\n{self.subset_sample_num} samples")
+        plot_stacked_imgs(axs[0], stacked_real_img, title=f"target\n{self.subset_sample_num} samples")
         plot_stacked_imgs(axs[1], stacked_gen_img, title=f"generated\n{self.subset_sample_num} samples")
 
         # Format
@@ -347,7 +347,7 @@ class blobTester(testDataset):
         fig = plt.figure(figsize=(4,3))
 
         # Plot
-        plt.hist(stacked_real_img.ravel(), histtype='step', label='real', color=(self.real_color,0.8))
+        plt.hist(stacked_real_img.ravel(), histtype='step', label='target', color=(self.real_color,0.8))
         plt.hist(stacked_gen_img.ravel(), histtype='step', label='generated', color=(self.gen_color,0.8))
 
         # Format
@@ -393,7 +393,7 @@ class blobTester(testDataset):
         # Find mean number of blobs
         self.real_blob_num_mean = np.mean(self.real_blob_counts)
         self.all_gen_blob_num_mean = [np.mean(blob_counts) for blob_counts in self.all_gen_blob_counts]
-        print(f'mean number of real peaks: {self.real_blob_num_mean}')
+        print(f'mean number of target peaks: {self.real_blob_num_mean}')
         print(f'mean number of generated peaks: {self.all_gen_blob_num_mean[-1]}')
 
     def count_blobs(self):
@@ -460,7 +460,7 @@ class blobTester(testDataset):
         plt.axvline(self.all_gen_blob_num_mean[-1], color=(self.gen_color,0.5), linestyle='dashed', linewidth=1) # Only label mean for last model
         
         plt.hist(self.real_blob_counts, bins=bins, 
-                    histtype='step', label='real', color=(self.real_color,0.8))
+                    histtype='step', label='target', color=(self.real_color,0.8))
         plt.axvline(self.real_blob_num_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1)
 
         _, max_ylim = plt.ylim()
@@ -489,7 +489,7 @@ class blobTester(testDataset):
         plot_extremum_num_blobs(
             subfig[0], self.real_imgs_subset,
             self.real_blob_coords, self.real_blob_counts,
-            k=1, extremum='min', title='real'
+            k=1, extremum='min', title='target'
             )
         plot_extremum_num_blobs(
             subfig[1], self.all_gen_imgs_subset[-1],
@@ -513,7 +513,7 @@ class blobTester(testDataset):
         plot_extremum_num_blobs(
             subfig[0], self.real_imgs_subset,
             self.real_blob_coords, self.real_blob_counts,
-            k=1, extremum='max', title='real'
+            k=1, extremum='max', title='target'
             )
         plot_extremum_num_blobs(
             subfig[1], self.all_gen_imgs_subset[-1],
@@ -557,7 +557,7 @@ class blobTester(testDataset):
         plot_smooth_line(
             ax, real_cl, bins, real_err, 
             color=((self.real_color,1), (self.real_color,0.5)), capsize=4, elinewidth=2,
-            label='real', scale='semilog_x', errorbars=True
+            label='target', scale='semilog_x', errorbars=True
         )
          
         for i, (cl, err) in enumerate(zip(all_gen_cl, all_gen_err)):
@@ -605,7 +605,7 @@ class blobTester(testDataset):
                     fill=self.select_last_epoch[i]
                     )
         plt.hist(real_img_fluxes, bins=bins,
-                    histtype='step', label='real', color=(self.real_color,0.8))
+                    histtype='step', label='target', color=(self.real_color,0.8))
  
         # Format   
         plt.ylabel('image count')
@@ -644,7 +644,7 @@ class blobTester(testDataset):
         plot_smooth_line(
             ax, real_corrs, midpoints_of_bins(edges), real_errs, 
             color=((self.real_color,1), (self.real_color,0.5)),
-            label='real',
+            label='target',
             scale='log' if self.clustering is not None else 'linear'
         )
          
@@ -712,7 +712,7 @@ class blobTester(testDataset):
                 label=f'epoch {self.model_epochs[i]}'
                 )
 
-        plot_histogram_stack(ax, *real_hist_stack, color=(self.real_color,0.8), label='real')
+        plot_histogram_stack(ax, *real_hist_stack, color=(self.real_color,0.8), label='target')
 
         # Format
         plt.ylabel('pixel count')
@@ -763,7 +763,7 @@ class pointTester(testDataset):
             fig = plt.figure(figsize=(6,3))
             subfig = fig.subfigures(1, 2, wspace=0.2)
             
-            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_num, title='Real Imgs')
+            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_num, title='Target Imgs')
             plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs')
             
             # Save plot
