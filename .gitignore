@@ -8,16 +8,5 @@
 # Virtual env
 venv/
 
-# Depreciated
-terminal_archive/
-data/
-lightning_logs/
-logs/
-temp_plots/
-plots/
+# Experiment code
 workspace_experiments/
-checkpoints/
-wandb/
-scripts/*
-# Exceptions
-!scripts/example_script.py
