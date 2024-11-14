@@ -7,6 +7,7 @@ This script contains functions used for model evaluation plotting in the modules
 import matplotlib.pyplot as plt
 import numpy as np
 import itertools
+import pandas as pd
 
 from code_model.testers.eval_utils import *
 
@@ -249,3 +250,13 @@ def find_good_bins(arrs, spacing=(1.5, 1.5),
 def blank_plot(ax):
     ax.set_axis_off()
 
+def save_log_dict(file_path, dict):
+    """Saves the log dictionary as a csv"""
+    df = pd.DataFrame(dict)
+    df.to_csv(file_path)
+
+def capword(word):
+    """Capitalize first letter of word"""
+    lst = list(word)
+    lst[0] = lst[0].upper()
+    return "".join(lst)

@@ -234,6 +234,19 @@ class blobTester(testDataset):
             self.__dict__ = args[0].__dict__.copy()
         else:
             super().__init__(*args)
+        
+        # Dictionary for logging metrics
+        self.log_dict = {
+            'stat': [],
+            'metric': [],
+            'value': []
+        }
+        
+    def log_in_dict(self, entry):
+        """Log desired metrics in the initialized dictionary"""
+        self.log_dict['stat'].append(entry[0])
+        self.log_dict['metric'].append(entry[1])
+        self.log_dict['value'].append(entry[2])
     
     def images(self):
         """Plot generated images - grid of images, marginal sums, blob coordinates"""
@@ -347,8 +360,13 @@ class blobTester(testDataset):
         fig = plt.figure(figsize=(4,3))
 
         # Plot
-        plt.hist(stacked_real_img.ravel(), histtype='step', label='target', color=(self.real_color,0.8))
-        plt.hist(stacked_gen_img.ravel(), histtype='step', label='generated', color=(self.gen_color,0.8))
+        real_pxl_lst = stacked_real_img.ravel()
+        gen_pxl_lst = stacked_gen_img.ravel()
+        
+        bins = find_good_bins([real_pxl_lst, gen_pxl_lst], method='linspace', num_bins=15, ignore_outliers=False)
+        
+        real_hist, _, _ = plt.hist(real_pxl_lst, bins=bins, histtype='step', label='target', color=(self.real_color,0.8))
+        gen_hist, _, _ = plt.hist(gen_pxl_lst, bins=bins, histtype='step', label='generated', linestyle='dashed', color=(self.gen_color,0.8))
 
         # Format
         plt.ylabel('pixel count')
@@ -360,6 +378,10 @@ class blobTester(testDataset):
         # Save
         plt.savefig(f'{self.plot_save_path}/stack-histogram-img_{self.model_name}.{self.image_file_format}')
         plt.close()
+        
+        # Log js
+        js = JSD(real_hist, gen_hist)
+        self.log_in_dict(['stack img hist', 'JS div', js])
 
     def count_blobs_fast(self):
         """Count blobs only using gaussian decomp"""
@@ -452,15 +474,16 @@ class blobTester(testDataset):
         
         # Plot histogram
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
-            plt.hist(blob_counts, bins=bins,
-                    histtype='step', label=f'epoch {self.model_epochs[i]}',
-                    color=(self.gen_color,self.hist_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
-                    fill=self.select_last_epoch[i]
-                    )
+            gen_hist, _, _ = plt.hist(
+                blob_counts, bins=bins,
+                histtype='step', label=f'epoch {self.model_epochs[i]}',
+                color=(self.gen_color,self.hist_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                fill=self.select_last_epoch[i]
+                )
         plt.axvline(self.all_gen_blob_num_mean[-1], color=(self.gen_color,0.5), linestyle='dashed', linewidth=1) # Only label mean for last model
         
-        plt.hist(self.real_blob_counts, bins=bins, 
-                    histtype='step', label='target', color=(self.real_color,0.8))
+        real_hist, _, _ = plt.hist(self.real_blob_counts, bins=bins, 
+                histtype='step', label='target', color=(self.real_color,0.8))
         plt.axvline(self.real_blob_num_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1)
 
         _, max_ylim = plt.ylim()
@@ -478,7 +501,11 @@ class blobTester(testDataset):
 
         # Save
         plt.savefig(f'{self.plot_save_path}/number-blobs-histogram_{self.model_name}.{self.image_file_format}')
-        plt.close()    
+        plt.close()
+        
+        # Log JS
+        js = JSD(real_hist, gen_hist)
+        self.log_in_dict(['blob count', 'JS div', js])
 
         'Extreme number of blobs'
         # Create figure
@@ -598,13 +625,13 @@ class blobTester(testDataset):
         
         # Plot
         for i, fluxes in enumerate(all_gen_img_fluxes):
-            plt.hist(fluxes, bins=bins,
+            gen_hist, _, _ = plt.hist(fluxes, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}', 
                     color=(self.gen_color,self.hist_alphas[i]), 
                     linewidth=set_linewidth(i, len(self.models)),
                     fill=self.select_last_epoch[i]
                     )
-        plt.hist(real_img_fluxes, bins=bins,
+        real_hist, _, _ = plt.hist(real_img_fluxes, bins=bins,
                     histtype='step', label='target', color=(self.real_color,0.8))
  
         # Format   
@@ -617,6 +644,10 @@ class blobTester(testDataset):
         # Save
         plt.savefig(f'{self.plot_save_path}/total-flux-histogram_{self.model_name}.{self.image_file_format}')
         plt.close()
+        
+        # Log js
+        js = JSD(real_hist, gen_hist)
+        self.log_in_dict(['total flux', 'JS div', js])
 
     def two_point_correlation(self):
         """2-point correlation analysis"""
@@ -740,36 +771,9 @@ class blobTester(testDataset):
             self.two_point_correlation()
         self.power_spec()
         self.flux_stats()
-        self.pixel_stats()
+        # self.pixel_stats()
+        save_log_dict(f'{self.plot_save_path}/metrics', self.log_dict)
         
-class pointTester(testDataset):
-    """
-    Run tests for blob data
-    """
-    def __init__(self, *args):
-        if type(args[0]) is testDataset:
-            self.__dict__ = args[0].__dict__.copy()
-        else:
-            super().__init__(*args)
-            
-    def images(self):
-        """Plot generated images - grid of images, marginal sums, blob coordinates"""
-        for n in tqdm(range(self.plot_num), desc='Plotting'):
-            # Get images
-            real_imgs_subset = self.real_imgs[n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)]
-            gen_imgs_subset = self.all_gen_imgs[-1][n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)] # Only use last model for this section
-            
-            # Plotting grid of images
-            fig = plt.figure(figsize=(6,3))
-            subfig = fig.subfigures(1, 2, wspace=0.2)
-            
-            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_num, title='Target Imgs')
-            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs')
-            
-            # Save plot
-            plt.savefig(f'{self.plot_save_path}/gen-imgs_{self.model_name}_{n}.{self.image_file_format}')
-            plt.close()
-
 class ganLogsPlotter(testDataset):
     def __init__(self, *args):        
         if type(args[0]) is testDataset:
@@ -955,3 +959,33 @@ class diffLogsPlotter(testDataset):
             return
         else:
             self.loss()
+
+"""Depreciated"""
+class pointTester(testDataset):
+    """
+    Run tests for blob data
+    """
+    def __init__(self, *args):
+        if type(args[0]) is testDataset:
+            self.__dict__ = args[0].__dict__.copy()
+        else:
+            super().__init__(*args)
+            
+    def images(self):
+        """Plot generated images - grid of images, marginal sums, blob coordinates"""
+        for n in tqdm(range(self.plot_num), desc='Plotting'):
+            # Get images
+            real_imgs_subset = self.real_imgs[n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)]
+            gen_imgs_subset = self.all_gen_imgs[-1][n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)] # Only use last model for this section
+            
+            # Plotting grid of images
+            fig = plt.figure(figsize=(6,3))
+            subfig = fig.subfigures(1, 2, wspace=0.2)
+            
+            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_num, title='Target Imgs')
+            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs')
+            
+            # Save plot
+            plt.savefig(f'{self.plot_save_path}/gen-imgs_{self.model_name}_{n}.{self.image_file_format}')
+            plt.close()
+

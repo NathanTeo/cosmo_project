@@ -5,10 +5,12 @@ This script contains functions and classes for model evaluation in the modules.p
 """
 
 import numpy as np
+from numpy.linalg import norm
 import matplotlib.pyplot as plt
 from skimage.feature import peak_local_max
 from scipy.ndimage import gaussian_filter
 from scipy import spatial
+from scipy.stats import entropy
 from tqdm.auto import tqdm
 from scipy.stats import multivariate_normal
 from scipy.signal.windows import general_gaussian, tukey
@@ -94,6 +96,13 @@ def get_residuals(samples, blob_coords, image_size, blob_size, blob_amplitude):
     
     # Get residuals
     return coords_to_gaussian_samples - samples
+
+def JSD(P, Q):
+    """Calculates the Jensen-Shannon divergence"""
+    _P = P / norm(P, ord=1)
+    _Q = Q / norm(Q, ord=1)
+    _M = 0.5 * (_P + _Q)
+    return 0.5 * (entropy(_P, _M) + entropy(_Q, _M))
 
 """Power spectrum"""
 def cosine_window(N):
@@ -358,10 +367,13 @@ def circle_points(r, n):
     return np.array(circles)
  
 def mse(A, B):
-    """
-    Mean squared error
-    """
+    """Mean squared error of two arrays"""
     return (np.square(A - B)).mean(axis=None)
+
+def mse_from_residuals(residuals):
+    """Find the mean squared errors from residuals"""
+    return np.mean(np.reshape(
+        np.square(residuals), (residuals.shape[0],residuals.shape[1]**2)), axis=1)
 
 def n_slices(n, list_):
     for i in range(len(list_) + 1 - n):
