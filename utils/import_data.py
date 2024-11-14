@@ -42,8 +42,8 @@ if not os.path.exists(dest):
         os.makedirs(dest)
 
 if platform.system()=='Windows':
-        os.system(f'robocopy {source} {dest} {data_file_name} /e')
+        os.system(f'robocopy {source} {dest} {data_file_name}.npy /e')
 elif platform.system()=='Linux':
-        os.system(f'cp {source}/{data_file_name} {dest}')
+        os.system(f'cp {source}/{data_file_name}.npy {dest}')
 
 print('data moved')
