@@ -439,8 +439,8 @@ def find_dist_to_next_consec(x, val, direction=1):
     return consec[:first_zero_idx].sum() + 1
     
 
-class blobCounter():
-    """Counts the number of blobs for each sample given a set of samples
+class blobFitter():
+    """Fits for the number of blobs for each sample given a set of samples
     Blobs on samples must have the same amplitude"""
     def __init__(self, blob_size, blob_amplitude, jit=0.5, error_scaling=1e7):
         """Initialize params"""
