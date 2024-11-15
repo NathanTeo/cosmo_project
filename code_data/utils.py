@@ -36,18 +36,18 @@ class blobDataset():
         self.clustering = params['clustering']
         self.pad = params['pad']
         self.noise = params['noise']
+        self.min_dist = params['minimum_distance']
         
         if self.pad == 'auto':
             self.pad = self.blob_size 
         self.generation_matrix_size = self.image_size + self.pad*2
         
-        self.file_name = 'bn{}{}-cl{}-is{}-bs{}-ba{}{}-sn{}-sd{}-ns{}'.format(
+        self.file_name = 'bn{}{}-cl{}-is{}-bs{}-ba{}{}-md{}-sn{}-sd{}-ns{}'.format(
             self.blob_num, self.num_distribution[0], 
             '{:.0e}_{:.0e}'.format(*self.clustering) if self.clustering is not None else '_',
             self.image_size, self.blob_size, 
-            '{:.0e}'.format(self.blob_amplitude), self.amplitude_distribution[0], 
-            self.sample_num,
-            seed, self.noise
+            '{:.0e}'.format(self.blob_amplitude), self.amplitude_distribution[0],
+            self.min_dist, f'{self.sample_num:.0e}', seed, self.noise
         )
         
         # Set seed
@@ -85,7 +85,7 @@ class blobDataset():
         np.random.seed((os.getpid() * int(time.time())) % 123456789)
         
         # Generate points for centers
-        centers = self.center_generator.generate(self.num_distribution, self.clustering)
+        centers = self.center_generator.generate(self.num_distribution, self.clustering, self.min_dist)
         count = centers.shape[0]
         
         # Sample amplitudes
@@ -235,19 +235,57 @@ class centerGenerator():
     def unclustered_centers(self, num_distribution):
         """Generate random coordinates"""
         if num_distribution=='delta':
-            # Create sample
-            self.centers = np.random.rand(self.num_centers,2)*self.image_size - 0.5
+            # Generate center coordinates
+            centers = np.random.rand(self.num_centers,2)*self.image_size - 0.5
         elif num_distribution=='poisson':
             # Get number of blobs from poisson distribution
             current_center_num = np.random.poisson(self.num_centers)
-            
-            # Create sample
+            # Generate center coordinates
             if current_center_num==0:
-                self.centers = np.empty((0,2))
+                centers = np.empty((0,2))
             else:
-                self.centers = np.random.rand(current_center_num,2)*self.image_size - 0.5
+                centers = np.random.rand(current_center_num,2)*self.image_size - 0.5
          
-        return self.centers
+        return centers
+    
+    def random_with_min_dist(n, min_dist, image_size=32, size=(1,2)):
+        centers = []
+        counter = 0
+        while True:
+            # Generate new center coordinate
+            new_center = np.random.rand(*size)*image_size - 0.5
+            # Calculate distances to all other centers
+            dist = np.array([np.linalg.norm(new_center - center) for center in centers])
+            # Add blob if it is at the minimum distance from all other centers
+            if (dist<min_dist).sum()>0:
+                pass
+            else:
+                centers.append(*new_center)
+            # Iterate counter
+            counter += 1
+            # Break when desired number of coordinates generated
+            if len(centers)==n:
+                break
+            # Break if unable to find coordinate with minimum distance to all other points 
+            if counter>n*50:
+                print("Error - unable to find coordiante that satisfies minimum distance constraint")
+                return None 
+        return np.array(centers)
+    
+    def non_overlapping_centers(self, num_distribution, min_dist):
+        """Generate random coordinates with minimum distance"""
+        if num_distribution=='delta':
+            # Generate center coordinates
+            centers = self.random_with_min_dist(self.num_centers, min_dist)
+        elif num_distribution=='poisson':
+            # Get number of blobs from poisson distribution
+            current_center_num = np.random.poisson(self.num_centers)
+            # Generate center coordinates
+            if current_center_num==0:
+                centers = np.empty((0,2))
+            else:
+                centers = self.random_with_min_dist(self.num_centers, self.min_dist)
+        return centers
     
     def clustered_centers(self, num_distribution, clustering, track_progress=False):
         """Generate clustered coordinates according to a power-law 2-point correlation function"""
@@ -389,22 +427,23 @@ class centerGenerator():
         xpos,ypos = genpos2d(nx ,ny,lxrad,lyrad,datgrid)
         
         # Convert positions to degrees
-        self.centers = np.array(list(zip(
+        centers = np.array(list(zip(
             np.degrees(xpos)*self.image_size/lxdeg,
             np.degrees(ypos)*self.image_size/lydeg,
             ))
         )
         
-        return self.centers
+        return centers
     
-    def generate(self, num_distribution, clustering):
+    def generate(self, num_distribution, clustering, min_dist=None):
         """Generate coordinates for one sample"""
-        if clustering is None:
-            self.unclustered_centers(num_distribution)
+        if min_dist is not None:
+            centers = self.non_overlapping_centers(num_distribution, min_dist)
+        elif clustering is None:
+            centers = self.unclustered_centers(num_distribution)
         else:
-            self.clustered_centers(num_distribution, clustering)
-        
-        return self.centers
+            centers = self.clustered_centers(num_distribution, clustering)
+        return centers
 
 
 

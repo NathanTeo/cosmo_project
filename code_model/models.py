@@ -148,7 +148,6 @@ class CGAN(pl.LightningModule, ganUtils):
         self.root_path = training_params['root_path']
         self.epoch_start_g_train = training_params['epoch_start_g_train']
         self.discriminator_train_freq = training_params['discriminator_train_freq']
-        self.log_folder = training_params['model_name']
         self.noise = training_params['noise']
         
         gen_version = training_params['generator_version']

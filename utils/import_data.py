@@ -24,6 +24,7 @@ blob_size = generation_params['blob_size']
 sample_num = generation_params['sample_num']
 image_size = generation_params['image_size']
 gen_noise = generation_params['noise']
+min_dist = generation_params['minimum_distance']
 
 data_source_path = f'cosmo_data/{blob_num}_blob'
 data_dest_path = f'cosmo_runs/{run}'
@@ -35,6 +36,14 @@ data_file_name = 'bn{}{}-cl{}-is{}-bs{}-ba{}{}-sn{}-sd{}-ns{}'.format(
         sample_num,
         generation_seed, int(gen_noise)
 )
+data_file_name = 'bn{}{}-cl{}-is{}-bs{}-ba{}{}-md{}-sn{}-sd{}-ns{}'.format(
+        blob_num, num_distribution[0], 
+        '{:.0e}_{:.0e}'.format(*clustering) if clustering is not None else '_',
+        image_size, blob_size, 
+        '{:.0e}'.format(blob_amplitude), amplitude_distribution[0],
+        min_dist, f'{sample_num:.0e}', generation_seed, int(gen_noise)
+)
+
 source = f'./{data_source_path}'
 dest = f'./{data_dest_path}/data'
 
