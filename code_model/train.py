@@ -63,7 +63,7 @@ def run_training(training_params, generation_params, testing_params, training_re
                 wandb.login()
                 wandb_logger = WandbLogger(
                         project='cosmo_project',
-                        name=f'{root_path.split('/')[-1]}'
+                        name=f'{root_path.split("/")[-1]}'
                         )
                 wandb_logger.experiment.config.update(training_params)
 
