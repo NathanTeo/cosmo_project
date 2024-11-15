@@ -18,8 +18,8 @@ from code_model.testers.eval_utils import *
 from code_model.testers.plotting_utils import *
 
 """RUNS"""
-model1_run = 'cwgan_6a'
-model2_run = 'diffusion_3c'
+model1_run = 'cwgan_6b'
+model2_run = 'diffusion_3d'
 labels = ['GAN', 'diffusion']
 
 ##########################################################
@@ -222,37 +222,31 @@ class compareUtils():
         fig = plt.figure(figsize=(4,3))
 
         # Bins for histogram
-        concat_fluxes = np.concatenate([self.real_blob_counts, self.model1_blob_counts, self.model2_blob_counts])
-        if ignore_outliers:
-            bin_min = np.floor(np.percentile(concat_fluxes, 1))
-            bin_max = np.ceil(np.percentile(concat_fluxes, 99))
-        else:        
-            bin_min = np.min(concat_fluxes)
-            bin_max = np.min(concat_fluxes)
-
-        bins = np.arange(bin_min-1.5, bin_max+1.5,1)
+        bins = find_good_bins([self.real_blob_counts, self.model1_blob_counts, self.model2_blob_counts],
+                              method='arange', ignore_outliers=True, percentile_range=(0,99))
         
         # Plot histogram
         real_hist, _, _ = plt.hist(self.real_blob_counts, bins=bins,
                 histtype='step', label='target',
-                color=(self.real_color, 0.8)
+                color=(self.real_color, 0.8),
+                facecolor=(self.real_color, 0.1), fill=True
                 )
         plt.axvline(self.real_blob_count_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1) # Only label mean for last model
         
         model1_hist, _, _ = plt.hist(self.model1_blob_counts, bins=bins, 
-                    histtype='step', label=self.labels[0], color=(self.model1_color,0.8))
+                    histtype='step', label=self.labels[0], color=(self.model1_color,0.8), linewidth=1.2)
         plt.axvline(self.model1_blob_count_mean, color=(self.model1_color,0.5), linestyle='dashed', linewidth=1)
  
         model2_hist, _, _ = plt.hist(self.model2_blob_counts, bins=bins, 
-                    histtype='step', label=self.labels[1], color=(self.model2_color,0.8))
+                    histtype='step', label=self.labels[1], color=(self.model2_color,0.8), linewidth=1)
         plt.axvline(self.model2_blob_count_mean, color=(self.model2_color,0.5), linestyle='dashed', linewidth=1)
 
         _, max_ylim = plt.ylim()
-        plt.text(self.real_blob_count_mean*1.05, max_ylim*0.3,
+        plt.text(self.real_blob_count_mean*1.1, max_ylim*0.3,
                 'Mean: {:.2f}'.format(self.real_blob_count_mean), color=(self.real_color,1))
-        plt.text(self.model1_blob_count_mean*1.05, max_ylim*0.2,
+        plt.text(self.model1_blob_count_mean*1.1, max_ylim*0.2,
                 'Mean: {:.2f}'.format(self.model1_blob_count_mean), color=(self.model1_color,1))
-        plt.text(self.model2_blob_count_mean*1.05, max_ylim*0.1,
+        plt.text(self.model2_blob_count_mean*1.1, max_ylim*0.1,
                 'Mean: {:.2f}'.format(self.model2_blob_count_mean), color=(self.model2_color,1))
         
         # Format
@@ -303,18 +297,19 @@ class compareUtils():
         model2_pxl_lst = stacked_model2_img.ravel()
         
         bins = find_good_bins([real_pxl_lst, model1_pxl_lst, model2_pxl_lst],
-                              method='linspace', ignore_outliers=False)
+                              method='linspace', num_bins=15, ignore_outliers=False)
         # Create figure
         fig = plt.figure(figsize=(4,3))
 
         # Plot
         real_hist, _, _ = plt.hist(
             real_pxl_lst, bins=bins,
-            histtype='step', label='target', color=(self.real_color,0.8)
+            histtype='step', label='target', color=(self.real_color,0.8), 
+            facecolor=(self.real_color, 0.1), fill=True
             )
         model1_hist, _, _ = plt.hist(
             model1_pxl_lst, bins=bins, 
-            histtype='step', label=self.labels[0], color=(self.model1_color,0.8)
+            histtype='step', label=self.labels[0], color=(self.model1_color,0.8), linewidth=1.2
             )
         model2_hist, _, _ = plt.hist(
             model2_pxl_lst, bins=bins, 
@@ -324,7 +319,7 @@ class compareUtils():
         # Format
         plt.ylabel('pixel count')
         plt.xlabel('stacked pixel value')
-        plt.suptitle(f"Stack of {self.subset_sample_num} samples")
+        plt.suptitle(f"Histogram of stacked image")
         plt.legend()
         plt.tight_layout()
 
