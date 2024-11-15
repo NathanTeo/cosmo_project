@@ -34,11 +34,7 @@ class testDataset():
         self.blob_size = generation_params['blob_size']
         self.real_sample_num = generation_params['sample_num']
         self.image_size = training_params['image_size']
-<<<<<<< Updated upstream
-=======
-        self.gen_noise = generation_params['noise']
         self.min_dist = generation_params['minimum_distance']
->>>>>>> Stashed changes
 
         self.batch_size = training_params['batch_size']
         self.num_workers = training_params['num_workers']
@@ -481,12 +477,12 @@ class blobTester(testDataset):
         plt.tight_layout()
 
         # Save
-        plt.savefig(f'{self.plot_save_path}/amplitude-blobs-histogram_{self.model_name}.{self.image_file_format}')
+        plt.savefig(f'{self.plot_save_path}/amplitude-blobs-histogram.{self.image_file_format}')
         plt.close()
         
         # Log JS
         js = JSD(real_hist, gen_hist)
-        self.log_in_dict(['blob count', 'JS div', js])        
+        self.log_in_dict(['blob amplitude', 'JS div', js])        
      
     def blob_num_stats(self):
         """Number of blob analysis"""
