@@ -34,6 +34,11 @@ class testDataset():
         self.blob_size = generation_params['blob_size']
         self.real_sample_num = generation_params['sample_num']
         self.image_size = training_params['image_size']
+<<<<<<< Updated upstream
+=======
+        self.gen_noise = generation_params['noise']
+        self.min_dist = generation_params['minimum_distance']
+>>>>>>> Stashed changes
 
         self.batch_size = training_params['batch_size']
         self.num_workers = training_params['num_workers']
@@ -374,6 +379,33 @@ class blobTester(testDataset):
         self.all_gen_blob_num_mean = [np.mean(blob_counts) for blob_counts in self.all_gen_blob_counts]
         print(f'mean number of target peaks: {self.real_blob_num_mean}')
         print(f'mean number of generated peaks: {self.all_gen_blob_num_mean[-1]}')
+        
+    def count_non_overlapping_blobs(self):
+        """Count blobs using gaussian decomp"""
+        print('counting blobs...')
+        blob_threshold_rel = self.counting_params[1]
+
+        # Real
+        self.real_blob_coords, self.real_blob_nums, self.real_blob_amplitudes = samples_blob_counter_fast(
+            self.real_imgs_subset, 
+            blob_size=self.blob_size, min_peak_threshold=self.blob_amplitude*blob_threshold_rel,
+            progress_bar=True
+            )
+
+        # Generated
+        self.all_gen_blob_coords, self.all_gen_blob_nums, self.all_gen_blob_amplitudes = map(
+            list, zip(*[samples_blob_counter_fast(
+                subset, 
+                blob_size=self.blob_size, min_peak_threshold=self.blob_amplitude*blob_threshold_rel,
+                progress_bar=True
+                ) for subset in self.all_gen_imgs_subset])
+            )
+
+        # Find mean number of blobs
+        self.real_blob_num_mean = np.mean(self.real_blob_counts)
+        self.all_gen_blob_num_mean = [np.mean(blob_counts) for blob_counts in self.all_gen_blob_counts]
+        print(f'mean number of target peaks: {self.real_blob_num_mean}')
+        print(f'mean number of generated peaks: {self.all_gen_blob_num_mean[-1]}')
 
     def count_blobs(self):
         """Count blobs by fitting"""
@@ -417,7 +449,44 @@ class blobTester(testDataset):
         self.real_blob_coords = file['real_coords'].tolist()
         
         self.real_blob_num_mean = np.mean(self.real_blob_counts)
-        self.all_gen_blob_num_mean = [np.mean(counts) for counts in self.all_gen_blob_counts] 
+        self.all_gen_blob_num_mean = [np.mean(counts) for counts in self.all_gen_blob_counts]
+        
+    def blob_amp_stats(self):
+        """Blob amplitude analysis"""
+        'Histogram'
+        # Create figure
+        fig = plt.figure(figsize=(5,3.5))
+
+        # Bins for histogram
+        bins = find_good_bins([self.real_blob_amplitudes, *self.all_gen_blob_amplitudes], method='arange',
+                              ignore_outliers=False, percentile_range=(0,99)) ########### NEEDS TWEAKING ############
+        
+        # Plot histogram
+        for i, blob_ampreal_blob_amplitudes in enumerate(self.all_gen_blob_amplitudes):
+            gen_hist, _, _ = plt.hist(
+                blob_ampreal_blob_amplitudes, bins=bins,
+                histtype='step', label=f'epoch {self.model_epochs[i]}',
+                color=(self.gen_color,self.line_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                facecolor=(self.gen_color,self.hist_alphas[i]), fill=self.select_last_epoch[i]
+                )
+        
+        real_hist, _, _ = plt.hist(self.real_blob_amplitudes, bins=bins, 
+                histtype='step', label='target', color=(self.real_color,0.8))
+
+        # Format
+        plt.ylabel('image count')
+        plt.xlabel('blob amplitude')
+        plt.suptitle(f"Histogram of blob amplitude, {self.subset_sample_num} samples")
+        plt.legend()
+        plt.tight_layout()
+
+        # Save
+        plt.savefig(f'{self.plot_save_path}/amplitude-blobs-histogram_{self.model_name}.{self.image_file_format}')
+        plt.close()
+        
+        # Log JS
+        js = JSD(real_hist, gen_hist)
+        self.log_in_dict(['blob count', 'JS div', js])        
      
     def blob_num_stats(self):
         """Number of blob analysis"""
@@ -721,9 +790,13 @@ class blobTester(testDataset):
             if os.path.exists(f'{self.output_save_path}/counts.npz'):
                 print('previous counts found, loading counts...')
                 self.load_counts()
-            else:
+            elif self.min_dist is None:
                 self.count_blobs()
                 self.save_counts()
+            elif self.min_dist is not None:
+                self.count_non_overlapping_blobs()
+                self.save_counts()
+                self.blob_amp_stats()
             self.blob_num_stats()
             self.two_point_correlation()
         self.power_spec()
