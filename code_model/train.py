@@ -85,7 +85,7 @@ def run_training(training_params, generation_params, testing_params, training_re
         if __name__ == 'code_model.train':
                 # Load data
                 data = BlobDataModule(
-                        data_file=f'{data_path}/{data_file_name}.npy',
+                        data_file=f'{data_path}/{data_file_name}',
                         batch_size=batch_size, num_workers=num_workers
                         )
                 

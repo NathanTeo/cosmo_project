@@ -90,9 +90,9 @@ class testDataset():
         
     def load_data(self, DataModule):
         """Load real data"""
-        self.real_imgs = np.load(f'{self.data_path}/{self.data_file_name}.npy')[:self.subset_sample_num]
+        self.real_imgs = np.load(f'{self.data_path}/{self.data_file_name}')[:self.subset_sample_num]
         self.data = DataModule(
-            data_file=f'{self.data_path}/{self.data_file_name}.npy',
+            data_file=f'{self.data_path}/{self.data_file_name}',
             batch_size=self.batch_size, num_workers=self.num_workers,
             truncate_ratio=self.subset_sample_num/self.real_sample_num
             )
