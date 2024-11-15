@@ -80,8 +80,8 @@ class testDataset():
         self.real_color = 'black'
         self.gen_color = 'red'
         # Need to change if different number of models are plotted, find a way to make this automatic/input?
-        self.hist_alphas = [0.3, 0.7, 0.5]
-        self.line_alphas = [0.3, 0.7, 0.9]
+        self.hist_alphas = [0.3, 0.7, 0.2]
+        self.line_alphas = [0.3, 0.6, 0.8]
         self.select_last_epoch = [False, False, True]
         
         """Initialize seed"""
@@ -247,7 +247,7 @@ class blobTester(testDataset):
            
             'Counts' # Not very useful for large number of blobs
             '''# Fitting blobs
-            counter = blobCounter(blob_size=self.blob_size, blob_amplitude=self.blob_amplitude)
+            counter = blobFitter(blob_size=self.blob_size, blob_amplitude=self.blob_amplitude)
             
             counter.load_samples(real_imgs_subset)
             real_blob_coords, real_blob_counts = counter.count(err_threshold_rel=1, mode='multi', progress_bar=True, plot_progress=False)
@@ -320,13 +320,15 @@ class blobTester(testDataset):
         
         bins = find_good_bins([real_pxl_lst, gen_pxl_lst], method='linspace', num_bins=15, ignore_outliers=False)
         
-        real_hist, _, _ = plt.hist(real_pxl_lst, bins=bins, histtype='step', label='target', color=(self.real_color,0.8))
-        gen_hist, _, _ = plt.hist(gen_pxl_lst, bins=bins, histtype='step', label='generated', linestyle='dashed', color=(self.gen_color,0.8))
+        real_hist, _, _ = plt.hist(real_pxl_lst, bins=bins, histtype='step', label='target',
+                                   color=(self.real_color,0.8), facecolor=(self.real_color,0.1), fill=True)
+        gen_hist, _, _ = plt.hist(gen_pxl_lst, bins=bins, histtype='step', label='generated',
+                                  color=(self.gen_color,0.8))
 
         # Format
         plt.ylabel('pixel count')
         plt.xlabel('stacked pixel value')
-        plt.suptitle(f"stack of {self.subset_sample_num} samples")
+        plt.suptitle(f"Histogram of stacked image")
         plt.legend()
         plt.tight_layout()
 
@@ -378,7 +380,7 @@ class blobTester(testDataset):
         print('counting blobs...')
         
         # Initialize counter
-        counter = blobCounter(blob_size=self.blob_size, blob_amplitude=self.blob_amplitude)
+        counter = blobFitter(blob_size=self.blob_size, blob_amplitude=self.blob_amplitude)
         
         # Count blobs for real images
         counter.load_samples(self.real_imgs_subset)
@@ -425,15 +427,15 @@ class blobTester(testDataset):
 
         # Bins for histogram
         bins = find_good_bins([self.real_blob_counts, *self.all_gen_blob_counts], method='arange',
-                              ignore_outliers=True, percentile_range=(1,99))
+                              ignore_outliers=True, percentile_range=(0,98)) ########### NEEDS TWEAKING ############
         
         # Plot histogram
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
             gen_hist, _, _ = plt.hist(
                 blob_counts, bins=bins,
                 histtype='step', label=f'epoch {self.model_epochs[i]}',
-                color=(self.gen_color,self.hist_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
-                fill=self.select_last_epoch[i]
+                color=(self.gen_color,self.line_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                facecolor=(self.gen_color,self.hist_alphas[i]), fill=self.select_last_epoch[i]
                 )
         plt.axvline(self.all_gen_blob_num_mean[-1], color=(self.gen_color,0.5), linestyle='dashed', linewidth=1) # Only label mean for last model
         
@@ -582,9 +584,9 @@ class blobTester(testDataset):
         for i, fluxes in enumerate(all_gen_img_fluxes):
             gen_hist, _, _ = plt.hist(fluxes, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}', 
-                    color=(self.gen_color,self.hist_alphas[i]), 
-                    linewidth=set_linewidth(i, len(self.models)),
-                    fill=self.select_last_epoch[i]
+                    color=(self.gen_color,self.line_alphas[i]),
+                    facecolor=(self.gen_color,self.hist_alphas[i]), fill=self.select_last_epoch[i], 
+                    linewidth=set_linewidth(i, len(self.models))
                     )
         real_hist, _, _ = plt.hist(real_img_fluxes, bins=bins,
                     histtype='step', label='target', color=(self.real_color,0.8))
@@ -693,7 +695,7 @@ class blobTester(testDataset):
         for i, hist_stack in enumerate(all_gen_hist_stack):
             plot_histogram_stack(
                 ax, *hist_stack,
-                color=(self.gen_color,self.hist_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                color=(self.gen_color,self.line_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
                 fill_color=fill[i],
                 label=f'epoch {self.model_epochs[i]}'
                 )
