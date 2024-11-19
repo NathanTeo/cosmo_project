@@ -319,7 +319,7 @@ class CGAN(pl.LightningModule, ganUtils):
             real_imgs, _ = batch
         else:
             real_imgs = batch
-            
+           
         # Generate imgs
         z = torch.randn(real_imgs.shape[0], self.latent_dim)
         z = z.type_as(real_imgs)
@@ -338,7 +338,7 @@ class CWGAN(pl.LightningModule, ganUtils):
     def __init__(self, scaling_factor=1, **training_params):
         super().__init__()
         self.automatic_optimization = False
-        self.scaling_factor = torch.tensor(scaling_factor)
+        self.scaling_factor = scaling_factor
         
         # Initialize params
         self.latent_dim = training_params['network_params']['latent_dim']
@@ -579,7 +579,7 @@ class CWGAN(pl.LightningModule, ganUtils):
         self.test_output_list = {
             'gen_imgs': []
         }
-        self.scaling_factor = torch.tensor(self.scaling_factor).to(self.device)
+        self.scaling_factor = self.scaling_factor.to(self.device)
 
     def test_step(self, batch, batch_idx):
         # Load real images
