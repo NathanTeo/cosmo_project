@@ -196,7 +196,7 @@ def power_spectrum(Map1, Map2, delta_ell, ell_max, ell2d=None, image_size_angula
 
 def power_spectrum_stack(samples, 
                          delta_ell=500, ell_max=15000, ell2d=None, image_size_angular=1,
-                         errorbar='percentile',
+                         errorbar='percentile', percentile_range=(25,75),
                          progress_bar=False):
     """Calculate the mean power spectrum and variance given a set of samples"""
     # Find power spectrum of samples
@@ -210,8 +210,8 @@ def power_spectrum_stack(samples,
     if errorbar=='std':
         errs = np.std(cls, axis=0, ddof=1) # ddof=1 for sample estimate of popln std dev
     if errorbar=='percentile':
-        lower = np.percentile(cls, 10, axis=0)
-        upper = np.percentile(cls, 90, axis=0)
+        lower = np.percentile(cls, percentile_range[0], axis=0)
+        upper = np.percentile(cls, percentile_range[1], axis=0)
         errs = [lower, upper]
     
     return mean, errs, bins
@@ -273,7 +273,7 @@ def create_circular_mask(h, w, center, radius=None):
     mask = dist_from_center <= radius
     return mask
 
-def gaussian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=20):
+def gaussian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=50, method='subtract', check_shape=False):
     """Gaussian decomposition on a single image for blob counting and blob coordinates"""
     # Initiate variables
     img_decomp = img.copy()
@@ -286,42 +286,52 @@ def gaussian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=20
         peak_coord = np.unravel_index(img_decomp.argmax(), img_decomp.shape)
         peak_val = np.max(img_decomp)
 
-        # Create gaussian with amplitude of maximum
-        x, y = np.mgrid[0:img_decomp.shape[0]:1, 0:img_decomp.shape[1]:1]
-        pos = np.dstack((x, y))
-        gaussian = normalize_2d(multivariate_normal(peak_coord, [[blob_size, 0], [0, blob_size]]).pdf(pos))*peak_val
+        if method=='subtract':
+            # Create gaussian with amplitude of maximum
+            x, y = np.mgrid[0:img_decomp.shape[0]:1, 0:img_decomp.shape[1]:1]
+            pos = np.dstack((x, y))
+            gaussian = normalize_2d(multivariate_normal(peak_coord, [[blob_size, 0], [0, blob_size]]).pdf(pos))*peak_val
 
-        # Subtract created gaussian from image
-        img_decomp = np.subtract(img_decomp, gaussian)        
+            # Subtract created gaussian from image
+            img_decomp = np.subtract(img_decomp, gaussian)
+        elif method=='zero':
+            mask_inner = create_circular_mask(img.shape[0], img.shape[0], peak_coord[::-1], blob_size+1)
+            mask_outer = create_circular_mask(img.shape[0], img.shape[0], peak_coord[::-1], blob_size+2)
+            # mask_outer2 = create_circular_mask(img.shape[0], img.shape[0], peak_coord[::-1], blob_size+4)
+            
+            # img_decomp = np.where(mask_outer2, img_decomp*0.8, img_decomp)
+            img_decomp = np.where(mask_outer, img_decomp-peak_val*0.15, img_decomp)
+            img_decomp[mask_inner] = 0
         
         # Stop once threshold maximum is below threshold
         if peak_val<=min_peak_threshold:
             break
         
-        # Find if residual from subtraction is relatively flat, ignore point if residual is very negative
-        mask_radius = int(np.round(blob_size/2))
-        temp_canvas = np.pad(img_decomp, (mask_radius,mask_radius), mode='constant', constant_values=(0,0))
-        mask = create_circular_mask(
-            temp_canvas.shape[1], temp_canvas.shape[0],
-            np.add((peak_coord[1], peak_coord[0]),mask_radius),
-            radius = mask_radius
-        )
-        
-        masked_canvas = temp_canvas.copy()
-        masked_canvas[~mask] = 0
+        if check_shape:
+            # Find if residual from subtraction is relatively flat, ignore point if residual is very negative
+            mask_radius = int(np.round(blob_size/2))
+            temp_canvas = np.pad(img_decomp, (mask_radius,mask_radius), mode='constant', constant_values=(0,0))
+            mask = create_circular_mask(
+                temp_canvas.shape[1], temp_canvas.shape[0],
+                np.add(peak_coord[::-1],mask_radius),
+                radius = mask_radius
+            )
+            
+            masked_canvas = temp_canvas.copy()
+            masked_canvas[~mask] = 0
 
-        mask_size = np.count_nonzero(mask)
+            mask_size = np.count_nonzero(mask)
+            
+            if masked_canvas.sum()/mask_size<=-0.01:
+                img_decomp[peak_coord[0], peak_coord[1]] = 0
+                continue
         
-        if masked_canvas.sum()/mask_size<=-0.01:
-            img_decomp[peak_coord[0], peak_coord[1]] = 0
-            continue
-        else:
-            peak_coords.append(peak_coord)
-            peak_vals.append(peak_val)
+        peak_coords.append(peak_coord)
+        peak_vals.append(peak_val)
         
     return peak_coords, peak_vals
 
-def samples_blob_counter_fast(imgs, blob_size, min_peak_threshold, max_iters=20, filter_sd=None, progress_bar=True):
+def samples_blob_counter_fast(imgs, blob_size, min_peak_threshold, max_iters=50, filter_sd=None, method='subtract', progress_bar=True):
     """Return coordinates of blobs and the corresponding peak values for an array of images"""
     blob_coords = []
     blob_nums = []
@@ -333,7 +343,8 @@ def samples_blob_counter_fast(imgs, blob_size, min_peak_threshold, max_iters=20,
             img = gaussian_filter(img, filter_sd, mode='nearest')
         
         # Find and record blobs
-        img_blob_coords, img_peak_vals = gaussian_decomposition(img, blob_size, min_peak_threshold, max_iters)
+        img_blob_coords, img_peak_vals = gaussian_decomposition(img, blob_size, min_peak_threshold, 
+                                                                max_iters=max_iters, method=method)
         blob_coords.append(img_blob_coords)
         blob_nums.append(len(img_blob_coords))
         peak_vals.append(img_peak_vals)

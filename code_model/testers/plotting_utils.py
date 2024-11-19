@@ -63,15 +63,15 @@ def plot_extremum_num_blobs(subfig, imgs, imgs_coords, blob_nums, imgs_peak_coun
     axs = subfig.subplots(k)
     
     if extremum=='min':
-        min_idxs = np.argpartition(blob_nums, k)[:k]
+        idxs = np.argpartition(blob_nums, k)[:k]
     elif extremum=='max':
-        min_idxs = np.argpartition(blob_nums, -k)[-k:]
+        idxs = np.argpartition(blob_nums, -k)[-k:]
     
     # Make k=1 case iterable for loop
     if k==1:
         axs = [axs]
 
-    for ax, idx in zip(axs, min_idxs):
+    for ax, idx in zip(axs, idxs):
         ax.imshow(imgs[idx], vmin=vmin, vmax=vmax)
         ax.set_title(f"counts: {blob_nums[idx]}")
         
@@ -95,6 +95,35 @@ def plot_extremum_num_blobs(subfig, imgs, imgs_coords, blob_nums, imgs_peak_coun
         ax.axis('off')
         
     subfig.suptitle(title, y=title_y)
+    
+def plot_extremum_flux(subfig, imgs, flux,
+        extremum='min', k=3, title=None, title_y=0.92):
+    """
+    Plot the image with the minimum number of blobs
+    """
+    axs = subfig.subplots(k)
+    
+    if extremum=='min':
+        idxs = np.argpartition(flux, k)[:k]
+    elif extremum=='max':
+        idxs = np.argpartition(flux, -k)[-k:]
+    imgs_extr = imgs[idxs]
+    
+    # Make k=1 case iterable for loop
+    if k==1:
+        axs = [axs]
+        
+    vmin= np.min(imgs_extr)
+    vmax = np.max(imgs_extr)
+
+    for ax, img in zip(axs, imgs_extr):
+        ax.imshow(img, vmin=vmin, vmax=vmax)
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.axis('off')
+        
+    subfig.suptitle(title, y=title_y)
 
 def plot_peak_grid(subfig, imgs, imgs_coords,
                    grid_row_num, title, wspace=.2, hspace=.2, imgs_peak_values=None, subplot_titles=None, vmin=-0.05, vmax=None):
@@ -113,10 +142,12 @@ def plot_peak_grid(subfig, imgs, imgs_coords,
             
             # Plot
             axs[i, j].imshow(img, interpolation='none', vmin=vmin, vmax=vmax)
-            if len(coords)>0: # skip if zero blob case    
+            if coords.size:   
                 coords_x = coords[:, 1]
                 coords_y = coords[:, 0]
                 axs[i, j].scatter(coords_x, coords_y, c='r', marker='x', alpha=0.5)
+            else:
+                pass # zero case
             axs[i, j].set_xticks([])
             axs[i, j].set_yticks([])
             axs[i, j].axis('off')

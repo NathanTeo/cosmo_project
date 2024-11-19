@@ -43,8 +43,11 @@ class testDataset():
         self.plot_num = testing_params['plot_num']
         self.subset_sample_num = int(testing_params['subset_sample_num'])
         self.loss_zoom_bounds = testing_params['loss_zoom_bounds']
+        self.enable_count = testing_params['count_blobs']
         self.counting_params = testing_params['counting_params']
         self.testing_seed = testing_params['seed']
+        
+        self.num_models = 1
         
         """Paths"""
         self.root_path = training_params['root_path']
@@ -81,9 +84,9 @@ class testDataset():
         self.real_color = 'black'
         self.gen_color = 'red'
         # Need to change if different number of models are plotted, find a way to make this automatic/input?
-        self.hist_alphas = [0.3, 0.7, 0.2]
-        self.line_alphas = [0.3, 0.6, 0.8]
-        self.select_last_epoch = [False, False, True]
+        self.hist_alphas = [*[0 for _ in range(self.num_models-1)], 0.2]
+        self.line_alphas = [*[0.3*i for i in range(self.num_models-1)], 0.8] # number of models loaded should be less than 5
+        self.select_last_epoch = [*[False for _ in range(self.num_models-1)], True]
         
         """Initialize seed"""
         torch.manual_seed(self.testing_seed)
@@ -100,9 +103,12 @@ class testDataset():
     def load_models(self, model_dict):
         """Load models"""
         # Get checkpoints of models to be tested
-        filenames = os.listdir(self.chkpt_path)
-        filenames.sort()
-        self.filenames = [filenames[int(len(filenames)/4)], filenames[int(len(filenames)/2)], 'last.ckpt']
+        all_filenames = os.listdir(self.chkpt_path)
+        all_filenames.sort()
+        self.filenames = []
+        for x in np.arange(self.num_models-1,0,-1):
+            self.filenames.append(all_filenames[int(len(all_filenames)/(2**x))])
+        self.filenames.append('last.ckpt')
         
         self.model_epochs = [int(file[6:-5]) for file in self.filenames[:-1]]
         self.model_epochs.append(self.epoch_last)
@@ -110,7 +116,7 @@ class testDataset():
         self.models = [model_dict[self.model_version].load_from_checkpoint(
             f'{self.chkpt_path}/{file}',
             **self.training_params
-            ) for file in filenames]
+            ) for file in all_filenames]
         
         # Set scaling factor
         for model in self.models:
@@ -382,18 +388,18 @@ class blobTester(testDataset):
         blob_threshold_rel = self.counting_params[1]
 
         # Real
-        self.real_blob_coords, self.real_blob_nums, self.real_blob_amplitudes = samples_blob_counter_fast(
+        self.real_blob_coords, self.real_blob_counts, self.real_blob_amplitudes = samples_blob_counter_fast(
             self.real_imgs_subset, 
             blob_size=self.blob_size, min_peak_threshold=self.blob_amplitude*blob_threshold_rel,
-            progress_bar=True
+            method='zero', progress_bar=True
             )
 
         # Generated
-        self.all_gen_blob_coords, self.all_gen_blob_nums, self.all_gen_blob_amplitudes = map(
+        self.all_gen_blob_coords, self.all_gen_blob_counts, self.all_gen_blob_amplitudes = map(
             list, zip(*[samples_blob_counter_fast(
                 subset, 
                 blob_size=self.blob_size, min_peak_threshold=self.blob_amplitude*blob_threshold_rel,
-                progress_bar=True
+                method='zero', progress_bar=True
                 ) for subset in self.all_gen_imgs_subset])
             )
 
@@ -452,13 +458,17 @@ class blobTester(testDataset):
         'Histogram'
         # Create figure
         fig = plt.figure(figsize=(5,3.5))
-
+        
+        real_amplitudes_concat = np.concatenate(self.real_blob_amplitudes)
+        all_gen_amplitudes_concat = [np.concatenate(amps) for amps in self.all_gen_blob_amplitudes]
+        
+        amps = np.concatenate([real_amplitudes_concat, *all_gen_amplitudes_concat])
+        
         # Bins for histogram
-        bins = find_good_bins([self.real_blob_amplitudes, *self.all_gen_blob_amplitudes], method='arange',
-                              ignore_outliers=False, percentile_range=(0,99)) ########### NEEDS TWEAKING ############
+        bins = np.arange(0, 10+1, 0.5)
         
         # Plot histogram
-        for i, blob_ampreal_blob_amplitudes in enumerate(self.all_gen_blob_amplitudes):
+        for i, blob_ampreal_blob_amplitudes in enumerate(all_gen_amplitudes_concat):
             gen_hist, _, _ = plt.hist(
                 blob_ampreal_blob_amplitudes, bins=bins,
                 histtype='step', label=f'epoch {self.model_epochs[i]}',
@@ -466,7 +476,7 @@ class blobTester(testDataset):
                 facecolor=(self.gen_color,self.hist_alphas[i]), fill=self.select_last_epoch[i]
                 )
         
-        real_hist, _, _ = plt.hist(self.real_blob_amplitudes, bins=bins, 
+        real_hist, _, _ = plt.hist(real_amplitudes_concat, bins=bins, 
                 histtype='step', label='target', color=(self.real_color,0.8))
 
         # Format
@@ -492,7 +502,7 @@ class blobTester(testDataset):
 
         # Bins for histogram
         bins = find_good_bins([self.real_blob_counts, *self.all_gen_blob_counts], method='arange',
-                              ignore_outliers=True, percentile_range=(0,98)) ########### NEEDS TWEAKING ############
+                              ignore_outliers=True, percentile_range=(0,100)) ########### NEEDS TWEAKING ############
         
         # Plot histogram
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
@@ -578,6 +588,21 @@ class blobTester(testDataset):
         plt.savefig(f'{self.plot_save_path}/max-peak.{self.image_file_format}')
         plt.close()
         
+        for n in range(self.plot_num):
+            fig = plt.figure(figsize=(6,3))
+            subfig = fig.subfigures(1, 2, wspace=0.2)
+                
+            plot_peak_grid(subfig[0], self.real_imgs_subset[n*4:(n+1)*4], self.real_blob_coords[n*4:(n+1)*4], self.grid_row_num, 
+                            title='target imgaes', subplot_titles=self.real_blob_counts[n*4:(n+1)*4])
+            plot_peak_grid(subfig[1], self.all_gen_imgs_subset[-1][n*4:(n+1)*4], self.all_gen_blob_coords[-1][n*4:(n+1)*4], self.grid_row_num, 
+                            title='generated imgaes', subplot_titles=self.all_gen_blob_counts[-1][n*4:(n+1)*4])
+            
+            fig.text(.5, .03, 'number of blobs labelled above image', ha='center')
+            
+            # Save plot
+            plt.savefig(f'{self.plot_save_path}/counts-imgs_{n}.{self.image_file_format}')
+            plt.close()
+        
     def power_spec(self):
         'Power spectrum'
         print('Calculating power spectrum...')
@@ -585,7 +610,7 @@ class blobTester(testDataset):
         # Get Cls
         image_size_angular = 1
         delta_ell = 500
-        max_ell = 15000
+        max_ell = 12000
         ell2d = ell_coordinates(self.image_size, image_size_angular/self.image_size)
         
         real_cl, real_err, bins = power_spectrum_stack(self.real_imgs_subset, 
@@ -612,7 +637,7 @@ class blobTester(testDataset):
         for i, (cl, err) in enumerate(zip(all_gen_cl, all_gen_err)):
             plot_smooth_line(
                 ax, cl, bins, err, 
-                color=((self.gen_color,self.line_alphas[i]), (self.gen_color,0.8)),
+                color=((self.gen_color,0.5), (self.gen_color,0.5)),
                 linewidth=set_linewidth(i, len(all_gen_cl)),
                 label=f'epoch {self.model_epochs[i]}', errorbars=self.select_last_epoch[i],
                 scale='semilog_x'
@@ -623,6 +648,7 @@ class blobTester(testDataset):
         plt.xlabel(r'$l$')
         plt.ylabel(r'$C_l$')
         plt.xlim(np.min(bins)*.9,np.max(bins)*1.1)
+        plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
         plt.tight_layout()
         
         plt.legend()
@@ -647,6 +673,8 @@ class blobTester(testDataset):
         
         # Plot
         for i, fluxes in enumerate(all_gen_img_fluxes):
+            # if i==0:
+            #     continue
             gen_hist, _, _ = plt.hist(fluxes, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}', 
                     color=(self.gen_color,self.line_alphas[i]),
@@ -670,6 +698,55 @@ class blobTester(testDataset):
         # Log js
         js = JSD(real_hist, gen_hist)
         self.log_in_dict(['total flux', 'JS div', js])
+        
+        'Extreme flux'
+        # Create figure
+        fig = plt.figure(figsize=(4,2.5))
+        subfig = fig.subfigures(1, 2, wspace=0.2)
+
+        # Plot
+        plot_extremum_flux(
+            subfig[0], self.real_imgs_subset,
+            real_img_fluxes,
+            k=1, extremum='min', title='target'
+            )
+        plot_extremum_flux(
+            subfig[1], self.all_gen_imgs_subset[-1],
+            all_gen_img_fluxes[-1],
+            k=1, extremum='min', title='generated'
+            )  # Only perform for last model
+
+        # Format
+        fig.suptitle(f"Min flux")
+        plt.tight_layout()
+
+        # Save
+        plt.savefig(f'{self.plot_save_path}/min-flux.{self.image_file_format}')
+        plt.close()
+
+        # Create figure
+        fig = plt.figure(figsize=(4,2.5))
+        subfig = fig.subfigures(1, 2, wspace=0.2)
+
+        # Plot
+        plot_extremum_flux(
+            subfig[0], self.real_imgs_subset,
+            real_img_fluxes,
+            k=1, extremum='max', title='target'
+            )
+        plot_extremum_flux(
+            subfig[1], self.all_gen_imgs_subset[-1],
+            all_gen_img_fluxes[-1],
+            k=1, extremum='max', title='generated'
+            )  
+
+        # Format
+        fig.suptitle(f"Max flux")
+        plt.tight_layout()
+
+        # Save
+        plt.savefig(f'{self.plot_save_path}/max-flux.{self.image_file_format}')
+        plt.close()
 
     def two_point_correlation(self):
         """2-point correlation analysis"""
@@ -778,11 +855,11 @@ class blobTester(testDataset):
         plt.savefig(f'{self.plot_save_path}/pixel-stack-histogram.{self.image_file_format}')
         plt.close()
     
-    def test(self, count=False):
+    def test(self):
         """Run all testing methods"""
         self.images()
         self.stack()
-        if count:
+        if self.enable_count:
             if os.path.exists(f'{self.output_save_path}/counts.npz'):
                 print('previous counts found, loading counts...')
                 self.load_counts()
@@ -791,7 +868,6 @@ class blobTester(testDataset):
                 self.save_counts()
             elif self.min_dist is not None:
                 self.count_non_overlapping_blobs()
-                self.save_counts()
                 self.blob_amp_stats()
             self.blob_num_stats()
             self.two_point_correlation()

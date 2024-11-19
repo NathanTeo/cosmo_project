@@ -51,6 +51,13 @@ class blobDataset():
         )
         
         # Set seed
+        ''' Not sure how to fix this at the moment
+        On fast/single core set to False
+        On slow/multi core set to True
+        For both cases, setting one way or the other may result in the same seed being used to generate coordinates
+        This wil cause the distributions to be wrong and repeated images
+        '''
+        self.reset_seed = True # Set this depending on the output distribution
         np.random.seed(seed)
   
         # Initiate center generator
@@ -82,7 +89,8 @@ class blobDataset():
     def realize_sample(self, dummy):
         """Realize a single sample for the dataset"""
         # Set new random seed, necessary for multiprocessing to ensure each task is assigned a unique rng
-        np.random.seed((os.getpid() * int(time.time())) % 123456789)
+        if self.reset_seed:
+            np.random.seed((os.getpid() * int(time.time())) % 123456789)
         
         # Generate points for centers
         centers = self.center_generator.generate(self.num_distribution, self.clustering, self.min_dist)
@@ -248,12 +256,12 @@ class centerGenerator():
          
         return centers
     
-    def random_with_min_dist(n, min_dist, image_size=32, size=(1,2)):
+    def random_with_min_dist(self, n, min_dist, size=(1,2)):
         centers = []
         counter = 0
         while True:
             # Generate new center coordinate
-            new_center = np.random.rand(*size)*image_size - 0.5
+            new_center = np.random.rand(*size)*self.image_size - 0.5
             # Calculate distances to all other centers
             dist = np.array([np.linalg.norm(new_center - center) for center in centers])
             # Add blob if it is at the minimum distance from all other centers
@@ -267,7 +275,7 @@ class centerGenerator():
             if len(centers)==n:
                 break
             # Break if unable to find coordinate with minimum distance to all other points 
-            if counter>n*50:
+            if counter>(n*50):
                 print("Error - unable to find coordiante that satisfies minimum distance constraint")
                 return None 
         return np.array(centers)
@@ -284,7 +292,7 @@ class centerGenerator():
             if current_center_num==0:
                 centers = np.empty((0,2))
             else:
-                centers = self.random_with_min_dist(self.num_centers, self.min_dist)
+                centers = self.random_with_min_dist(current_center_num, min_dist)
         return centers
     
     def clustered_centers(self, num_distribution, clustering, track_progress=False):
