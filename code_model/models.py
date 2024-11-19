@@ -579,7 +579,7 @@ class CWGAN(pl.LightningModule, ganUtils):
         self.test_output_list = {
             'gen_imgs': []
         }
-        self.scaling_factor = self.scaling_factor.to(self.device)
+        self.scaling_factor = self.scaling_factor
 
     def test_step(self, batch, batch_idx):
         # Load real images
