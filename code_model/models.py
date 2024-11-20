@@ -14,6 +14,7 @@ import wandb
 from typing import Any, Dict
 from copy import deepcopy
 import os
+from scipy.stats import truncnorm
 
 import code_model.networks as networks
 from code_model.testers.plotting_utils import *
@@ -85,6 +86,15 @@ class ganUtils():
         os.system(f'rsync -a {self.root_path}/checkpoints/ {self.root_path}/backup/checkpoints --delete')
         os.system(f'rsync -a {self.root_path}/logs/ {self.root_path}/backup/logs --delete')
         print('\ncheckpoints and logs backed up')
+        
+    def get_truncated_noise(self, n_samples, z_dim, truncation):
+        '''
+        Function for creating truncated noise vectors: Given the dimensions (n_samples, z_dim)
+        and truncation value, creates a tensor of that shape filled with random
+        numbers from the truncated normal distribution.
+        '''
+        truncated_noise = truncnorm.rvs(-truncation, truncation, size=(n_samples, z_dim))
+        return torch.Tensor(truncated_noise)
 
 class GapAwareScheduler():
     """
