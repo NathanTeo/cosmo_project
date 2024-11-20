@@ -39,15 +39,14 @@ class testDataset():
         self.batch_size = training_params['batch_size']
         self.num_workers = training_params['num_workers']
         
-        self.grid_row_num = testing_params['grid_row_num']
-        self.plot_num = testing_params['plot_num']
+        self.grid_row_size = testing_params['grid_row_size']
+        self.num_plots = testing_params['num_plots']
         self.subset_sample_num = int(testing_params['subset_sample_num'])
         self.loss_zoom_bounds = testing_params['loss_zoom_bounds']
         self.enable_count = testing_params['count_blobs']
         self.counting_params = testing_params['counting_params']
         self.testing_seed = testing_params['seed']
-        
-        self.num_models = 1
+        self.num_models = testing_params['num_models']
         
         """Paths"""
         self.root_path = training_params['root_path']
@@ -85,7 +84,7 @@ class testDataset():
         self.gen_color = 'red'
         # Need to change if different number of models are plotted, find a way to make this automatic/input?
         self.hist_alphas = [*[0 for _ in range(self.num_models-1)], 0.2]
-        self.line_alphas = [*[0.3*i for i in range(self.num_models-1)], 0.8] # number of models loaded should be less than 5
+        self.line_alphas = [*[0.2*(i+1) for i in range(self.num_models-1)], 0.8] # number of models loaded should be less than 5
         self.select_last_epoch = [*[False for _ in range(self.num_models-1)], True]
         
         """Initialize seed"""
@@ -122,56 +121,35 @@ class testDataset():
         for model in self.models:
             model.scaling_factor = self.scaling_factor
     
-    def generate_images(self, testing_restart):
-        """Generate images given a list of models"""
+    def load_samples(self):
+        """Load samples from npy file"""
         self.all_gen_imgs = []
-        try:
-            if not testing_restart:
-                # Load saved outputs if available
-                print('Model output found')
-                for filename in self.filenames:
-                    self.all_gen_imgs.append(np.load(
-                        '{}/{}_{:.0g}.npy'.format(
-                            self.output_save_path,
-                            filename[:-5],
-                            self.subset_sample_num
-                    )))
-                print('Model output loaded')
-                return self.all_gen_imgs
-            else:
-                # Retest model
-                print('Retesting model...')
-                trainer = pl.Trainer()
-                for model, filename, epoch in zip(self.models, self.filenames, self.model_epochs):
-                    print(f'generating images, epoch {epoch}')
-                    trainer.test(model, self.data)
-                    
-                    # Add outputs to list
-                    self.all_gen_imgs.append(model.outputs)
-                
-                    # Save outputs
-                    np.save('{}/{}_{:.0g}.npy'.format(
-                        self.output_save_path, filename[:-5], self.subset_sample_num
-                        ), model.outputs)
+        for filename in self.filenames:
+            self.all_gen_imgs.append(np.load(
+                '{}/{}_{:.0g}.npy'.format(
+                    self.output_save_path,
+                    filename[:-5],
+                    self.subset_sample_num
+            )))
+        return self.all_gen_imgs
+    
+    def generate_samples(self):
+        """Generate samples given a list of models"""
+        self.all_gen_imgs = []
+        trainer = pl.Trainer()
+        for model, filename, epoch in zip(self.models, self.filenames, self.model_epochs):
+            print(f'epoch {epoch}')
+            trainer.test(model, self.data)
             
-                return self.all_gen_imgs
-            
-        except FileNotFoundError:
-            # Test model if no saved outputs are found
-            trainer = pl.Trainer()
-            for model, filename, epoch in zip(self.models, self.filenames, self.model_epochs):
-                print(f'generating images, epoch {epoch}')
-                trainer.test(model, self.data)
-                
-                # Add outputs to list
-                self.all_gen_imgs.append(model.outputs)
-            
-                # Save outputs
-                np.save('{}/{}_{:.0g}.npy'.format(
-                    self.output_save_path, filename[:-5], self.subset_sample_num
-                    ), model.outputs)
+            # Add outputs to list
+            self.all_gen_imgs.append(model.outputs)
         
-            return self.all_gen_imgs
+            # Save outputs
+            np.save('{}/{}_{:.0g}.npy'.format(
+                self.output_save_path, filename[:-5], self.subset_sample_num
+                ), model.outputs)
+            
+        return self.all_gen_imgs
     
     def truncate(self):
         """Make subset used for testing"""
@@ -180,11 +158,29 @@ class testDataset():
     
     def prep_data(self, dataModule, model_dict, testing_restart=False):
         """Run all steps to prepare data"""
-        print('loading data and models...')
+        if testing_restart:
+            print('restart testing')
+        print('loading data and models...', end='\t')
         self.load_data(dataModule)
         self.load_models(model_dict)
-        print('loading complete')
-        self.generate_images(testing_restart)
+        print('complete')
+        print(f'models epochs: {self.model_epochs}')
+        try:
+            if not testing_restart:
+                # Load saved outputs if available
+                print('model output found')
+                self.load_samples()
+                print('model output loaded')
+            else:
+                # Retest model
+                print('generating samples...')
+                self.generate_samples()
+            
+        except FileNotFoundError:
+            # Test model if no saved outputs are found
+            print('generating samples')
+            self.generate_samples()
+        
         self.truncate()
         
 class blobTester(testDataset):
@@ -212,10 +208,10 @@ class blobTester(testDataset):
     
     def images(self):
         """Plot generated images - grid of images, marginal sums, blob coordinates"""
-        for n in tqdm(range(self.plot_num), desc='Plotting'):
+        for n in tqdm(range(self.num_plots), desc='Plotting'):
             # Get images
-            real_imgs_subset = self.real_imgs[n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)]
-            gen_imgs_subset = self.all_gen_imgs[-1][n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)] # Only use last model for this section
+            real_imgs_subset = self.real_imgs[n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)]
+            gen_imgs_subset = self.all_gen_imgs[-1][n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)] # Only use last model for this section
             
             'Images'
             # Plotting grid of images
@@ -225,23 +221,34 @@ class blobTester(testDataset):
             vmin = np.min(np.concatenate([real_imgs_subset, gen_imgs_subset]))
             vmax = np.max(np.concatenate([real_imgs_subset, gen_imgs_subset]))
             
-            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_num, title='Target Imgs', vmin=vmin, vmax=vmax)
-            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs', vmin=vmin, vmax=vmax)
+            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_size, title='Target Imgs', vmin=vmin, vmax=vmax)
+            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_size, title='Generated Imgs', vmin=vmin, vmax=vmax)
             
             # Save plot
             plt.savefig(f'{self.plot_save_path}/gen-imgs_{n}.{self.image_file_format}')
             plt.close()
+            
+            # Plotting without same cmap range
+            fig = plt.figure(figsize=(5,2.5))
+            subfig = fig.subfigures(1, 2, wspace=0.1)
+            
+            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_size, title='Target Imgs')
+            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_size, title='Generated Imgs')
+            
+            # Save plot
+            plt.savefig(f'{self.plot_save_path}/gen-imgs_autoscale_{n}.{self.image_file_format}')
+            plt.close()
 
             'Marginal sums'
             # Plotting marginal sums
-            real_marginal_sums = [marginal_sums(real_imgs_subset[i]) for i in range(self.grid_row_num**2)]
-            gen_marginal_sums = [marginal_sums(gen_imgs_subset[i]) for i in range(self.grid_row_num**2)]
+            real_marginal_sums = [marginal_sums(real_imgs_subset[i]) for i in range(self.grid_row_size**2)]
+            gen_marginal_sums = [marginal_sums(gen_imgs_subset[i]) for i in range(self.grid_row_size**2)]
             
             fig = plt.figure(figsize=(4,6))
             subfig = fig.subfigures(1, 2)
             
-            plot_marginal_sums(real_marginal_sums, subfig[0], self.grid_row_num, title='Target')
-            plot_marginal_sums(gen_marginal_sums, subfig[1], self.grid_row_num, title='Generated')
+            plot_marginal_sums(real_marginal_sums, subfig[0], self.grid_row_size, title='Target')
+            plot_marginal_sums(gen_marginal_sums, subfig[1], self.grid_row_size, title='Generated')
             
             # Format
             fig.suptitle('Marginal Sums')
@@ -266,9 +273,9 @@ class blobTester(testDataset):
             fig = plt.figure(figsize=(6,3))
             subfig = fig.subfigures(1, 2, wspace=0.2)
             
-            plot_peak_grid(subfig[0], real_imgs_subset, real_blob_coords, self.grid_row_num, 
+            plot_peak_grid(subfig[0], real_imgs_subset, real_blob_coords, self.grid_row_size, 
                             title='target imgaes', subplot_titles=real_blob_counts)
-            plot_peak_grid(subfig[1], gen_imgs_subset, gen_blob_coords, self.grid_row_num, 
+            plot_peak_grid(subfig[1], gen_imgs_subset, gen_blob_coords, self.grid_row_size, 
                             title='generated imgaes', subplot_titles=gen_img_blob_counts)
             
             fig.text(.5, .03, 'number of blobs labelled above image', ha='center')
@@ -286,8 +293,8 @@ class blobTester(testDataset):
             fig = plt.figure(figsize=(6,3))
             subfig = fig.subfigures(1, 2, wspace=0.2)
             
-            plot_img_grid(subfig[0], real_ffts, self.grid_row_num, title='Target FFT')
-            plot_img_grid(subfig[1], gen_ffts, self.grid_row_num, title='Generated FFT')
+            plot_img_grid(subfig[0], real_ffts, self.grid_row_size, title='Target FFT')
+            plot_img_grid(subfig[1], gen_ffts, self.grid_row_size, title='Generated FFT')
             
             # Save plot
             plt.savefig(f'{self.plot_save_path}/fft_{n}.{self.image_file_format}')
@@ -588,13 +595,13 @@ class blobTester(testDataset):
         plt.savefig(f'{self.plot_save_path}/max-peak.{self.image_file_format}')
         plt.close()
         
-        for n in range(self.plot_num):
+        for n in range(self.num_plots):
             fig = plt.figure(figsize=(6,3))
             subfig = fig.subfigures(1, 2, wspace=0.2)
                 
-            plot_peak_grid(subfig[0], self.real_imgs_subset[n*4:(n+1)*4], self.real_blob_coords[n*4:(n+1)*4], self.grid_row_num, 
+            plot_peak_grid(subfig[0], self.real_imgs_subset[n*4:(n+1)*4], self.real_blob_coords[n*4:(n+1)*4], self.grid_row_size, 
                             title='target imgaes', subplot_titles=self.real_blob_counts[n*4:(n+1)*4])
-            plot_peak_grid(subfig[1], self.all_gen_imgs_subset[-1][n*4:(n+1)*4], self.all_gen_blob_coords[-1][n*4:(n+1)*4], self.grid_row_num, 
+            plot_peak_grid(subfig[1], self.all_gen_imgs_subset[-1][n*4:(n+1)*4], self.all_gen_blob_coords[-1][n*4:(n+1)*4], self.grid_row_size, 
                             title='generated imgaes', subplot_titles=self.all_gen_blob_counts[-1][n*4:(n+1)*4])
             
             fig.text(.5, .03, 'number of blobs labelled above image', ha='center')
@@ -1075,17 +1082,17 @@ class pointTester(testDataset):
             
     def images(self):
         """Plot generated images - grid of images, marginal sums, blob coordinates"""
-        for n in tqdm(range(self.plot_num), desc='Plotting'):
+        for n in tqdm(range(self.num_plots), desc='Plotting'):
             # Get images
-            real_imgs_subset = self.real_imgs[n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)]
-            gen_imgs_subset = self.all_gen_imgs[-1][n*(self.grid_row_num**2):(n+1)*(self.grid_row_num**2)] # Only use last model for this section
+            real_imgs_subset = self.real_imgs[n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)]
+            gen_imgs_subset = self.all_gen_imgs[-1][n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)] # Only use last model for this section
             
             # Plotting grid of images
             fig = plt.figure(figsize=(6,3))
             subfig = fig.subfigures(1, 2, wspace=0.2)
             
-            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_num, title='Target Imgs')
-            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_num, title='Generated Imgs')
+            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_size, title='Target Imgs')
+            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_size, title='Generated Imgs')
             
             # Save plot
             plt.savefig(f'{self.plot_save_path}/gen-imgs_{n}.{self.image_file_format}')
