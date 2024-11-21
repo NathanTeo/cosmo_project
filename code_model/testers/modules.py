@@ -29,24 +29,24 @@ class testDataset():
         self.model_version = training_params['model_version']
 
         self.blob_num = generation_params['blob_num']
-        self.blob_amplitude = generation_params['blob_amplitude']
-        self.clustering = generation_params['clustering']
-        self.blob_size = generation_params['blob_size']
+        self.blob_amplitude = init_param(generation_params, 'blob_amplitude', default=1)
+        self.clustering = init_param(generation_params, 'clustering')
+        self.blob_size = init_param(generation_params, 'blob_size', 5)
         self.real_sample_num = generation_params['sample_num']
         self.image_size = training_params['image_size']
-        self.min_dist = generation_params['minimum_distance']
+        self.min_dist = init_param(generation_params, 'minimum_distance')
 
         self.batch_size = training_params['batch_size']
         self.num_workers = training_params['num_workers']
         
-        self.grid_row_size = testing_params['grid_row_size']
-        self.num_plots = testing_params['num_plots']
-        self.subset_sample_num = int(testing_params['subset_sample_num'])
-        self.loss_zoom_bounds = testing_params['loss_zoom_bounds']
-        self.enable_count = testing_params['count_blobs']
-        self.counting_params = testing_params['counting_params']
-        self.testing_seed = testing_params['seed']
-        self.num_models = testing_params['num_models']
+        self.grid_row_size = init_param(testing_params,'grid_row_size', default=2)
+        self.num_plots = init_param(testing_params, 'num_plots', default=5)
+        self.subset_sample_num = int(init_param(testing_params, 'subset_sample_num', default=5_000))
+        self.loss_zoom_bounds = init_param(testing_params, 'loss_zoom_bounds', default=(-1,1))
+        self.enable_count = init_param(testing_params, 'count_blobs', default=False)
+        self.counting_params = init_param(testing_params, 'counting_params')
+        self.testing_seed = init_param(testing_params, 'seed', default=1)
+        self.num_models = init_param(testing_params, 'num_models', default=1)
         
         """Paths"""
         self.root_path = training_params['root_path']

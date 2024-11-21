@@ -22,6 +22,12 @@ import time
 import concurrent.futures
 
 """Ungrouped"""
+def init_param(config, param, default=None):
+    """Initialize parameter and return default value if key is not found in config dictionary"""
+    try:
+        return config[param]
+    except KeyError:
+        return default
 
 def marginal_sums(img):
     """Calculate marginal sums along x and y for sample images """
