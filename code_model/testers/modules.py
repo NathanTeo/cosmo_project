@@ -107,7 +107,7 @@ class testDataset():
         all_filenames.remove('last.ckpt')
         self.filenames = []
         for x in np.arange(self.num_models,0,-1):
-            self.filenames.append(all_filenames[int(len(all_filenames)/(2**(x-1)))])
+            self.filenames.append(all_filenames[int(len(all_filenames)/(2**(x-1))-1)])
         
         self.model_epochs = [int(file[6:-5]) for file in self.filenames]
         
