@@ -2,11 +2,10 @@
 #SBATCH --job-name=test_model
 #SBATCH --mem=32G
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=6
+#SBATCH --ntasks-per-node=10
 #SBATCH --time=3:0:0
 #SBATCH --mail-user=<nath0020@e.ntu.edu.sg>
 #SBATCH --mail-type=ALL
-#SBATCH --gres=gpu:a100:1
 
 run="$1"
 
