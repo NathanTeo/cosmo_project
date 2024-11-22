@@ -487,7 +487,7 @@ class blobTester(testDataset):
                 histtype='step', label='target', color=(self.real_color,0.8))
 
         # Format
-        plt.ylabel('image count')
+        plt.ylabel('blob count')
         plt.xlabel('blob amplitude')
         plt.suptitle(f"Histogram of blob amplitude, {self.subset_sample_num} samples")
         plt.legend()
@@ -509,7 +509,7 @@ class blobTester(testDataset):
 
         # Bins for histogram
         bins = find_good_bins([self.real_blob_counts, *self.all_gen_blob_counts], method='arange',
-                              ignore_outliers=True, percentile_range=(0,100)) ########### NEEDS TWEAKING ############
+                              ignore_outliers=True, percentile_range=(0,99)) ########### NEEDS TWEAKING ############
         
         # Plot histogram
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
