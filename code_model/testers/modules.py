@@ -104,13 +104,12 @@ class testDataset():
         # Get checkpoints of models to be tested
         all_filenames = os.listdir(self.chkpt_path)
         all_filenames.sort()
+        all_filenames.remove('last.ckpt')
         self.filenames = []
-        for x in np.arange(self.num_models-1,0,-1):
-            self.filenames.append(all_filenames[int(len(all_filenames)/(2**x))])
-        self.filenames.append('last.ckpt')
+        for x in np.arange(self.num_models,0,-1):
+            self.filenames.append(all_filenames[int(len(all_filenames)/(2**(x-1)))])
         
-        self.model_epochs = [int(file[6:-5]) for file in self.filenames[:-1]]
-        self.model_epochs.append(self.epoch_last)
+        self.model_epochs = [int(file[6:-5]) for file in self.filenames]
         
         self.models = [model_dict[self.model_version].load_from_checkpoint(
             f'{self.chkpt_path}/{file}',
@@ -222,97 +221,104 @@ class blobTester(testDataset):
     
     def images(self):
         """Plot generated images - grid of images, marginal sums, blob coordinates"""
-        for n in tqdm(range(self.num_plots), desc='Plotting'):
-            # Get images
-            real_imgs_subset = self.real_imgs[n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)]
-            gen_imgs_subset = self.all_gen_imgs[-1][n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)] # Only use last model for this section
-            
-            'Images'
-            # Plotting grid of images
-            fig = plt.figure(figsize=(5,2.5))
-            subfig = fig.subfigures(1, 2, wspace=0.1)
-            
-            vmin = np.min(np.concatenate([real_imgs_subset, gen_imgs_subset]))
-            vmax = np.max(np.concatenate([real_imgs_subset, gen_imgs_subset]))
-            
-            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_size, title='Target Imgs', vmin=vmin, vmax=vmax)
-            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_size, title='Generated Imgs', vmin=vmin, vmax=vmax)
-            
-            # Save plot
-            plt.savefig(f'{self.plot_save_path}/gen-imgs_{n}.{self.image_file_format}')
-            plt.close()
-            
-            # Plotting without same cmap range
-            fig = plt.figure(figsize=(5,2.5))
-            subfig = fig.subfigures(1, 2, wspace=0.1)
-            
-            plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_size, title='Target Imgs')
-            plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_size, title='Generated Imgs')
-            
-            # Save plot
-            plt.savefig(f'{self.plot_save_path}/gen-imgs_autoscale_{n}.{self.image_file_format}')
-            plt.close()
+        for gen_imgs, epoch in zip(self.all_gen_imgs, self.model_epochs):
+            print(f'epoch: {epoch}')
+            # Make folder
+            save_path = f'{self.plot_save_path}/epoch-{epoch}'
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+                    
+            for n in tqdm(range(self.num_plots), desc='plotting'):
+                # Get images
+                real_imgs_subset = self.real_imgs[n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)]
+                gen_imgs_subset = gen_imgs[n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)] # Only use last model for this section
+                
+                'Images'
+                # Plotting grid of images
+                fig = plt.figure(figsize=(5,2.5))
+                subfig = fig.subfigures(1, 2, wspace=0.1)
+                
+                vmin = np.min(np.concatenate([real_imgs_subset, gen_imgs_subset]))
+                vmax = np.max(np.concatenate([real_imgs_subset, gen_imgs_subset]))
+                
+                plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_size, title='Target Imgs', vmin=vmin, vmax=vmax)
+                plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_size, title='Generated Imgs', vmin=vmin, vmax=vmax)
+                
+                # Save plot
+                plt.savefig(f'{save_path}/gen-imgs_{n}.{self.image_file_format}')
+                plt.close()
+                
+                # Plotting without same cmap range
+                fig = plt.figure(figsize=(5,2.5))
+                subfig = fig.subfigures(1, 2, wspace=0.1)
+                
+                plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_size, title='Target Imgs')
+                plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_size, title='Generated Imgs')
+                
+                # Save plot
+                plt.savefig(f'{save_path}/gen-imgs_autoscale_{n}.{self.image_file_format}')
+                plt.close()
 
-            'Marginal sums'
-            # Plotting marginal sums
-            real_marginal_sums = [marginal_sums(real_imgs_subset[i]) for i in range(self.grid_row_size**2)]
-            gen_marginal_sums = [marginal_sums(gen_imgs_subset[i]) for i in range(self.grid_row_size**2)]
+                'Marginal sums'
+                # Plotting marginal sums
+                real_marginal_sums = [marginal_sums(real_imgs_subset[i]) for i in range(self.grid_row_size**2)]
+                gen_marginal_sums = [marginal_sums(gen_imgs_subset[i]) for i in range(self.grid_row_size**2)]
+                
+                fig = plt.figure(figsize=(4,6))
+                subfig = fig.subfigures(1, 2)
+                
+                plot_marginal_sums(real_marginal_sums, subfig[0], self.grid_row_size, title='Target')
+                plot_marginal_sums(gen_marginal_sums, subfig[1], self.grid_row_size, title='Generated')
+                
+                # Format
+                fig.suptitle('Marginal Sums')
+                plt.legend()
+                plt.tight_layout()
+                
+                # Save plot
+                plt.savefig(f'{save_path}/marg-sums_{n}.{self.image_file_format}')
+                plt.close()
             
-            fig = plt.figure(figsize=(4,6))
-            subfig = fig.subfigures(1, 2)
-            
-            plot_marginal_sums(real_marginal_sums, subfig[0], self.grid_row_size, title='Target')
-            plot_marginal_sums(gen_marginal_sums, subfig[1], self.grid_row_size, title='Generated')
-            
-            # Format
-            fig.suptitle('Marginal Sums')
-            plt.legend()
-            plt.tight_layout()
-            
-            # Save plot
-            plt.savefig(f'{self.plot_save_path}/marg-sums_{n}.{self.image_file_format}')
-            plt.close()
-           
-            'Counts' # Not very useful for large number of blobs
-            '''# Fitting blobs
-            counter = blobFitter(blob_size=self.blob_size, blob_amplitude=self.blob_amplitude)
-            
-            counter.load_samples(real_imgs_subset)
-            real_blob_coords, real_blob_counts = counter.count(err_threshold_rel=1, mode='multi', progress_bar=True, plot_progress=False)
+                'Counts' # Not very useful for large number of blobs
+                '''# Fitting blobs
+                counter = blobFitter(blob_size=self.blob_size, blob_amplitude=self.blob_amplitude)
+                
+                counter.load_samples(real_imgs_subset)
+                real_blob_coords, real_blob_counts = counter.count(err_threshold_rel=1, mode='multi', progress_bar=True, plot_progress=False)
 
-            counter.load_samples(gen_imgs_subset)
-            gen_blob_coords, gen_img_blob_counts = counter.count(err_threshold_rel=1, mode='multi', progress_bar=True, plot_progress=False)
+                counter.load_samples(gen_imgs_subset)
+                gen_blob_coords, gen_img_blob_counts = counter.count(err_threshold_rel=1, mode='multi', progress_bar=True, plot_progress=False)
 
-            # Plotting fit
-            fig = plt.figure(figsize=(6,3))
-            subfig = fig.subfigures(1, 2, wspace=0.2)
-            
-            plot_peak_grid(subfig[0], real_imgs_subset, real_blob_coords, self.grid_row_size, 
-                            title='target imgaes', subplot_titles=real_blob_counts)
-            plot_peak_grid(subfig[1], gen_imgs_subset, gen_blob_coords, self.grid_row_size, 
-                            title='generated imgaes', subplot_titles=gen_img_blob_counts)
-            
-            fig.text(.5, .03, 'number of blobs labelled above image', ha='center')
-            
-            # Save plot
-            plt.savefig(f'{self.plot_save_path}/counts-imgs_{n}.{self.image_file_format}')
-            plt.close()'''
-            
-            'FFT'
-            # Fourier transform images
-            real_ffts = fourier_transform_samples(real_imgs_subset)
-            gen_ffts = fourier_transform_samples(gen_imgs_subset)
+                # Plotting fit
+                fig = plt.figure(figsize=(6,3))
+                subfig = fig.subfigures(1, 2, wspace=0.2)
+                
+                plot_peak_grid(subfig[0], real_imgs_subset, real_blob_coords, self.grid_row_size, 
+                                title='target imgaes', subplot_titles=real_blob_counts)
+                plot_peak_grid(subfig[1], gen_imgs_subset, gen_blob_coords, self.grid_row_size, 
+                                title='generated imgaes', subplot_titles=gen_img_blob_counts)
+                
+                fig.text(.5, .03, 'number of blobs labelled above image', ha='center')
+                
+                # Save plot
+                plt.savefig(f'{save_path}/counts-imgs_{n}.{self.image_file_format}')
+                plt.close()'''
+                
+                'FFT'
+                # Fourier transform images
+                real_ffts = fourier_transform_samples(real_imgs_subset)
+                gen_ffts = fourier_transform_samples(gen_imgs_subset)
 
-            # Plotting fft
-            fig = plt.figure(figsize=(6,3))
-            subfig = fig.subfigures(1, 2, wspace=0.2)
-            
-            plot_img_grid(subfig[0], real_ffts, self.grid_row_size, title='Target FFT')
-            plot_img_grid(subfig[1], gen_ffts, self.grid_row_size, title='Generated FFT')
-            
-            # Save plot
-            plt.savefig(f'{self.plot_save_path}/fft_{n}.{self.image_file_format}')
-            plt.close()
+                # Plotting fft
+                fig = plt.figure(figsize=(6,3))
+                subfig = fig.subfigures(1, 2, wspace=0.2)
+                
+                plot_img_grid(subfig[0], real_ffts, self.grid_row_size, title='Target FFT')
+                plot_img_grid(subfig[1], gen_ffts, self.grid_row_size, title='Generated FFT')
+                
+                # Save plot
+                plt.savefig(f'{save_path}/fft_{n}.{self.image_file_format}')
+                plt.close()
             
     def stack(self):
         """Stack images"""
