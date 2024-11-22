@@ -154,5 +154,4 @@ def run_training(training_params, generation_params, testing_params, training_re
                         logs_plotter = diffLogsPlotter(dataset)
                         logs_plotter.plot_logs(testing_restart=True)
 
-
                         
