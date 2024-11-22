@@ -248,12 +248,12 @@ class blobTester(testDataset):
                 plt.savefig(f'{save_path}/gen-imgs_{n}.{self.image_file_format}')
                 plt.close()
                 
-                # Plotting without same cmap range
+                # Plotting without consistent cmap range
                 fig = plt.figure(figsize=(5,2.5))
                 subfig = fig.subfigures(1, 2, wspace=0.1)
                 
-                plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_size, title='Target Imgs')
-                plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_size, title='Generated Imgs')
+                plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_size, title='Target Imgs', vmin=None)
+                plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_size, title='Generated Imgs', vmin=None)
                 
                 # Save plot
                 plt.savefig(f'{save_path}/gen-imgs_autoscale_{n}.{self.image_file_format}')
