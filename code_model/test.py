@@ -28,7 +28,7 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     # test dataset
     if generation_params['blob_size']>0:
         tester = blobTester(dataset)
-        tester.test()
+        tester.test(testing_restart=testing_restart)
     elif generation_params['blob_size']==0:
         pass
     

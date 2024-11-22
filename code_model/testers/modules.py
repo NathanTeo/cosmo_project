@@ -862,12 +862,12 @@ class blobTester(testDataset):
         plt.savefig(f'{self.plot_save_path}/pixel-stack-histogram.{self.image_file_format}')
         plt.close()
     
-    def test(self):
+    def test(self, testing_restart=False):
         """Run all testing methods"""
         self.images()
         self.stack()
         if self.enable_count:
-            if os.path.exists(f'{self.output_save_path}/counts.npz'):
+            if os.path.exists(f'{self.output_save_path}/counts.npz') and not testing_restart:
                 print('previous counts found, loading counts...')
                 self.load_counts()
             elif self.min_dist is None:
