@@ -16,10 +16,15 @@ from scipy.special import gamma
 import concurrent.futures
 import time
 
-def sample_power_law(a, b, p, size=1):
+def sample_power_law(a, b, p, size=1, rng=np.random.default_rng()):
     """Sample x^{-p} for a<=x<=b"""
-    r = np.random.random(size=size)*(b-a) + a
+    r = rng.random(size=size)*(b-a) + a
     return r**(-p)
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 class blobDataset():
     """Create real dataset for training, realize blobs"""
@@ -50,15 +55,17 @@ class blobDataset():
             self.min_dist, f'{self.sample_num:.0e}', seed, self.noise
         )
         
-        # Set seed
-        ''' Not sure how to fix this at the moment
-        On fast/single core set to False
-        On slow/multi core set to True
-        For both cases, setting one way or the other may result in the same seed being used to generate coordinates
-        This wil cause the distributions to be wrong and repeated images
         '''
-        self.reset_seed = True # Set this depending on the output distribution
-        np.random.seed(seed)
+        How seeding works:
+        The seed RNG is initialized here with the chosen generation seed.
+        The seed RNG produces random integer seeds, one for each sample.
+        These seeds are used to initialize a local RNG for each sample made.
+        This is done so that during multiprocessing the RNGs are all unqiue, 
+        using np.random may result in the same RNG state to be passed to two or more processes
+        '''
+        # Seed rng
+        seed_rng = np.random.default_rng(seed=seed)
+        self.seeds = seed_rng.choice(int(self.sample_num*5), size=self.sample_num, replace=False)
   
         # Initiate center generator
         self.center_generator = centerGenerator(self.blob_num, self.image_size)
@@ -86,28 +93,27 @@ class blobDataset():
         else: # Empty image if there are no blob centers
             return np.zeros((self.generation_matrix_size, self.generation_matrix_size))
     
-    def realize_sample(self, dummy):
+    def realize_sample(self, seed=None):
         """Realize a single sample for the dataset"""
         # Set new random seed, necessary for multiprocessing to ensure each task is assigned a unique rng
-        if self.reset_seed:
-            np.random.seed((os.getpid() * int(time.time())) % 123456789)
+        local_rng = np.random.default_rng(seed)
         
         # Generate points for centers
-        centers = self.center_generator.generate(self.num_distribution, self.clustering, self.min_dist)
+        centers = self.center_generator.generate(self.num_distribution, self.clustering, self.min_dist, rng=local_rng)
         count = centers.shape[0]
         
         # Sample amplitudes
         if self.amplitude_distribution=='delta':
             amps = None
         elif self.amplitude_distribution=='power':
-            amps = sample_power_law(0.1, 1, 1, count)*self.blob_amplitude # minimum of 1 maximum of 10
+            amps = sample_power_law(0.1, 1, 1, count, rng=local_rng)*self.blob_amplitude # minimum of 1 maximum of 10
         
         # Create blobs
         sample = self.create_blobs(centers, amps)
         
         # Add noise
         if self.noise!=0:
-            noise_img = np.random.normal(0, self.noise, (self.image_size, self.image_size))
+            noise_img = local_rng.normal(0, self.noise, (self.image_size, self.image_size))
             sample = np.add(sample, noise_img)
             
         # Unpad
@@ -126,6 +132,8 @@ class blobDataset():
             batch_sizes = np.repeat(batch, num_of_batches)
         else:
             batch_sizes = np.append(np.repeat(batch, num_of_batches),[remainder])
+        # Batch seeds
+        seeds = chunks(self.seeds, batch)
         
         # Create temporary save path
         temp_path = f'{temp_root_path}/temp'
@@ -133,7 +141,7 @@ class blobDataset():
             os.makedirs(temp_path)
         
         # Realize
-        for i, batch_size in enumerate(batch_sizes):
+        for i, (batch_size, batch_seeds) in enumerate(zip(batch_sizes, seeds)):
             # Reset sample list
             samples = []
             sample_counts = []
@@ -142,9 +150,9 @@ class blobDataset():
             
             # Realize samples using single core
             if mode=='single':
-                for _ in tqdm(range(batch_size), desc=f'batch {i+1}/{num_of_batches}'):
+                for j in tqdm(range(batch_size), desc=f'batch {i+1}/{num_of_batches}'):
                     # Realize sample
-                    sample, centers, count, amps = self.realize_sample(self.center_generator)
+                    sample, centers, count, amps = self.realize_sample(seed=batch_seeds[j])
                     
                     # Add sample to list
                     samples.append(sample)
@@ -155,10 +163,10 @@ class blobDataset():
                     sample_amps.append(amps)
 
             # Realize samples using multi core    
-            if mode=='multi':
+            elif mode=='multi':
                 with concurrent.futures.ProcessPoolExecutor() as executor:
                     results = list(tqdm(
-                        executor.map(self.realize_sample, np.repeat(1,batch_size)),
+                        executor.map(self.realize_sample, batch_seeds),
                         desc=f'batch {i+1}/{num_of_batches}', total=int(batch_size)         
                         ))
 
@@ -168,6 +176,8 @@ class blobDataset():
                         sample_centers.append(result[1])
                         sample_counts.append(result[2])
                         sample_amps.append(result[3])
+            else:
+                raise Exception("Processing mode not supported")
             
             # Save samples in temp
             np.savez(f'{temp_path}/temp{i}', 
@@ -240,28 +250,28 @@ class centerGenerator():
         self.num_centers = num_centers
         self.image_size = image_size
 
-    def unclustered_centers(self, num_distribution):
+    def unclustered_centers(self, num_distribution, rng=np.random.default_rng()):
         """Generate random coordinates"""
         if num_distribution=='delta':
             # Generate center coordinates
-            centers = np.random.rand(self.num_centers,2)*self.image_size - 0.5
+            centers = rng.random(size=(self.num_centers,2))*self.image_size - 0.5
         elif num_distribution=='poisson':
             # Get number of blobs from poisson distribution
-            current_center_num = np.random.poisson(self.num_centers)
+            current_center_num = rng.poisson(self.num_centers)
             # Generate center coordinates
             if current_center_num==0:
                 centers = np.empty((0,2))
             else:
-                centers = np.random.rand(current_center_num,2)*self.image_size - 0.5
+                centers = rng.random(size=(current_center_num,2))*self.image_size - 0.5
          
         return centers
     
-    def random_with_min_dist(self, n, min_dist, size=(1,2)):
+    def random_with_min_dist(self, n, min_dist, size=(1,2), rng=np.random.default_rng()):
         centers = []
         counter = 0
         while True:
             # Generate new center coordinate
-            new_center = np.random.rand(*size)*self.image_size - 0.5
+            new_center = rng.random(size=size)*self.image_size - 0.5
             # Calculate distances to all other centers
             dist = np.array([np.linalg.norm(new_center - center) for center in centers])
             # Add blob if it is at the minimum distance from all other centers
@@ -280,22 +290,22 @@ class centerGenerator():
                 return None 
         return np.array(centers)
     
-    def non_overlapping_centers(self, num_distribution, min_dist):
+    def non_overlapping_centers(self, num_distribution, min_dist, rng=np.random.default_rng()):
         """Generate random coordinates with minimum distance"""
         if num_distribution=='delta':
             # Generate center coordinates
-            centers = self.random_with_min_dist(self.num_centers, min_dist)
+            centers = self.random_with_min_dist(self.num_centers, min_dist, rng=rng)
         elif num_distribution=='poisson':
             # Get number of blobs from poisson distribution
-            current_center_num = np.random.poisson(self.num_centers)
+            current_center_num = rng.poisson(self.num_centers)
             # Generate center coordinates
             if current_center_num==0:
                 centers = np.empty((0,2))
             else:
-                centers = self.random_with_min_dist(current_center_num, min_dist)
+                centers = self.random_with_min_dist(current_center_num, min_dist, rng=rng)
         return centers
     
-    def clustered_centers(self, num_distribution, clustering, track_progress=False):
+    def clustered_centers(self, num_distribution, clustering, rng=np.random.default_rng(), track_progress=False):
         """Generate clustered coordinates according to a power-law 2-point correlation function"""
         # Survey configuration, assume all samples are 1' by 1' patches
         lxdeg = 1                    # Length of x-dimension [deg]
@@ -339,9 +349,9 @@ class centerGenerator():
             nc = float(nx*ny)
             ktot = pkspec.size
             pkspec[pkspec < 0.] = 0.
-            rangauss = np.reshape(np.random.normal(0.,1.,ktot),(nx,int(ny/2+1)))
+            rangauss = np.reshape(rng.normal(0.,1.,ktot),(nx,int(ny/2+1)))
             realpart = np.sqrt(pkspec/(2.*nc))*rangauss
-            rangauss = np.reshape(np.random.normal(0.,1.,ktot),(nx,int(ny/2+1)))
+            rangauss = np.reshape(rng.normal(0.,1.,ktot),(nx,int(ny/2+1)))
             imagpart = np.sqrt(pkspec/(2.*nc))*rangauss
             deltak = realpart + imagpart*1j
             # Make sure complex conjugate properties are in place
@@ -380,8 +390,8 @@ class centerGenerator():
             ygrid = np.repeat(ygrid, datgrid1)
 
             # Jitter
-            xpos = xgrid + np.random.uniform(0.,dx, size=len(xgrid)) 
-            ypos = ygrid + np.random.uniform(0.,dy, size=len(ygrid)) 
+            xpos = xgrid + rng.uniform(0.,dx, size=len(xgrid)) 
+            ypos = ygrid + rng.uniform(0.,dy, size=len(ygrid)) 
             
             return xpos, ypos
         
@@ -416,7 +426,7 @@ class centerGenerator():
             mean_ravel = meangrid.ravel()/float(meangrid.sum())
 
             # Sample coordinates using density field as probability
-            idxs = np.random.choice(np.arange(len(mean_ravel)), size=self.num_centers, p=mean_ravel).astype(int)
+            idxs = rng.choice(np.arange(len(mean_ravel)), size=self.num_centers, p=mean_ravel).astype(int)
             idxs, counts = np.unique(idxs, return_counts=True)
             
             # Place coordinates on flattened grid 
@@ -429,7 +439,7 @@ class centerGenerator():
         elif num_distribution=='poisson':
             # Sample each point using Poisson
             meangrid *= float(self.num_centers)
-            datgrid = np.random.poisson(meangrid).astype(float)
+            datgrid = rng.poisson(meangrid).astype(float)
         
         # Convert 2D number grid to positions
         xpos,ypos = genpos2d(nx ,ny,lxrad,lyrad,datgrid)
@@ -443,14 +453,14 @@ class centerGenerator():
         
         return centers
     
-    def generate(self, num_distribution, clustering, min_dist=None):
+    def generate(self, num_distribution, clustering, min_dist=None, rng=np.random.default_rng()):
         """Generate coordinates for one sample"""
         if min_dist is not None:
-            centers = self.non_overlapping_centers(num_distribution, min_dist)
+            centers = self.non_overlapping_centers(num_distribution, min_dist, rng=rng)
         elif clustering is None:
-            centers = self.unclustered_centers(num_distribution)
+            centers = self.unclustered_centers(num_distribution, rng=rng)
         else:
-            centers = self.clustered_centers(num_distribution, clustering)
+            centers = self.clustered_centers(num_distribution, clustering, rng=rng)
         return centers
 
 
