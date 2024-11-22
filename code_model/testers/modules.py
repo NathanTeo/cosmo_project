@@ -155,7 +155,7 @@ class testDataset():
         """Make subset used for testing"""
         self.real_imgs_subset = self.real_imgs[:self.subset_sample_num]
         self.all_gen_imgs_subset = [gen_imgs[:self.subset_sample_num] for gen_imgs in self.all_gen_imgs]
-    
+
     def prep_data(self, dataModule, model_dict, testing_restart=False):
         """Run all steps to prepare data"""
         if testing_restart:
@@ -169,8 +169,9 @@ class testDataset():
             if not testing_restart:
                 # Load saved outputs if available
                 print('model output found')
+                print('loading model output...', end='\t')
                 self.load_samples()
-                print('model output loaded')
+                print('complete')
             else:
                 # Retest model
                 print('generating samples...')
@@ -181,6 +182,19 @@ class testDataset():
             print('generating samples')
             self.generate_samples()
         
+        self.truncate()
+    
+    def prep_data_no_gen(self, dataModule, model_dict):
+        """Run all steps to prepare data"""
+        print('loading all models and samples...', end='\t')
+        self.load_data(dataModule)
+        self.load_models(model_dict)
+        try:
+            self.load_samples()
+            print('complete')
+        except FileNotFoundError:
+            raise Exception("generated samples not found, please generate samples first")
+        print(f'models epochs: {self.model_epochs}')
         self.truncate()
         
 class blobTester(testDataset):

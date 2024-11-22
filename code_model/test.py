@@ -1,7 +1,9 @@
 """
 Author: Nathan Teo
 
-This script runs testing on the model:
+This script runs testing on the model.
+It is designed to only perform CPU reliant tasks, 
+hence sample generation is handled in a separate script and should be performed prior to running testing.
 """
 
 from code_model.data_modules import *
@@ -15,7 +17,7 @@ def run_testing(training_params, generation_params, testing_params, testing_rest
     
     # prepare dataset of real and generated images
     dataset = testDataset(generation_params, training_params, testing_params)
-    dataset.prep_data(BlobDataModule, model_dict, testing_restart)
+    dataset.prep_data_no_gen(BlobDataModule, model_dict, testing_restart)
     
     # plot losses
     if 'GAN' in training_params['model_version']:
