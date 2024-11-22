@@ -15,4 +15,4 @@ def run_generation(training_params, generation_params, testing_params):
     
     # prepare dataset of real and generated images
     dataset = testDataset(generation_params, training_params, testing_params)
-    dataset.prep_data(BlobDataModule, model_dict, testing_restart=False)
+    dataset.prep_data(BlobDataModule, model_dict, testing_restart=True)
