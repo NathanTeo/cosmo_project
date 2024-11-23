@@ -83,9 +83,14 @@ class testDataset():
         self.real_color = 'black'
         self.gen_color = 'red'
         # Need to change if different number of models are plotted, find a way to make this automatic/input?
-        self.hist_alphas = [*[0 for _ in range(self.num_models-1)], 0.2]
+        self.fill_alphas = [*[0 for _ in range(self.num_models-1)], 0.2]
         self.line_alphas = [*[0.2*(i+1) for i in range(self.num_models-1)], 0.8] # number of models loaded should be less than 5
+        self.line_widths = [*[1 for _ in range(self.num_models-1)], 1.2]
         self.select_last_epoch = [*[False for _ in range(self.num_models-1)], True]
+        
+        print(f'fill alphas: {self.fill_alphas}')
+        print(f'line alphas: {self.line_alphas}')
+        print(f'line widths: {self.line_widths}')
         
         """Initialize seed"""
         torch.manual_seed(self.testing_seed)
@@ -252,8 +257,8 @@ class blobTester(testDataset):
                 fig = plt.figure(figsize=(5,2.5))
                 subfig = fig.subfigures(1, 2, wspace=0.1)
                 
-                plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_size, title='Target Imgs', vmin=None)
-                plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_size, title='Generated Imgs', vmin=None)
+                plot_img_grid(subfig[0], real_imgs_subset, self.grid_row_size, title='Target Imgs')
+                plot_img_grid(subfig[1], gen_imgs_subset, self.grid_row_size, title='Generated Imgs')
                 
                 # Save plot
                 plt.savefig(f'{save_path}/gen-imgs_autoscale_{n}.{self.image_file_format}')
@@ -495,12 +500,12 @@ class blobTester(testDataset):
         bins = np.arange(0, 10+1, 0.5)
         
         # Plot histogram
-        for i, blob_ampreal_blob_amplitudes in enumerate(all_gen_amplitudes_concat):
+        for i, blob_amplitudes in enumerate(all_gen_amplitudes_concat):
             gen_hist, _, _ = plt.hist(
-                blob_ampreal_blob_amplitudes, bins=bins,
+                blob_amplitudes, bins=bins,
                 histtype='step', label=f'epoch {self.model_epochs[i]}',
-                color=(self.gen_color,self.line_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
-                facecolor=(self.gen_color,self.hist_alphas[i]), fill=self.select_last_epoch[i]
+                color=(self.gen_color,self.line_alphas[i]), linewidth=self.line_widths[i],
+                facecolor=(self.gen_color,self.fill_alphas[i]), fill=self.select_last_epoch[i]
                 )
         
         real_hist, _, _ = plt.hist(real_amplitudes_concat, bins=bins, 
@@ -536,8 +541,8 @@ class blobTester(testDataset):
             gen_hist, _, _ = plt.hist(
                 blob_counts, bins=bins,
                 histtype='step', label=f'epoch {self.model_epochs[i]}',
-                color=(self.gen_color,self.line_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
-                facecolor=(self.gen_color,self.hist_alphas[i]), fill=self.select_last_epoch[i]
+                color=(self.gen_color,self.line_alphas[i]), linewidth=self.line_widths[i],
+                facecolor=(self.gen_color,self.fill_alphas[i]), fill=self.select_last_epoch[i]
                 )
         plt.axvline(self.all_gen_blob_num_mean[-1], color=(self.gen_color,0.5), linestyle='dashed', linewidth=1) # Only label mean for last model
         
@@ -665,7 +670,7 @@ class blobTester(testDataset):
             plot_smooth_line(
                 ax, cl, bins, err, 
                 color=((self.gen_color,0.5), (self.gen_color,0.5)),
-                linewidth=set_linewidth(i, len(all_gen_cl)),
+                linewidth=self.line_widths[i],
                 label=f'epoch {self.model_epochs[i]}', errorbars=self.select_last_epoch[i],
                 scale='semilog_x'
             )
@@ -705,8 +710,8 @@ class blobTester(testDataset):
             gen_hist, _, _ = plt.hist(fluxes, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}', 
                     color=(self.gen_color,self.line_alphas[i]),
-                    facecolor=(self.gen_color,self.hist_alphas[i]), fill=self.select_last_epoch[i], 
-                    linewidth=set_linewidth(i, len(self.models))
+                    facecolor=(self.gen_color,self.fill_alphas[i]), fill=self.select_last_epoch[i], 
+                    linewidth=self.line_widths[i]
                     )
         real_hist, _, _ = plt.hist(real_img_fluxes, bins=bins,
                     histtype='step', label='target', color=(self.real_color,0.8))
@@ -801,6 +806,7 @@ class blobTester(testDataset):
         plot_smooth_line(
             ax, real_corrs, midpoints_of_bins(edges), real_errs, 
             color=((self.real_color,1), (self.real_color,0.5)),
+            linewidth=1.2, elinewidth=1.5, capsize=4, fmt='o',
             label='target',
             scale='log' if self.clustering is not None else 'linear'
         )
@@ -809,7 +815,7 @@ class blobTester(testDataset):
             plot_smooth_line(
                 ax, corrs, midpoints_of_bins(edges), errs, 
                 color=((self.gen_color,self.line_alphas[i]), (self.gen_color,0.5)), 
-                linewidth=set_linewidth(i, len(all_gen_corrs)),
+                linewidth=self.line_widths[i],
                 label=f'epoch {self.model_epochs[i]}', errorbars=self.select_last_epoch[i],
                 scale='log' if self.clustering is not None else 'linear'
             )
@@ -860,11 +866,11 @@ class blobTester(testDataset):
         fig, ax = plt.subplots(figsize=(4,3))
 
         # Plot
-        fill = [None, None, (self.gen_color, self.hist_alphas[-1])]
+        fill = [None, None, (self.gen_color, self.fill_alphas[-1])]
         for i, hist_stack in enumerate(all_gen_hist_stack):
             plot_histogram_stack(
                 ax, *hist_stack,
-                color=(self.gen_color,self.line_alphas[i]), linewidth=set_linewidth(i, len(self.models)),
+                color=(self.gen_color,self.line_alphas[i]), linewidth=self.line_widths[i],
                 fill_color=fill[i],
                 label=f'epoch {self.model_epochs[i]}'
                 )

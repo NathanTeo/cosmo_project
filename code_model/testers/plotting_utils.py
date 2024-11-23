@@ -14,7 +14,7 @@ from code_model.testers.eval_utils import *
 def plot_img_grid(subfig, imgs, grid_row_num, 
                   title, title_y=0.95, 
                   wspace=.2, hspace=.2, subplot_titles=None, 
-                  vmin=-0.05, vmax=None, cmap='viridis'):
+                  vmin=None, vmax=None, cmap='viridis'):
     """
     Plot a grid of sample images in a subfigure/figure
     """
@@ -226,18 +226,21 @@ def plot_histogram_stack(ax, hist, edges,
         ax.fill_between(x, 0, y, color=fill_color)
         
 def plot_smooth_line(ax, y, x, errs=None, interp='cubic',
-                   color=(('darkorange', 1), ('darkorange', 0.5)), linewidth=1, capsize=2, elinewidth=1,
-                   label=None, errorbars=True, scale='semilog_x'):
+                   color=(('darkorange', 1), ('darkorange', 0.5)), 
+                   linewidth=1, capsize=2, elinewidth=1, fmt='.',
+                   label=None, errorbars=True, line=True, scale='semilog_x'):
     """Plots the interpolated 2 point correlation with errors is available"""
-    # Interpolate
-    smooth = interp1d(x, y, kind=interp)
+    if line:    
+        # Interpolate
+        smooth = interp1d(x, y, kind=interp)
+        
+        # Plot line
+        lin = np.linspace(x[0], x[-1], 100)
+        ax.plot(lin, smooth(lin), color=color[0], linewidth=linewidth, label=label)
     
-    # Plot
-    lin = np.linspace(x[0], x[-1], 100)
-    ax.plot(lin, smooth(lin), color=color[0], linewidth=linewidth, label=label)
-    
+    # Plot errorbars
     if errorbars:
-        ax.errorbar(x, y, yerr=errs, fmt='.', capsize=capsize, elinewidth=elinewidth, color=color[1])
+        ax.errorbar(x, y, yerr=errs, fmt=fmt, capsize=capsize, elinewidth=elinewidth, color=color[1])
         
     if scale=='log' or scale=='semilog_y':
       ax.set_yscale('log')
@@ -247,9 +250,6 @@ def plot_smooth_line(ax, y, x, errs=None, interp='cubic',
 def midpoints_of_bins(edges):
     """Returns midpoints of bin edges for plotting"""
     return (edges[:-1]+edges[1:])/2 
-
-def set_linewidth(current_iter, total_iter, minor=0.3, major=1.2):
-    return minor if current_iter!=int(total_iter-1) else major
 
 def millify(n, rounding=1):
     millnames = ['','k','M','B','T']
@@ -291,3 +291,8 @@ def capword(word):
     lst = list(word)
     lst[0] = lst[0].upper()
     return "".join(lst)
+
+######################################################################
+"""Depreciated"""
+def set_linewidth(current_iter, total_iter, minor=0.3, major=1.5):
+    return minor if current_iter!=int(total_iter-1) else major
