@@ -216,14 +216,14 @@ class blobTester(testDataset):
         self.log_dict = {
             'stat': [],
             'metric': [],
-            'value': []
+            'result': []
         }
         
     def log_in_dict(self, entry):
         """Log desired metrics in the initialized dictionary"""
         self.log_dict['stat'].append(entry[0])
         self.log_dict['metric'].append(entry[1])
-        self.log_dict['value'].append(entry[2])
+        self.log_dict['result'].append(entry[2])
     
     def images(self):
         """Plot generated images - grid of images, marginal sums, blob coordinates"""
@@ -727,9 +727,38 @@ class blobTester(testDataset):
         plt.savefig(f'{self.plot_save_path}/total-flux-histogram.{self.image_file_format}')
         plt.close()
         
-        # Log js
+        'Total flux cdf'
+        # Create figure
+        fig = plt.figure(figsize=(4,3))
+
+        # Plot
+        for i, fluxes in enumerate(all_gen_img_fluxes):
+            plt.ecdf(fluxes,
+                    label=f'epoch {self.model_epochs[i]}', 
+                    color=(self.gen_color,self.line_alphas[i]), 
+                    linewidth=self.line_widths[i]
+                    )
+        plt.ecdf(real_img_fluxes,
+                label='target', color=(self.real_color,0.8))
+ 
+        # Format   
+        plt.ylabel('sample count')
+        plt.xlabel('total flux')
+        plt.suptitle(f"CDF of total flux, {self.subset_sample_num} samples")
+        plt.legend()
+        plt.tight_layout()
+
+        # Save
+        plt.savefig(f'{self.plot_save_path}/total-flux-cdf.{self.image_file_format}')
+        plt.close()
+        
+        'Log stats'
+        # JS div
         js = JSD(real_hist, gen_hist)
         self.log_in_dict(['total flux', 'JS div', js])
+        # KS test
+        ks = stats.kstest(all_gen_img_fluxes[-1], real_img_fluxes)
+        self.log_in_dict(['total flux', 'KS test', ks])
         
         'Extreme flux'
         # Create figure
