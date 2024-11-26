@@ -10,6 +10,11 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import os
 
+load_fname = 'ds2.jpg'
+save_fname = 'cos_sched_rev'
+reverse = True
+
+################################################################################
 def cosine_schedule(noise_steps, s=0.008):
     """Prepares cosine scheduler for adding noise"""
     def f(t):
@@ -44,7 +49,7 @@ alphas = 1. - betas
 alpha_hats = torch.cumprod(alphas, dim=0)
 
 # Load the Image  
-img = Image.open('C:/Users/Idiot/Desktop/Research/OFYP/misc/images/DouglasScott.jpg')  
+img = Image.open(f'C:/Users/Idiot/Desktop/Research/OFYP/misc/images/{load_fname}')  
 # Convert the PIL image 
 img = torch.tensor(np.array(img))/255
 
@@ -54,6 +59,10 @@ noised_imgs, _ = add_noise(alpha_hats, img, t)
 
 fig, axs = plt.subplots(1,11, figsize=(7,1))
 
+if reverse:
+    noised_imgs = noised_imgs.flip(dims=(0,))
+    t = t[::-1]
+    
 for ax, step, img in zip(axs, t, noised_imgs):
     ax.imshow(img)
     ax.set_title(step, fontsize='medium')
@@ -64,4 +73,4 @@ for ax, step, img in zip(axs, t, noised_imgs):
 fig.text(.06, .7, 'time\nstep', ha='left')
 plt.subplots_adjust(wspace=0, hspace=0)
 
-plt.savefig(f'{save_path}/cos_sched.{plot_file_format}')
+plt.savefig(f'{save_path}/{save_fname}.{plot_file_format}')

@@ -581,7 +581,7 @@ class CWGAN(pl.LightningModule, ganUtils):
         # Backup every 20 epochs
         if ((self.current_epoch+1)%20)==0:
             self._backup()
-            
+        
         # Progress
         # print('complete')
     
@@ -657,7 +657,7 @@ class EMA():
         # Reload ema to match network
         ema_network.load_state_dict(network.state_dict())
         
-        
+
 class Diffusion(pl.LightningModule):
     """Pytorch Lightning module for diffusion training and testing"""
     def __init__(self, scaling_factor=1, **training_params):

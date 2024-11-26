@@ -7,6 +7,7 @@ This script contains classes that loads, tests, and plots for model evaluation
 import os
 
 import numpy as np
+from scipy import stats
 import torch
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
@@ -93,7 +94,7 @@ class testDataset():
         print(f'line widths: {self.line_widths}')
         
         """Initialize seed"""
-        torch.manual_seed(self.testing_seed)
+        pl.seed_everything(self.testing_seed)
         
     def load_data(self, DataModule):
         """Load real data"""
@@ -119,7 +120,7 @@ class testDataset():
         self.models = [model_dict[self.model_version].load_from_checkpoint(
             f'{self.chkpt_path}/{file}',
             **self.training_params
-            ) for file in all_filenames]
+            ) for file in self.filenames]
         
         # Set scaling factor
         for model in self.models:
@@ -142,7 +143,7 @@ class testDataset():
         self.all_gen_imgs = []
         trainer = pl.Trainer()
         for model, filename, epoch in zip(self.models, self.filenames, self.model_epochs):
-            print(f'epoch {epoch}')
+            print(f'epoch {epoch} | file {filename}')
             trainer.test(model, self.data)
             
             # Add outputs to list
@@ -557,7 +558,7 @@ class blobTester(testDataset):
                     'Mean: {:.2f}'.format(self.all_gen_blob_num_mean[-1]), color=(self.gen_color,1))
 
         # Format
-        plt.ylabel('image count')
+        plt.ylabel('sample count')
         plt.xlabel('blob count')
         plt.suptitle(f"Histogram of number of blobs, {self.subset_sample_num} samples")
         plt.legend()
@@ -662,7 +663,8 @@ class blobTester(testDataset):
         # Plot
         plot_smooth_line(
             ax, real_cl, bins, real_err, 
-            color=((self.real_color,1), (self.real_color,0.5)), capsize=4, elinewidth=2,
+            color=((self.real_color,1), (self.real_color,0.5)),
+            linewidth=1.2, elinewidth=2, capsize=4, fmt='o',
             label='target', scale='semilog_x', errorbars=True
         )
          
@@ -690,13 +692,13 @@ class blobTester(testDataset):
         plt.close() 
 
     def flux_stats(self):
-        'Total flux histogram'
-        # Find flux
+        'Calculate total fluxes'
         print("calculating total flux...", end="   ")
         real_img_fluxes = find_total_fluxes(self.real_imgs_subset)
         all_gen_img_fluxes = [find_total_fluxes(subset) for subset in self.all_gen_imgs_subset]
         print('complete')
         
+        'Total flux histogram'
         # Create figure
         fig = plt.figure(figsize=(4,3))
 
@@ -705,8 +707,6 @@ class blobTester(testDataset):
         
         # Plot
         for i, fluxes in enumerate(all_gen_img_fluxes):
-            # if i==0:
-            #     continue
             gen_hist, _, _ = plt.hist(fluxes, bins=bins,
                     histtype='step', label=f'epoch {self.model_epochs[i]}', 
                     color=(self.gen_color,self.line_alphas[i]),
@@ -717,7 +717,7 @@ class blobTester(testDataset):
                     histtype='step', label='target', color=(self.real_color,0.8))
  
         # Format   
-        plt.ylabel('image count')
+        plt.ylabel('sample count')
         plt.xlabel('total flux')
         plt.suptitle(f"Histogram of total flux, {self.subset_sample_num} samples")
         plt.legend()

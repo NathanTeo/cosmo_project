@@ -31,7 +31,7 @@ class speedModule(modelLoader):
         print(f'run {model_run}')
         
         print('loading models and data...')
-        self.load_models()
+        self.load_model('last.ckpt')
         self.load_generated_samples()
         print('loading complete')
         
@@ -62,7 +62,7 @@ class speedModule(modelLoader):
         generator = blobDataset(**self.generation_params)
         start = t.time()
         for _ in range(num_of_samples):    
-            generator.realize_sample(generator.center_generator)
+            generator.realize_sample(seed=None)
         end = t.time()
         return end - start
                 

@@ -240,7 +240,7 @@ def plot_smooth_line(ax, y, x, errs=None, interp='cubic',
     
     # Plot errorbars
     if errorbars:
-        ax.errorbar(x, y, yerr=errs, fmt=fmt, capsize=capsize, elinewidth=elinewidth, color=color[1])
+        ax.errorbar(x, y, yerr=errs, fmt=fmt, capsize=capsize, elinewidth=elinewidth, color=color[1], label=label)
         
     if scale=='log' or scale=='semilog_y':
       ax.set_yscale('log')
