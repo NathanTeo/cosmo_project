@@ -20,8 +20,15 @@ from scipy.interpolate import interp1d
 from astroML.correlation import two_point_angular, bootstrap_two_point_angular
 import time
 import concurrent.futures
+from multiprocessing import Manager
 
 """Ungrouped"""
+def update_progress_bar(queue, total, pbar):
+    """This function updates the progress bar from the main thread"""
+    while pbar.n < total:
+        queue.get()  # Block until there is progress to update
+        pbar.update(1)  # Update the progress bar by 1 unit
+
 def init_param(config, param, default=None):
     """Initialize parameter and return default value if key is not found in config dictionary"""
     try:
@@ -591,7 +598,9 @@ class blobFitter():
         
         return guesses[idx], errs, counts
             
-    def count_sample_single_step(self, sample, method='SLSQP', max_iters=10, plot_guess=False, plot_progress=False):
+    def count_sample_single_step(self, sample, queue=None, # queue must be third param 
+                                 method='SLSQP', max_iters=50,  
+                                 plot_guess=False, plot_progress=False):
         """
         Count the number of blobs in a sample by fitting
         Keep fitting for counts at increments of 1 until a local error minima is found. 
@@ -738,6 +747,9 @@ class blobFitter():
                 else:
                     if plot_progress:
                         print('best fit found')
+                    # For multiprocessing tracking
+                    if queue is not None:
+                        queue.put(1)
                     return prev_guess, errs
 
         # Remove blobs until fit deproves
@@ -751,7 +763,9 @@ class blobFitter():
                 err = mse(sample, np.zeros(sample.shape))
                 errs[0].append(err)
                 errs[1].append(len(guess))
-                
+                # For multiprocessing tracking
+                if queue is not None:
+                    queue.put(1)
                 # Return lowest error
                 if err>prev_err:
                     return prev_guess, errs
@@ -770,11 +784,19 @@ class blobFitter():
             if err>prev_err:
                 if plot_progress:
                     print('best fit found')
+                # For multiprocessing tracking
+                if queue is not None:
+                    queue.put(1)
                 return prev_guess, errs
 
         # Return last guess and err if maximum iterations reached
         if plot_progress:
             print('max iters reached')
+            
+        # For multiprocessing tracking
+        if queue is not None:
+            queue.put(1)
+            
         return guess, errs
     
     def count(self, err_threshold_rel=0.3, method='SLSQP', mode='multi', plot_progress=False, progress_bar=True):
@@ -798,18 +820,28 @@ class blobFitter():
 
         # Count using multi core    
         if mode=='multi':
-            with concurrent.futures.ProcessPoolExecutor() as executor:
-                results = list(tqdm(executor.map(self.count_sample_single_step, self.samples),
-                                    disable=not progress_bar, total=int(self.sample_size)         
-                                    ))
+            with Manager() as manager:
+                queue = manager.Queue()
+                
+                # Initialize the progress bar
+                if progress_bar:
+                    pbar = tqdm(total=self.sample_size, desc="fitting", unit="sample") if progress_bar else None
 
-                fit_coords = []
-                errs = []
-                for result in results:
-                    fit_coords.append(result[0])
-                    errs.append(result[1])
+                # Using ProcessPoolExecutor to run tasks in parallel
+                with concurrent.futures.ProcessPoolExecutor() as executor:
+                    # Submit tasks to the executor, passing the queue for progress updates
+                    futures = [executor.submit(self.count_sample_single_step, sample, queue) for sample in self.samples]
 
-            counts = [len(coord) for coord in fit_coords]
+                    # Start a thread or a separate process to handle progress bar updates in the main thread
+                    if progress_bar:    
+                        update_progress_bar(queue, self.sample_size, pbar)
+
+                    # Wait for all tasks to finish and gather results
+                    results = [future.result() for future in futures]
+                # Extract the fit_coords and errors from the results
+                fit_coords = [result[0] for result in results]
+                errs = [result[1] for result in results]
+                counts = [len(coord) for coord in fit_coords]
         
         # Time track
         end = time.time()

@@ -21,7 +21,7 @@ name_2 = '1k'
 folder_name = 'big_image'
 
 params_1 = {
-    'image_size': 256,
+    'image_size': 128,
     'seed': 50,
     'blob_size': 5,
     'sample_num': 10,
@@ -35,7 +35,7 @@ params_1 = {
 }
 
 params_2 = {
-    'image_size': 256,
+    'image_size': 128,
     'seed': 71,
     'blob_size': 5,
     'sample_num': 10,
@@ -47,6 +47,8 @@ params_2 = {
     'pad': 0,
     'noise': 0
 }
+
+##########################################################################
 
 def detrend(sample, method='constant'):
     if method=='constant':

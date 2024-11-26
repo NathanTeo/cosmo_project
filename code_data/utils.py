@@ -14,7 +14,14 @@ from tqdm.auto import tqdm
 import astropy.units as u
 from scipy.special import gamma
 import concurrent.futures
+from multiprocessing import Manager
 import time
+
+def update_progress_bar(queue, total, pbar):
+    """This function updates the progress bar from the main thread"""
+    while pbar.n < total:
+        queue.get()  # Block until there is progress to update
+        pbar.update(1)  # Update the progress bar by 1 unit
 
 def sample_power_law(a, b, p, size=1, rng=np.random.default_rng()):
     """Sample x^{-p} for a<=x<=b"""
@@ -25,6 +32,13 @@ def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
+        
+def init_param(config, param, default=None):
+    """Initialize parameter and return default value if key is not found in config dictionary"""
+    try:
+        return config[param]
+    except KeyError:
+        return default
 
 class blobDataset():
     """Create real dataset for training, realize blobs"""
@@ -36,12 +50,12 @@ class blobDataset():
         self.sample_num = params['sample_num']
         self.blob_num =  params['blob_num']
         self.num_distribution = params['num_distribution']
-        self.blob_amplitude = params['blob_amplitude']
-        self.amplitude_distribution = params['amplitude_distribution']
-        self.clustering = params['clustering']
-        self.pad = params['pad']
-        self.noise = params['noise']
-        self.min_dist = params['minimum_distance']
+        self.blob_amplitude = init_param(params, 'blob_amplitude', 1)
+        self.amplitude_distribution = init_param(params, 'amplitude_distribution', 'delta')
+        self.clustering = init_param(params, 'clustering')
+        self.pad = init_param(params, 'pad', 0)
+        self.noise = init_param(params, 'noise', 0)
+        self.min_dist = init_param(params, 'minimum_distance')
         
         if self.pad == 'auto':
             self.pad = self.blob_size 
@@ -93,7 +107,7 @@ class blobDataset():
         else: # Empty image if there are no blob centers
             return np.zeros((self.generation_matrix_size, self.generation_matrix_size))
     
-    def realize_sample(self, seed=None):
+    def realize_sample(self, seed=None, queue=None):
         """Realize a single sample for the dataset"""
         # Set new random seed, necessary for multiprocessing to ensure each task is assigned a unique rng
         local_rng = np.random.default_rng(seed)
@@ -120,10 +134,14 @@ class blobDataset():
         pad_sample = sample
         if self.pad != 0:
             sample = sample[self.pad:-self.pad,self.pad:-self.pad]
+            
+        # For multiprocessing tracking
+        if queue is not None:
+            queue.put(1)
         
         return sample, centers, count, amps
     
-    def realize(self, batch=1000, temp_root_path="temp", mode='single'):
+    def realize(self, batch=1000, temp_root_path="temp", mode='single', progress_bar=True):
         """Realize all samples by batches"""
         # Generate in batches, generation slows significantly when entire dataset is generated in one go, probably taking too much ram       
         num_of_batches = int(np.ceil(self.sample_num / batch))
@@ -164,12 +182,25 @@ class blobDataset():
 
             # Realize samples using multi core    
             elif mode=='multi':
-                with concurrent.futures.ProcessPoolExecutor() as executor:
-                    results = list(tqdm(
-                        executor.map(self.realize_sample, batch_seeds),
-                        desc=f'batch {i+1}/{num_of_batches}', total=int(batch_size)         
-                        ))
+                with Manager() as manager:
+                    queue = manager.Queue()
+                    
+                    # Initialize the progress bar
+                    if progress_bar:
+                        pbar = tqdm(desc=f'batch {i+1}/{num_of_batches}', total=int(batch_size), unit="sample")
 
+                    # Using ProcessPoolExecutor to run tasks in parallel
+                    with concurrent.futures.ProcessPoolExecutor() as executor:
+                        # Submit tasks to the executor, passing the queue for progress updates
+                        futures = [executor.submit(self.realize_sample, seed, queue) for seed in batch_seeds]
+
+                        # Start a thread or a separate process to handle progress bar updates in the main thread
+                        if progress_bar:    
+                            update_progress_bar(queue, int(batch_size), pbar)
+
+                        # Wait for all tasks to finish and gather results
+                        results = [future.result() for future in futures]
+                    
                     for result in results:
                         # Save in temp
                         samples.append(result[0])
