@@ -18,13 +18,14 @@ from code_model.testers.eval_utils import *
 from code_model.testers.plotting_utils import *
 
 """RUNS"""
-model1_run = 'cwgan_6b'
-model2_run = 'diffusion_3d'
+model1_run = 'cwgan_8a'
+model2_run = 'diffusion_3e'
 labels = ['GAN', 'diffusion']
+model_epochs = None # Uses largest epoch if None
 
-##########################################################
+###############################################################################################
 class compareUtils():
-    def __init__(self, model1_run, model2_run, labels):
+    def __init__(self, model1_run, model2_run, labels, model_epochs=None):
         """Initialize"""
         self.model1_run = model1_run
         self.model2_run = model2_run
@@ -71,28 +72,46 @@ class compareUtils():
             'model': [],
             'stat': [],
             'metric': [],
-            'value': []
+            'result': []
         }
         
+        '''Get epochs'''
+        # Get last epochs of each model
+        if model_epochs is None:
+            filenames1 = os.listdir(f'{self.model1_chkpt_path}')
+            filenames1.remove('last.ckpt')
+            filenames1.sort()
+            filenames2 = os.listdir(f'{self.model2_chkpt_path}')
+            filenames2.remove('last.ckpt')
+            filenames2.sort()
+            self.model_epochs = (filenames1[-1][-9,-5], filenames2[-1][-9,-5])
+        # Use given model epochs
+        else:
+            self.model_epochs = model_epochs
+            
     def log_in_dict(self, entry):
         """Log desired metrics in the initialized dictionary"""
         self.log_dict['model'].append(entry[0])
         self.log_dict['stat'].append(entry[1])
         self.log_dict['metric'].append(entry[2])
-        self.log_dict['value'].append(entry[3])
+        self.log_dict['result'].append(entry[3])
     
     def get_log_dict(self):
         return self.log_dict
         
     def load_models(self):
         """Load models"""
+        filenames = os.listdir(f'{self.model1_chkpt_path}')
+        checkpoint_file = [file for file in filenames if str(self.model1_epoch) in file][0]
         self.model1 = model_dict[self.model1_training_params['model_version']].load_from_checkpoint(
-            f'{self.model1_chkpt_path}/last.ckpt',
+            f'{self.model1_chkpt_path}/{checkpoint_file}',
             **self.model1_training_params
         )
-
+        
+        filenames = os.listdir(f'{self.model2_chkpt_path}')
+        checkpoint_file = [file for file in filenames if str(self.model2_epoch) in file][0]
         self.model2 = model_dict[self.model2_training_params['model_version']].load_from_checkpoint(
-            f'{self.model2_chkpt_path}/last.ckpt',
+            f'{self.model2_chkpt_path}/{checkpoint_file}',
             **self.model2_training_params
         )
         
@@ -103,12 +122,12 @@ class compareUtils():
         """Load in generated samples and counts"""
         # Load model1 samples
         filenames = os.listdir(f'{self.model1_output_path}')
-        sample_file = [file for file in filenames if 'last' in file][0]
+        sample_file = [file for file in filenames if str(self.model1_epoch) in file][0]
         self.model1_samples = np.load(f'{self.model1_output_path}/{sample_file}', allow_pickle=True)
         
         # Load model2 samples
         filenames = os.listdir(f'{self.model2_output_path}')
-        sample_file = [file for file in filenames if 'last' in file][0]
+        sample_file = [file for file in filenames if str(self.model2_epoch) in file][0]
         self.model2_samples = np.load(f'{self.model2_output_path}/{sample_file}', allow_pickle=True)
         
         # Load real samples
@@ -250,7 +269,7 @@ class compareUtils():
                 'Mean: {:.2f}'.format(self.model2_blob_count_mean), color=(self.model2_color,1))
         
         # Format
-        plt.ylabel('image count')
+        plt.ylabel('sample count')
         plt.xlabel('blob count')
         plt.suptitle(f"Histogram of blob count, {len(self.real_blob_counts)} samples")
         plt.legend()
@@ -352,7 +371,7 @@ class compareUtils():
         plot_histogram_stack(ax, *model2_hist_stack, color=(self.model2_color,0.8), label=self.labels[1])
 
         # Format
-        plt.ylabel('image count')
+        plt.ylabel('sample count')
         plt.xlabel('pixel value')
         fig.suptitle(f"Stacked histogram of pixel values, {len(real_samples_subset)} samples")
         plt.legend()
@@ -457,7 +476,7 @@ class compareUtils():
             )
  
         # Format   
-        plt.ylabel('image count')
+        plt.ylabel('sample count')
         plt.xlabel('total flux')
         plt.suptitle(f"Histogram of total flux, {self.subset_sample_num} samples")
         plt.legend()
@@ -531,8 +550,8 @@ class compareModule(compareUtils):
     def __init__(self, model1_run, model2_run, labels):
         super().__init__(model1_run, model2_run, labels)
         
-        print(f'run {model1_run} vs run {model2_run}')
-        
+        print(f'{model1_run}: epoch {self.model_epochs[0]} vs {model2_run}: epoch {self.model_epochs[1]}')
+        print('---------------------------------------')
         print('loading models and data...')
         self.load_models()
         self.load_generated_samples()
@@ -557,7 +576,7 @@ class compareModule(compareUtils):
             'model': [],
             'stat': [],
             'metric': [],
-            'value': []
+            'result': []
         }
         
     def test_speed(self, num_of_samples):
@@ -614,5 +633,5 @@ class compareModule(compareUtils):
         save_log_dict(f'{self.plot_save_path}/metrics', log_dict)
 
 if __name__=="__main__":
-    tester = compareModule(model1_run, model2_run, labels)
+    tester = compareModule(model1_run, model2_run, labels, model_epochs)
     tester.plot()

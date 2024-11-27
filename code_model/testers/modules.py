@@ -48,6 +48,13 @@ class testDataset():
         self.counting_params = init_param(testing_params, 'counting_params')
         self.testing_seed = init_param(testing_params, 'seed', default=1)
         self.num_models = init_param(testing_params, 'num_models', default=1)
+        self.model_epochs = init_param(testing_params, 'model_epochs')
+        
+        # Use model_epochs for num_models if model_epochs is given
+        if self.model_epochs is not None:
+            if self.num_models!=len(self.model_epochs):
+                print(f'note: number of models set from {self.num_models} to {len(self.model_epochs)} to follow model epoch input')
+            self.num_models = len(self.model_epochs)
         
         """Paths"""
         self.root_path = training_params['root_path']
@@ -110,12 +117,21 @@ class testDataset():
         # Get checkpoints of models to be tested
         all_filenames = os.listdir(self.chkpt_path)
         all_filenames.sort()
-        all_filenames.remove('last.ckpt')
-        self.filenames = []
-        for x in np.arange(self.num_models,0,-1):
-            self.filenames.append(all_filenames[int(len(all_filenames)/(2**(x-1))-1)])
+        if 'last.ckpt' in all_filenames:
+            # unable to get epoch of last.ckpt without calling trainer, so only use saved epochs for testing
+            all_filenames.remove('last.ckpt')
         
-        self.model_epochs = [int(file[6:-5]) for file in self.filenames]
+        # If only model number if given,
+        # load models, starting with the final epoch and halving the epoch number each time 
+        if self.model_epochs is None:
+            self.filenames = []
+            for x in np.arange(self.num_models,0,-1):
+                self.filenames.append(all_filenames[int(len(all_filenames)/(2**(x-1))-1)])
+            self.model_epochs = [int(file[-9:-5]) for file in self.filenames]
+        # If model epochs are given, load the corresponding epochs
+        elif isinstance(self.model_epochs[0], int):
+            self.filenames = [filename for filename in all_filenames if any(str(epoch) in filename for epoch in self.model_epochs)]
+            self.is_checkpoints_found(self.filenames, self.model_epochs)
         
         self.models = [model_dict[self.model_version].load_from_checkpoint(
             f'{self.chkpt_path}/{file}',
@@ -155,6 +171,15 @@ class testDataset():
                 ), model.outputs)
             
         return self.all_gen_imgs
+    
+    def is_checkpoints_found(self, checkpoints, epochs):
+        """Check if all checkpoints from the epochs requested are found"""
+        if len(checkpoints)!=len(epochs):
+            epochs_found = [int(file[-9:-5]) for file in checkpoints]
+            epochs_not_found = [epoch for epoch in epochs if epoch not in epochs_found]
+            raise Exception(f'could not find checkpoints {epochs_not_found}')
+        else:
+            pass
     
     def truncate(self):
         """Make subset used for testing"""
