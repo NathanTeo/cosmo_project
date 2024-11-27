@@ -90,6 +90,9 @@ class testDataset():
         self.image_file_format = 'png'
         self.real_color = 'black'
         self.gen_color = 'red'
+        
+        self.num_distr_range = (0,99.5)
+        
         # Need to change if different number of models are plotted, find a way to make this automatic/input?
         self.fill_alphas = [*[0 for _ in range(self.num_models-1)], 0.2]
         self.line_alphas = [*[0.2*(i+1) for i in range(self.num_models-1)], 0.8] # number of models loaded should be less than 5
@@ -560,7 +563,7 @@ class blobTester(testDataset):
 
         # Bins for histogram
         bins = find_good_bins([self.real_blob_counts, *self.all_gen_blob_counts], method='arange',
-                              ignore_outliers=True, percentile_range=(0,99)) ########### NEEDS TWEAKING ############
+                              ignore_outliers=True, percentile_range=self.num_distr_range) ########### NEEDS TWEAKING ############
         
         # Plot histogram
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
@@ -690,7 +693,7 @@ class blobTester(testDataset):
             ax, real_cl, bins, real_err, 
             color=((self.real_color,1), (self.real_color,0.5)),
             linewidth=1.2, elinewidth=2, capsize=4, fmt='o',
-            label='target', scale='semilog_x', errorbars=True
+            label='target', scale='semilog_x', errorbars=True, line=False
         )
          
         for i, (cl, err) in enumerate(zip(all_gen_cl, all_gen_err)):
@@ -698,7 +701,7 @@ class blobTester(testDataset):
                 ax, cl, bins, err, 
                 color=((self.gen_color,0.5), (self.gen_color,0.5)),
                 linewidth=self.line_widths[i],
-                label=f'epoch {self.model_epochs[i]}', errorbars=self.select_last_epoch[i],
+                label=f'epoch {self.model_epochs[i]}', errorbars=self.select_last_epoch[i], line=False,
                 scale='semilog_x'
             )
         
