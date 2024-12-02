@@ -30,6 +30,7 @@ class testDataset():
         self.model_version = training_params['model_version']
 
         self.blob_num = generation_params['blob_num']
+        self.num_distr = generation_params['num_distribution']
         self.blob_amplitude = init_param(generation_params, 'blob_amplitude', default=1)
         self.clustering = init_param(generation_params, 'clustering')
         self.blob_size = init_param(generation_params, 'blob_size', 5)
@@ -97,6 +98,7 @@ class testDataset():
         self.fill_alphas = [*[0 for _ in range(self.num_models-1)], 0.2]
         self.line_alphas = [*[0.2*(i+1) for i in range(self.num_models-1)], 0.8] # number of models loaded should be less than 5
         self.line_widths = [*[1 for _ in range(self.num_models-1)], 1.2]
+        self.line_styles = [*['-' for _ in range(self.num_models-1)], '--']
         self.select_last_epoch = [*[False for _ in range(self.num_models-1)], True]
         
         print(f'fill alphas: {self.fill_alphas}')
@@ -596,10 +598,40 @@ class blobTester(testDataset):
         plt.savefig(f'{self.plot_save_path}/number-blobs-histogram.{self.image_file_format}')
         plt.close()
         
-        # Log JS
+        'CDF'
+        lower = np.min(np.concatenate(self.all_gen_blob_counts))
+        upper = np.max(np.concatenate(self.all_gen_blob_counts)) 
+        x = np.arange(lower, upper, 1)
+
+        plt.step(x, stats.poisson.cdf(x, mu=self.blob_num), where='post', color=('black', 0.5), linestyle='--', label='theory')
+        for i, counts in enumerate(self.all_gen_blob_counts):
+            plt.ecdf(counts, color=('r', self.line_alphas[i]), 
+                     linewidth=self.line_widths[i], linestyle=self.line_styles[i],
+                     label=f'epoch {self.model_epochs[i]}')
+        
+        # Format
+        plt.legend()
+        plt.title('CDF of the blob count')
+        plt.xlabel('blob count')
+        plt.ylabel('probability')
+        plt.tight_layout()
+        plt.savefig(f'{self.plot_save_path}/number-blobs-cdf.{self.image_file_format}')
+        plt.close()
+        
+        'Log stats'
+        gen_last_counts = self.all_gen_blob_counts[-1] 
+        # JS div
         js = JSD(real_hist, gen_hist)
         self.log_in_dict(['blob count', 'JS div', js])
-
+        if self.num_distr=='poisson':
+            ks = stats.kstest(gen_last_counts, stats.poisson(self.blob_num).cdf)
+            self.log_in_dict(['blob count', 'KS test', ks.statistic])
+        elif self.num_distr=='delta':
+            gen_r = np.where(gen_last_counts==self.blob_num, 1, 0).sum()/len(gen_last_counts)
+            real_r = np.where(self.real_blob_counts==self.blob_num, 1, 0).sum()/len(self.real_blob_counts)
+            self.log_in_dict(['blob count', 'accuracy-generated', gen_r])
+            self.log_in_dict(['blob count', 'accuracy-target', real_r])
+        
         'Extreme number of blobs'
         # Create figure
         fig = plt.figure(figsize=(4,2.5))
@@ -764,14 +796,14 @@ class blobTester(testDataset):
             plt.ecdf(fluxes,
                     label=f'epoch {self.model_epochs[i]}', 
                     color=(self.gen_color,self.line_alphas[i]), 
-                    linewidth=self.line_widths[i]
+                    linewidth=self.line_widths[i], linestyle=self.line_styles[i]
                     )
         plt.ecdf(real_img_fluxes,
                 label='target', color=(self.real_color,0.8))
  
         # Format   
         plt.ylabel('sample count')
-        plt.xlabel('total flux')
+        plt.xlabel('probability')
         plt.suptitle(f"CDF of total flux, {self.subset_sample_num} samples")
         plt.legend()
         plt.tight_layout()
