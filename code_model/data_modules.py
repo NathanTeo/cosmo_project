@@ -32,7 +32,7 @@ class BlobDataModule(pl.LightningDataModule):
         
         self.truncate_ratio = truncate_ratio
         
-        self.transforms = transforms
+        self.transforms = [transform_dict[transform] for transform in transforms]
 
     def setup(self, stage=None):
         # Load data
@@ -117,3 +117,8 @@ class MNISTDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.mnist_test, batch_size=self.batch_size, num_workers=self.num_workers)
+    
+
+transform_dict = {
+    'log10': torch.log10
+}

@@ -25,7 +25,7 @@ from multiprocessing import Manager
 
 """Ungrouped"""
 inv_transform_dict = {
-    torch.log10: lambda x: 10**x
+    'log10': lambda x: 10**x
 }
 
 def update_progress_bar(queue, total, pbar):
