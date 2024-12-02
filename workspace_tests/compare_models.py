@@ -84,7 +84,7 @@ class compareUtils():
             filenames2 = os.listdir(f'{self.model2_chkpt_path}')
             filenames2.remove('last.ckpt')
             filenames2.sort()
-            self.model_epochs = (filenames1[-1][-9,-5], filenames2[-1][-9,-5])
+            self.model_epochs = (filenames1[-1][-9:-5], filenames2[-1][-9:-5])
         # Use given model epochs
         else:
             self.model_epochs = model_epochs
@@ -102,14 +102,14 @@ class compareUtils():
     def load_models(self):
         """Load models"""
         filenames = os.listdir(f'{self.model1_chkpt_path}')
-        checkpoint_file = [file for file in filenames if str(self.model1_epoch) in file][0]
+        checkpoint_file = [file for file in filenames if str(self.model_epochs[0]) in file][0]
         self.model1 = model_dict[self.model1_training_params['model_version']].load_from_checkpoint(
             f'{self.model1_chkpt_path}/{checkpoint_file}',
             **self.model1_training_params
         )
         
         filenames = os.listdir(f'{self.model2_chkpt_path}')
-        checkpoint_file = [file for file in filenames if str(self.model2_epoch) in file][0]
+        checkpoint_file = [file for file in filenames if str(self.model_epochs[1]) in file][0]
         self.model2 = model_dict[self.model2_training_params['model_version']].load_from_checkpoint(
             f'{self.model2_chkpt_path}/{checkpoint_file}',
             **self.model2_training_params
@@ -122,12 +122,12 @@ class compareUtils():
         """Load in generated samples and counts"""
         # Load model1 samples
         filenames = os.listdir(f'{self.model1_output_path}')
-        sample_file = [file for file in filenames if str(self.model1_epoch) in file][0]
+        sample_file = [file for file in filenames if str(self.model_epochs[0]) in file][0]
         self.model1_samples = np.load(f'{self.model1_output_path}/{sample_file}', allow_pickle=True)
         
         # Load model2 samples
         filenames = os.listdir(f'{self.model2_output_path}')
-        sample_file = [file for file in filenames if str(self.model2_epoch) in file][0]
+        sample_file = [file for file in filenames if str(self.model_epochs[1]) in file][0]
         self.model2_samples = np.load(f'{self.model2_output_path}/{sample_file}', allow_pickle=True)
         
         # Load real samples
@@ -297,9 +297,9 @@ class compareUtils():
         fig, axs = plt.subplots(1, 3, figsize=(4,2.5))
 
         # Plot
-        plot_stacked_imgs(axs[0], stacked_real_img, title=f"Target\n{self.subset_sample_num} samples")
-        plot_stacked_imgs(axs[1], stacked_model1_img, title=f"model1\n{self.subset_sample_num} samples")
-        plot_stacked_imgs(axs[2], stacked_model2_img, title=f"model2usion\n{self.subset_sample_num} samples")
+        plot_stacked_imgs(axs[0], stacked_real_img, title=f"Target samples")
+        plot_stacked_imgs(axs[1], stacked_model1_img, title=f"{self.labels[0]} samples")
+        plot_stacked_imgs(axs[2], stacked_model2_img, title=f"{self.labels[1]} samples")
         
         # Format
         fig.suptitle('Stacked image')
@@ -547,11 +547,11 @@ class compareUtils():
         
 
 class compareModule(compareUtils):
-    def __init__(self, model1_run, model2_run, labels):
-        super().__init__(model1_run, model2_run, labels)
+    def __init__(self, model1_run, model2_run, labels, model_epochs=None):
+        super().__init__(model1_run, model2_run, labels, model_epochs)
         
-        print(f'{model1_run}: epoch {self.model_epochs[0]} vs {model2_run}: epoch {self.model_epochs[1]}')
-        print('---------------------------------------')
+        print(f'{model1_run}: epoch {self.model_epochs[0]}   vs   {model2_run}: epoch {self.model_epochs[1]}')
+        print('---------------------------------------------------------------')
         print('loading models and data...')
         self.load_models()
         self.load_generated_samples()
