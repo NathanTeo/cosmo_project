@@ -40,6 +40,7 @@ class testDataset():
 
         self.batch_size = training_params['batch_size']
         self.num_workers = training_params['num_workers']
+        self.data_transforms = init_param(training_params, 'data_transforms')
         
         self.grid_row_size = init_param(testing_params,'grid_row_size', default=2)
         self.num_plots = init_param(testing_params, 'num_plots', default=5)
@@ -114,7 +115,8 @@ class testDataset():
         self.data = DataModule(
             data_file=f'{self.data_path}/{self.data_file_name}',
             batch_size=self.batch_size, num_workers=self.num_workers,
-            truncate_ratio=self.subset_sample_num/self.real_sample_num
+            truncate_ratio=self.subset_sample_num/self.real_sample_num,
+            transforms=self.data_transforms
             )
     
     def load_models(self, model_dict):
@@ -167,13 +169,21 @@ class testDataset():
             print(f'epoch {epoch} | file {filename}')
             trainer.test(model, self.data)
             
+            # Apply inverse tranform
+            if self.data_transforms is not None:
+                data_inv_transforms = [inv_transform_dict[transform] for transform in self.data_transforms][::-1]
+                for transform in data_inv_transforms:
+                    samples = transform(model.outputs)
+            else:
+                samples = model.outputs
+            
             # Add outputs to list
-            self.all_gen_imgs.append(model.outputs)
-        
+            self.all_gen_imgs.append(samples)
+                
             # Save outputs
             np.save('{}/{}_{:.0g}.npy'.format(
                 self.output_save_path, filename[:-5], self.subset_sample_num
-                ), model.outputs)
+                ), samples)
             
         return self.all_gen_imgs
     

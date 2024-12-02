@@ -5,6 +5,7 @@ This script contains functions and classes for model evaluation in the modules.p
 """
 
 import numpy as np
+import torch
 from numpy.linalg import norm
 import matplotlib.pyplot as plt
 from skimage.feature import peak_local_max
@@ -23,6 +24,10 @@ import concurrent.futures
 from multiprocessing import Manager
 
 """Ungrouped"""
+inv_transform_dict = {
+    torch.log10: lambda x: 10**x
+}
+
 def update_progress_bar(queue, total, pbar):
     """This function updates the progress bar from the main thread"""
     while pbar.n < total:

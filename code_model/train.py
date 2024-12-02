@@ -27,6 +27,8 @@ def run_training(training_params, generation_params, testing_params, training_re
         num_workers = training_params['num_workers']
         max_epochs = training_params['max_epochs']
         avail_gpus = training_params['avail_gpus']
+        
+        data_transforms = init_param(training_params, 'data_transforms')
                 
         """Paths"""
         root_path = training_params['root_path']
@@ -77,7 +79,7 @@ def run_training(training_params, generation_params, testing_params, training_re
                 save_last=True,
                 enable_version_counter=False
         )
-
+        
         """Initialize seed"""
         pl.seed_everything(training_seed)
 
@@ -86,7 +88,8 @@ def run_training(training_params, generation_params, testing_params, training_re
                 # Load data
                 data = BlobDataModule(
                         data_file=f'{data_path}/{data_file_name}',
-                        batch_size=batch_size, num_workers=num_workers
+                        batch_size=batch_size, num_workers=num_workers,
+                        transforms=data_transforms
                         )
                 
                 # Load model

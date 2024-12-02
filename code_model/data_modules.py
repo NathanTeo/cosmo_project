@@ -15,7 +15,7 @@ class BlobDataModule(pl.LightningDataModule):
     """
     Pytorch Lightning data module for loading and transforming the real sample gaussian blobs
     """
-    def __init__(self, data_file, batch_size, num_workers, train_split=1, truncate_ratio=None):
+    def __init__(self, data_file, batch_size, num_workers, train_split=1, truncate_ratio=None, transforms=None):
         super().__init__()
         
         # Parameters
@@ -31,13 +31,8 @@ class BlobDataModule(pl.LightningDataModule):
         self.scaling_factor = 1/np.max([np.max(samples), np.abs(np.min(samples))])
         
         self.truncate_ratio = truncate_ratio
-
-        # Transformations
-        self.transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-            ]
-        )
+        
+        self.transforms = transforms
 
     def setup(self, stage=None):
         # Load data
@@ -49,6 +44,10 @@ class BlobDataModule(pl.LightningDataModule):
         self.samples = torch.unsqueeze(torch.tensor(samples), 1).float()
         
         self.scale_samples()
+        
+        if self.transforms is not None:
+            for transform in self.transforms:
+                self.samples = transform(self.samples)
         
         # Assign train/val datasets
         if stage == "fit" or stage is None:
