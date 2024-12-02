@@ -1,3 +1,15 @@
+"""
+Author: Nathan Teo
+
+This script plots samples for all saved checkpoints
+"""
+
+run = "cwgan_6e"
+grid_size = 2
+
+#########################################################################################
+
+# Import
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
@@ -10,10 +22,6 @@ from code_model.testers.eval_utils import *
 from code_model.testers.plotting_utils import *
 from code_data.utils import *
 
-run = "cwgan_6e"
-grid_size = 2
-
-#########################################################################################
 # Paths
 save_path = f'{project_path}/misc_plots/inspect_checkpoints/{run}'
 chkpt_path = f"C:/Users/Idiot/Desktop/Research/OFYP/cosmo/cosmo_runs/{run}/checkpoints"
