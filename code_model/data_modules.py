@@ -32,7 +32,8 @@ class BlobDataModule(pl.LightningDataModule):
         
         self.truncate_ratio = truncate_ratio
         
-        self.transforms = [transform_dict[transform] for transform in transforms]
+        if transforms is not None:
+            self.transforms = [transform_dict[transform] for transform in transforms]
 
     def setup(self, stage=None):
         # Load data
