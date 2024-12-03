@@ -137,7 +137,7 @@ class testDataset():
             self.model_epochs = [int(file[-9:-5]) for file in self.filenames]
         # If model epochs are given, load the corresponding epochs
         elif isinstance(self.model_epochs[0], int):
-            self.filenames = [filename for filename in all_filenames if any(str(epoch) in filename for epoch in self.model_epochs)]
+            self.filenames = [filename for filename in all_filenames if any(f'{epoch:04d}' in filename for epoch in self.model_epochs)]
             self.is_checkpoints_found(self.filenames, self.model_epochs)
         
         self.models = [model_dict[self.model_version].load_from_checkpoint(
@@ -190,6 +190,9 @@ class testDataset():
     def is_checkpoints_found(self, checkpoints, epochs):
         """Check if all checkpoints from the epochs requested are found"""
         if len(checkpoints)!=len(epochs):
+            print()
+            print(f'checkpoints: {checkpoints}')
+            print(f'epochs: {epochs}')
             epochs_found = [int(file[-9:-5]) for file in checkpoints]
             epochs_not_found = [epoch for epoch in epochs if epoch not in epochs_found]
             raise Exception(f'could not find checkpoints {epochs_not_found}')
