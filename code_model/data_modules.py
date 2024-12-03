@@ -44,11 +44,11 @@ class BlobDataModule(pl.LightningDataModule):
         
         self.samples = torch.unsqueeze(torch.tensor(samples), 1).float()
         
-        self.scale_samples()
-        
         if self.transforms is not None:
             for transform in self.transforms:
                 self.samples = transform(self.samples)
+        
+        self.scale_samples()
         
         # Assign train/val datasets
         if stage == "fit" or stage is None:
@@ -118,8 +118,12 @@ class MNISTDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.mnist_test, batch_size=self.batch_size, num_workers=self.num_workers)
-    
+
+"""Transforms"""
+def log10(x):
+    return torch.log10(x+1)
 
 transform_dict = {
-    'log10': torch.log10
+    'log10': log10
 }
+

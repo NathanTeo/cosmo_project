@@ -13,7 +13,7 @@ from scipy.ndimage import gaussian_filter
 from scipy import spatial
 from scipy.stats import entropy
 from tqdm.auto import tqdm
-from scipy.stats import multivariate_normal
+from scipy import stats 
 from scipy.signal.windows import general_gaussian, tukey
 from scipy.optimize import minimize
 from scipy.spatial.distance import cdist
@@ -25,7 +25,7 @@ from multiprocessing import Manager
 
 """Ungrouped"""
 inv_transform_dict = {
-    'log10': lambda x: 10**x
+    'log10': lambda x: (10**x)-1
 }
 
 def update_progress_bar(queue, total, pbar):
@@ -121,6 +121,19 @@ def JSD(P, Q):
     _Q = Q / norm(Q, ord=1)
     _M = 0.5 * (_P + _Q)
     return 0.5 * (entropy(_P, _M) + entropy(_Q, _M))
+
+def ecdf(a):
+    """Return bins and ecdf"""
+    x, counts = np.unique(a, return_counts=True)
+    cusum = np.cumsum(counts)
+    return x, cusum / cusum[-1]
+
+def ks_poisson(rvs, mean):
+    """KS test for poisson"""
+    x, counts = ecdf(rvs)
+    poisson = stats.poisson.cdf(x, mu=mean)
+    diff = np.abs(poisson-counts)
+    return np.max(diff)
 
 """Power spectrum"""
 def cosine_window(N):
@@ -308,7 +321,7 @@ def gaussian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=50
             # Create gaussian with amplitude of maximum
             x, y = np.mgrid[0:img_decomp.shape[0]:1, 0:img_decomp.shape[1]:1]
             pos = np.dstack((x, y))
-            gaussian = normalize_2d(multivariate_normal(peak_coord, [[blob_size, 0], [0, blob_size]]).pdf(pos))*peak_val
+            gaussian = normalize_2d(stats.multivariate_normal(peak_coord, [[blob_size, 0], [0, blob_size]]).pdf(pos))*peak_val
 
             # Subtract created gaussian from image
             img_decomp = np.subtract(img_decomp, gaussian)
@@ -560,7 +573,7 @@ class blobFitter():
             # Remove gaussian with amplitude of maximum pixel
             x, y = np.mgrid[0:img_decomp.shape[0]:1, 0:img_decomp.shape[1]:1]
             pos = np.dstack((x, y))
-            gaussian = normalize_2d(multivariate_normal(peak_coord, [[self.blob_size, 0], [0, self.blob_size]]).pdf(pos))*peak_val
+            gaussian = normalize_2d(stats.multivariate_normal(peak_coord, [[self.blob_size, 0], [0, self.blob_size]]).pdf(pos))*peak_val
 
             img_decomp = np.subtract(img_decomp, gaussian)
 
@@ -974,7 +987,7 @@ class blobFitter():
             # Remove gaussian with amplitude of maximum pixel
             x, y = np.mgrid[0:img_decomp.shape[0]:1, 0:img_decomp.shape[1]:1]
             pos = np.dstack((x, y))
-            gaussian = normalize_2d(multivariate_normal(peak_coord, [[self.blob_size, 0], [0, self.blob_size]]).pdf(pos))*peak_val
+            gaussian = normalize_2d(stats.multivariate_normal(peak_coord, [[self.blob_size, 0], [0, self.blob_size]]).pdf(pos))*peak_val
 
             img_decomp = np.subtract(img_decomp, gaussian)
 
