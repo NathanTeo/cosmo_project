@@ -18,7 +18,7 @@ from code_model.testers.eval_utils import *
 from code_model.testers.plotting_utils import *
 
 """RUNS"""
-model1_run = 'cwgan_8a'
+model1_run = 'cwgan_8b'
 model2_run = 'diffusion_3e'
 labels = ['GAN', 'diffusion']
 model_epochs = None # Uses largest epoch if None
@@ -52,7 +52,9 @@ class compareUtils():
         generation_params = model2_config.config.model_params.generation_params
         self.image_size = generation_params['image_size']
         self.blob_size = generation_params['blob_size']
-        self.blob_amplitude = generation_params['blob_amplitude'] 
+        self.blob_num = generation_params['blob_num']
+        self.blob_amplitude = init_param(generation_params, 'blob_amplitude', 1) 
+        self.num_distr = generation_params['num_distribution']
         
         self.model1_training_params['avail_gpus'] = torch.cuda.device_count()
         self.model1_training_params['root_path'] = f"C:/Users/Idiot/Desktop/Research/OFYP/cosmo/cosmo_runs/{model1_run}"
@@ -279,11 +281,25 @@ class compareUtils():
         plt.savefig(f'{self.plot_save_path}/count-histogram.{self.image_file_format}')
         plt.close()
                 
-        # Log js    
+        # Log stats    
         js_1 = JSD(real_hist, model1_hist)
         js_2 = JSD(real_hist, model2_hist)
         self.log_in_dict([self.labels[0], 'blob count', 'JS div', js_1])
         self.log_in_dict([self.labels[1], 'blob count', 'JS div', js_2])
+        
+        if self.num_distr=='poisson':
+            ks_stat_1 = ks_poisson(self.model1_blob_counts, self.blob_num)
+            ks_stat_2 = ks_poisson(self.model2_blob_counts, self.blob_num)
+            self.log_in_dict([self.labels[0], 'blob count', 'KS test', ks_stat_1])
+            self.log_in_dict([self.labels[1], 'blob count', 'KS test', ks_stat_2])
+        elif self.num_distr=='delta':
+            r_1 = np.where(self.model1_blob_counts==self.blob_num, 1, 0).sum()/len(self.model1_blob_counts)
+            r_2 = np.where(self.model2_blob_counts==self.blob_num, 1, 0).sum()/len(self.model2_blob_counts)
+            real_r = np.where(self.real_blob_counts==self.blob_num, 1, 0).sum()/len(self.real_blob_counts)
+            self.log_in_dict([self.labels[0], 'blob count', 'accuracy-generated', r_1])
+            self.log_in_dict([self.labels[1], 'blob count', 'accuracy-generated', r_2])
+            self.log_in_dict(['real', 'blob count', 'accuracy-target', real_r])
+        
             
     def plot_stack_images(self):
         """Stack images"""

@@ -93,7 +93,7 @@ class testDataset():
         self.real_color = 'black'
         self.gen_color = 'red'
         
-        self.num_distr_range = (0,99.5)
+        self.num_distr_range = (0,100)
         
         # Need to change if different number of models are plotted, find a way to make this automatic/input?
         self.fill_alphas = [*[0 for _ in range(self.num_models-1)], 0.2]
@@ -529,6 +529,12 @@ class blobTester(testDataset):
         self.real_blob_num_mean = np.mean(self.real_blob_counts)
         self.all_gen_blob_num_mean = [np.mean(counts) for counts in self.all_gen_blob_counts]
         
+        # TEMP FIX, CHANGE THIS 
+        if self.num_models==1:
+            self.all_gen_blob_counts = [self.all_gen_blob_counts[-1]]
+            self.all_gen_blob_coords = [self.all_gen_blob_coords[-1]]
+            self.all_gen_blob_num_mean = [self.all_gen_blob_num_mean[-1]]
+        
     def blob_amp_stats(self):
         """Blob amplitude analysis"""
         'Histogram'
@@ -637,8 +643,8 @@ class blobTester(testDataset):
         js = JSD(real_hist, gen_hist)
         self.log_in_dict(['blob count', 'JS div', js])
         if self.num_distr=='poisson':
-            ks = stats.kstest(gen_last_counts, stats.poisson(self.blob_num).cdf)
-            self.log_in_dict(['blob count', 'KS test', ks.statistic])
+            ks_stat = ks_poisson(gen_last_counts, self.blob_num)
+            self.log_in_dict(['blob count', 'KS test', ks_stat])
         elif self.num_distr=='delta':
             gen_r = np.where(gen_last_counts==self.blob_num, 1, 0).sum()/len(gen_last_counts)
             real_r = np.where(self.real_blob_counts==self.blob_num, 1, 0).sum()/len(self.real_blob_counts)
@@ -669,7 +675,25 @@ class blobTester(testDataset):
         # Save
         plt.savefig(f'{self.plot_save_path}/min-peak.{self.image_file_format}')
         plt.close()
+        'Extreme number of blobs'
+        # Create figure
+        fig = plt.figure(figsize=(2,2.5))
 
+        # Plot
+        plot_extremum_num_blobs(
+            fig, self.all_gen_imgs_subset[-1],
+            self.all_gen_blob_coords[-1], self.all_gen_blob_counts[-1],
+            k=1, extremum='min', title=None
+            )  # Only perform for last model
+
+        # Format
+        fig.suptitle(f"Minimum blob count")
+        plt.tight_layout()
+
+        # Save
+        plt.savefig(f'{self.plot_save_path}/min-peak-gen.{self.image_file_format}')
+        plt.close()
+        
         # Create figure
         fig = plt.figure(figsize=(4,2.5))
         subfig = fig.subfigures(1, 2, wspace=0.2)
@@ -776,7 +800,9 @@ class blobTester(testDataset):
         fig = plt.figure(figsize=(4,3))
 
         # Bins for histogram
-        bins = find_good_bins([real_img_fluxes, *all_gen_img_fluxes], method='linspace', num_bins=20, ignore_outliers=True)
+        space = 0.2*np.min(all_gen_img_fluxes[-1])
+        bins = find_good_bins([real_img_fluxes, *all_gen_img_fluxes], method='linspace', num_bins=20, ignore_outliers=False, 
+                              spacing=(space, space))
         
         # Plot
         for i, fluxes in enumerate(all_gen_img_fluxes):
@@ -910,7 +936,8 @@ class blobTester(testDataset):
             color=((self.real_color,1), (self.real_color,0.5)),
             linewidth=1.2, elinewidth=1.5, capsize=4, fmt='o',
             label='target',
-            scale='log' if self.clustering is not None else 'linear'
+            scale='log' if self.clustering is not None else 'linear',
+            line=False
         )
          
         for i, (corrs, errs) in enumerate(zip(all_gen_corrs, all_gen_errs)):
@@ -919,7 +946,8 @@ class blobTester(testDataset):
                 color=((self.gen_color,self.line_alphas[i]), (self.gen_color,0.5)), 
                 linewidth=self.line_widths[i],
                 label=f'epoch {self.model_epochs[i]}', errorbars=self.select_last_epoch[i],
-                scale='log' if self.clustering is not None else 'linear'
+                scale='log' if self.clustering is not None else 'linear',
+                line=False
             )
         
         # Format
