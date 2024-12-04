@@ -25,18 +25,32 @@ class BlobDataModule(pl.LightningDataModule):
         
         self.train_split = train_split
         
-        # Is there a way to get this without loading data?
-        samples = np.load(data_file)
-        self.num_samples = len(samples)
-        self.scaling_factor = 1/np.max([np.max(samples), np.abs(np.min(samples))])
-        
         self.truncate_ratio = truncate_ratio
         
         if transforms is not None:
             self.transforms = [transform_dict[transform] for transform in transforms]
         else:
             self.transforms = None
-
+        
+        self.init_attributes()
+    
+    def init_attributes(self):
+        # Is there a way to do this without loading the data? Or do only when training begins?
+        # Load data
+        samples = np.load(self.data_file)
+        
+        # Total sample size
+        self.num_samples = len(samples)
+        
+        # Scaling factor
+        samples = torch.unsqueeze(torch.tensor(samples), 1).float()
+        
+        if self.transforms is not None:
+            for transform in self.transforms:
+                samples = transform(samples)
+        
+        self.scaling_factor = 1/max([torch.max(samples), torch.abs(torch.min(samples))])
+    
     def setup(self, stage=None):
         # Load data
         samples = np.load(self.data_file)
