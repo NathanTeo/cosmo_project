@@ -34,6 +34,8 @@ class BlobDataModule(pl.LightningDataModule):
         
         if transforms is not None:
             self.transforms = [transform_dict[transform] for transform in transforms]
+        else:
+            self.transforms = None
 
     def setup(self, stage=None):
         # Load data
