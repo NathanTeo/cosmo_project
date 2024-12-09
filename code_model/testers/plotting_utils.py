@@ -190,6 +190,8 @@ def plot_stacked_imgs(ax, stacked_img, title=None, vmin=-0.05, vmax=None):
     ax.imshow(stacked_img, vmin=vmin, vmax=vmax)
     if title is not None:    
         ax.set_title(title)
+    ax.set_axis_off()
+    
 
 def plot_pixel_histogram(ax, imgs, color, bins=None, logscale=True):
     """

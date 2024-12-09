@@ -63,6 +63,10 @@ class compareUtils():
         self.model2_training_params['root_path'] = f"C:/Users/Idiot/Desktop/Research/OFYP/cosmo/cosmo_runs/{model2_run}"
         
         'Plotting'
+        self.plot_fullsize = (6,4)
+        self.plot_halfsize = (3.5,3)
+        self.plot_2thirdsize = (4,3)
+        
         self.real_color = 'black'
         self.model1_color = 'tab:orange'
         self.model2_color = 'tab:blue'
@@ -240,11 +244,11 @@ class compareUtils():
             
     def plot_count_histogram(self, ignore_outliers=True):
         # Create figure
-        fig = plt.figure(figsize=(4,3))
+        fig = plt.figure(figsize=self.plot_2thirdsize)
 
         # Bins for histogram
         bins = find_good_bins([self.real_blob_counts, self.model1_blob_counts, self.model2_blob_counts],
-                              method='arange', ignore_outliers=True, percentile_range=(0,99))
+                              method='arange', ignore_outliers=True, percentile_range=(0,100))
         
         # Plot histogram
         real_hist, _, _ = plt.hist(self.real_blob_counts, bins=bins,
@@ -310,12 +314,12 @@ class compareUtils():
 
         'Plot image'
         # Create figure
-        fig, axs = plt.subplots(1, 3, figsize=(4,2.5))
+        fig, axs = plt.subplots(1, 3, figsize=(self.plot_halfsize[0], 2))
 
         # Plot
-        plot_stacked_imgs(axs[0], stacked_real_img, title=f"Target samples")
-        plot_stacked_imgs(axs[1], stacked_model1_img, title=f"{self.labels[0]} samples")
-        plot_stacked_imgs(axs[2], stacked_model2_img, title=f"{self.labels[1]} samples")
+        plot_stacked_imgs(axs[0], stacked_real_img, title=f"Target")
+        plot_stacked_imgs(axs[1], stacked_model1_img, title=f"{self.labels[0]}")
+        plot_stacked_imgs(axs[2], stacked_model2_img, title=f"{self.labels[1]}")
         
         # Format
         fig.suptitle('Stacked image')
@@ -334,7 +338,7 @@ class compareUtils():
         bins = find_good_bins([real_pxl_lst, model1_pxl_lst, model2_pxl_lst],
                               method='linspace', num_bins=15, ignore_outliers=False)
         # Create figure
-        fig = plt.figure(figsize=(4,3))
+        fig = plt.figure(figsize=self.plot_halfsize)
 
         # Plot
         real_hist, _, _ = plt.hist(
@@ -523,31 +527,30 @@ class compareUtils():
             concat_subset = np.concatenate([model1_sample_subset, model2_sample_subset])
             
             # Plotting grid of images
-            fig = plt.figure(figsize=(4.5, 6))
-            subfig = fig.subfigures(4, 2, wspace=0.1, hspace=0.3, height_ratios=(0.5,5,5,1))
+            fig = plt.figure(figsize=(3.5, 5))
+            subfig = fig.subfigures(4, 2, wspace=0.1, hspace=0.3, height_ratios=(.2,3.5,3.5,1))
             
             subplots_samp = plot_img_grid(subfig[1,0], model1_sample_subset, grid_row_num,
                                         title=f'{capword(self.labels[0])} samples', title_y=1.06,
-                                        vmin=-0.05, vmax=np.max(concat_subset), wspace=0.05, hspace=0.01)
+                                        vmin=-0.05, vmax=np.max(concat_subset), wspace=.1, hspace=.01)
             subplots_res = plot_img_grid(subfig[1,1], model1_res_subset, grid_row_num, 
                                         title=f'{capword(self.labels[0])} residuals', title_y=1.06, 
-                                        cmap='RdBu', vmin=-0.07, vmax=0.07, wspace=0.05, hspace=0.01)
+                                        cmap='RdBu', vmin=-0.07, vmax=0.07, wspace=.1, hspace=.01)
             
             subplots_samp = plot_img_grid(subfig[2,0], model2_sample_subset, grid_row_num,
                                         title=f'{capword(self.labels[1])} samples', title_y=1.06,
-                                        vmin=-0.05, vmax=np.max(concat_subset), wspace=0.05, hspace=0.01)
+                                        vmin=-0.05, vmax=np.max(concat_subset), wspace=.1, hspace=.01)
             subplots_res = plot_img_grid(subfig[2,1], model2_res_subset, grid_row_num,
                                         title=f'{capword(self.labels[1])} residuals', title_y=1.06,
-                                        cmap='RdBu', vmin=-0.07, vmax=0.07, wspace=0.05, hspace=0.01)
+                                        cmap='RdBu', vmin=-0.07, vmax=0.07, wspace=.1, hspace=.01)
             
-            cax0, empty0 = subfig[3,0].subplots(2)
-            cax1, empty1 = subfig[3,1].subplots(2)
-            blank_plot(empty0)
-            blank_plot(empty1)
+            cax0, empty00 = subfig[3,0].subplots(2)
+            cax1, empty10 = subfig[3,1].subplots(2)
+            blank_plot(empty00)
+            blank_plot(empty10)
             fig.colorbar(subplots_samp[0][0], cax=cax0, orientation='horizontal')
             fig.colorbar(subplots_res[0][0], cax=cax1, orientation='horizontal')
-
-            fig.tight_layout()
+            
             
             # Save plot
             plt.savefig(f'{self.plot_save_path}/residual_{n}.{self.image_file_format}')
@@ -635,19 +638,21 @@ class compareModule(compareUtils):
         self.plot_count_histogram()
         print(f'task 3/{n} | stacking')
         self.plot_stack_images()
-        print(f'task 4/{n} | pixel histogram')
-        self.plot_pixel_histogram()
-        print(f'task 5/{n} | extreme counts')
+        print(f'task 4/{n} | extreme counts')
         self.plot_samples_with_extreme_count()
-        print(f'task 6/{n} | total flux')
+        print(f'task 5/{n} | total flux')
         self.plot_total_flux()
-        print(f'task 7/{n} | residual samples')
+        print(f'task 6/{n} | residual samples')
         self.plot_residual_samples()
         self.residual_mse()
+        print(f'task 7/{n} | pixel histogram')
+        self.plot_pixel_histogram()
         
         log_dict = self.get_log_dict()
         save_log_dict(f'{self.plot_save_path}/metrics', log_dict)
 
+        print('plotting complete')
+        
 if __name__=="__main__":
     tester = compareModule(model1_run, model2_run, labels, model_epochs)
     tester.plot()

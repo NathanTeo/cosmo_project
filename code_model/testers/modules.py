@@ -11,6 +11,7 @@ from scipy import stats
 import torch
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from tqdm.auto import tqdm
 
 from code_model.testers.eval_utils import *
@@ -89,6 +90,10 @@ class testDataset():
         print(f'scaling factor: {self.scaling_factor}')
         
         """Plotting style"""
+        self.plot_fullsize = (6,4)
+        self.plot_halfsize = (3.5,3)
+        self.plot_2thirdsize = (4,3)
+        
         self.image_file_format = 'png'
         self.real_color = 'black'
         self.gen_color = 'red'
@@ -379,11 +384,11 @@ class blobTester(testDataset):
         
         'Plot image'
         # Create figure
-        fig, axs = plt.subplots(1, 2, figsize=(4,3))
+        fig, axs = plt.subplots(1, 2, figsize=self.plot_halfsize)
 
         # Plot
-        plot_stacked_imgs(axs[0], stacked_real_img, title=f"target\n{self.subset_sample_num} samples")
-        plot_stacked_imgs(axs[1], stacked_gen_img, title=f"generated\n{self.subset_sample_num} samples")
+        plot_stacked_imgs(axs[0], stacked_real_img, title=f"target")
+        plot_stacked_imgs(axs[1], stacked_gen_img, title=f"generated")
 
         # Format
         fig.suptitle('Stacked Image')
@@ -395,7 +400,7 @@ class blobTester(testDataset):
         
         'Stacked image histogram'
         # Create figure
-        fig = plt.figure(figsize=(4,3))
+        fig = plt.figure(figsize=self.plot_halfsize)
 
         # Plot
         real_pxl_lst = stacked_real_img.ravel()
@@ -539,12 +544,10 @@ class blobTester(testDataset):
         """Blob amplitude analysis"""
         'Histogram'
         # Create figure
-        fig = plt.figure(figsize=(5,3.5))
+        fig = plt.figure(figsize=self.plot_halfsize)
         
         real_amplitudes_concat = np.concatenate(self.real_blob_amplitudes)
         all_gen_amplitudes_concat = [np.concatenate(amps) for amps in self.all_gen_blob_amplitudes]
-        
-        amps = np.concatenate([real_amplitudes_concat, *all_gen_amplitudes_concat])
         
         # Bins for histogram
         bins = np.arange(0, 10+1, 0.5)
@@ -564,28 +567,55 @@ class blobTester(testDataset):
         # Format
         plt.ylabel('blob count')
         plt.xlabel('blob amplitude')
-        plt.suptitle(f"Histogram of blob amplitude, {self.subset_sample_num} samples")
+        plt.suptitle(f"Histogram of blob amplitude")
         plt.legend()
         plt.tight_layout()
 
         # Save
         plt.savefig(f'{self.plot_save_path}/amplitude-blobs-histogram.{self.image_file_format}')
         plt.close()
+
+        'CDF'
+        all_amps = np.concatenate([real_amplitudes_concat, *all_gen_amplitudes_concat])
+        lower = np.min(all_amps)
+        upper = np.max(all_amps) 
+        x = np.arange(lower, upper, 1)
+
+        plt.ecdf(real_amplitudes_concat, label='target')
+        for i, amplitudes in enumerate(all_gen_amplitudes_concat):
+            plt.ecdf(amplitudes, color=('r', self.line_alphas[i]), 
+                     linewidth=self.line_widths[i], linestyle=self.line_styles[i],
+                     label=f'epoch {self.model_epochs[i]}')
         
-        # Log JS
+        # Format
+        plt.legend()
+        plt.title('CDF of the blob amplitudes')
+        plt.xlabel('blob amplitude')
+        plt.ylabel('probability')
+        plt.tight_layout()
+        plt.savefig(f'{self.plot_save_path}/amplitude-blobs-cdf.{self.image_file_format}')
+        plt.close()
+        
+        'Log stats'
+        # JS div
         js = JSD(real_hist, gen_hist)
-        self.log_in_dict(['blob amplitude', 'JS div', js])        
+        self.log_in_dict(['blob amplitude', 'JS div', js])
+        # KS test
+        ks = stats.kstest(all_gen_amplitudes_concat[-1], real_amplitudes_concat)
+        self.log_in_dict(['blob amplitude', 'KS test', ks])
+          
      
     def blob_num_stats(self):
         """Number of blob analysis"""
         'Histogram'
         # Create figure
-        fig = plt.figure(figsize=(5,3.5))
+        fig = plt.figure(figsize=self.plot_halfsize)
 
         # Bins for histogram
         bins = find_good_bins([self.real_blob_counts, *self.all_gen_blob_counts], method='arange',
-                              ignore_outliers=True, percentile_range=self.num_distr_range) ########### NEEDS TWEAKING ############
-        
+                              ignore_outliers=True, percentile_range=self.num_distr_range,
+                              spacing=(1.5,1.5))
+                
         # Plot histogram
         for i, blob_counts in enumerate(self.all_gen_blob_counts):
             gen_hist, _, _ = plt.hist(
@@ -601,15 +631,17 @@ class blobTester(testDataset):
         plt.axvline(self.real_blob_num_mean, color=(self.real_color,0.5), linestyle='dashed', linewidth=1)
 
         _, max_ylim = plt.ylim()
-        plt.text(self.real_blob_num_mean*1.05, max_ylim*0.9,
+        plt.text(self.real_blob_num_mean*1.1, max_ylim*0.9,
                 'Mean: {:.2f}'.format(self.real_blob_num_mean), color=(self.real_color,1))
-        plt.text(self.all_gen_blob_num_mean[-1]*1.05, max_ylim*0.8,
+        plt.text(self.all_gen_blob_num_mean[-1]*1.1, max_ylim*0.8,
                     'Mean: {:.2f}'.format(self.all_gen_blob_num_mean[-1]), color=(self.gen_color,1))
 
         # Format
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(integer=True))
         plt.ylabel('sample count')
         plt.xlabel('blob count')
-        plt.suptitle(f"Histogram of number of blobs, {self.subset_sample_num} samples")
+        plt.suptitle(f"Histogram of blob count")
         plt.legend()
         plt.tight_layout()
 
@@ -642,9 +674,11 @@ class blobTester(testDataset):
         # JS div
         js = JSD(real_hist, gen_hist)
         self.log_in_dict(['blob count', 'JS div', js])
+        # KS test
         if self.num_distr=='poisson':
             ks_stat = ks_poisson(gen_last_counts, self.blob_num)
             self.log_in_dict(['blob count', 'KS test', ks_stat])
+        # Accuracy
         elif self.num_distr=='delta':
             gen_r = np.where(gen_last_counts==self.blob_num, 1, 0).sum()/len(gen_last_counts)
             real_r = np.where(self.real_blob_counts==self.blob_num, 1, 0).sum()/len(self.real_blob_counts)
@@ -653,7 +687,7 @@ class blobTester(testDataset):
         
         'Extreme number of blobs'
         # Create figure
-        fig = plt.figure(figsize=(4,2.5))
+        fig = plt.figure(figsize=(3.5,2))
         subfig = fig.subfigures(1, 2, wspace=0.2)
 
         # Plot
@@ -669,15 +703,16 @@ class blobTester(testDataset):
             )  # Only perform for last model
 
         # Format
-        fig.suptitle(f"Min blob count, {self.subset_sample_num} samples")
+        fig.suptitle(f"Min blob count")
         plt.tight_layout()
 
         # Save
         plt.savefig(f'{self.plot_save_path}/min-peak.{self.image_file_format}')
         plt.close()
+        
         'Extreme number of blobs'
         # Create figure
-        fig = plt.figure(figsize=(2,2.5))
+        fig = plt.figure(figsize=(2.1,self.plot_2thirdsize[1]))
 
         # Plot
         plot_extremum_num_blobs(
@@ -687,7 +722,7 @@ class blobTester(testDataset):
             )  # Only perform for last model
 
         # Format
-        fig.suptitle(f"Minimum blob count")
+        fig.suptitle(f"Minimum blob count", fontsize='large')
         plt.tight_layout()
 
         # Save
@@ -695,7 +730,7 @@ class blobTester(testDataset):
         plt.close()
         
         # Create figure
-        fig = plt.figure(figsize=(4,2.5))
+        fig = plt.figure(figsize=(3.5,2))
         subfig = fig.subfigures(1, 2, wspace=0.2)
 
         # Plot
@@ -711,7 +746,7 @@ class blobTester(testDataset):
             )  
 
         # Format
-        fig.suptitle(f"Max blobs count, {self.subset_sample_num} samples")
+        fig.suptitle(f"Max blobs count")
         plt.tight_layout()
 
         # Save
@@ -755,7 +790,7 @@ class blobTester(testDataset):
         )
         
         # Create figure
-        fig, ax = plt.subplots(figsize=(4,3))
+        fig, ax = plt.subplots(figsize=self.plot_halfsize)
         
         # Plot
         plot_smooth_line(
@@ -775,7 +810,7 @@ class blobTester(testDataset):
             )
         
         # Format
-        fig.suptitle(f"Power spectrum, {self.subset_sample_num} samples")
+        fig.suptitle(f"Power spectrum")
         plt.xlabel(r'$l$')
         plt.ylabel(r'$C_l$')
         plt.xlim(np.min(bins)*.9,np.max(bins)*1.1)
@@ -797,12 +832,12 @@ class blobTester(testDataset):
         
         'Total flux histogram'
         # Create figure
-        fig = plt.figure(figsize=(4,3))
+        fig = plt.figure(figsize=self.plot_halfsize)
 
         # Bins for histogram
-        space = 0.2*np.min(all_gen_img_fluxes[-1])
-        bins = find_good_bins([real_img_fluxes, *all_gen_img_fluxes], method='linspace', num_bins=20, ignore_outliers=False, 
-                              spacing=(space, space))
+        space = 0.1*np.min(all_gen_img_fluxes[-1])
+        bins = find_good_bins([real_img_fluxes, *all_gen_img_fluxes], method='linspace', num_bins=20, ignore_outliers=True, 
+                              percentile_range=(0,99.5), spacing=(space, space))
         
         # Plot
         for i, fluxes in enumerate(all_gen_img_fluxes):
@@ -818,7 +853,7 @@ class blobTester(testDataset):
         # Format   
         plt.ylabel('sample count')
         plt.xlabel('total flux')
-        plt.suptitle(f"Histogram of total flux, {self.subset_sample_num} samples")
+        plt.suptitle(f"Histogram of total flux")
         plt.legend()
         plt.tight_layout()
 
@@ -828,22 +863,23 @@ class blobTester(testDataset):
         
         'Total flux cdf'
         # Create figure
-        fig = plt.figure(figsize=(4,3))
+        fig = plt.figure(figsize=self.plot_halfsize)
 
         # Plot
+        plt.ecdf(real_img_fluxes,
+                label='target', color=(self.real_color,0.8))
         for i, fluxes in enumerate(all_gen_img_fluxes):
             plt.ecdf(fluxes,
                     label=f'epoch {self.model_epochs[i]}', 
                     color=(self.gen_color,self.line_alphas[i]), 
                     linewidth=self.line_widths[i], linestyle=self.line_styles[i]
                     )
-        plt.ecdf(real_img_fluxes,
-                label='target', color=(self.real_color,0.8))
+        
  
         # Format   
         plt.ylabel('sample count')
         plt.xlabel('probability')
-        plt.suptitle(f"CDF of total flux, {self.subset_sample_num} samples")
+        plt.suptitle(f"CDF of total flux")
         plt.legend()
         plt.tight_layout()
 
@@ -861,7 +897,7 @@ class blobTester(testDataset):
         
         'Extreme flux'
         # Create figure
-        fig = plt.figure(figsize=(4,2.5))
+        fig = plt.figure(figsize=(3.5,2))
         subfig = fig.subfigures(1, 2, wspace=0.2)
 
         # Plot
@@ -885,7 +921,7 @@ class blobTester(testDataset):
         plt.close()
 
         # Create figure
-        fig = plt.figure(figsize=(4,2.5))
+        fig = plt.figure(figsize=(3.5,2))
         subfig = fig.subfigures(1, 2, wspace=0.2)
 
         # Plot
@@ -923,7 +959,7 @@ class blobTester(testDataset):
         )
 
         # Create figure
-        fig, ax = plt.subplots(figsize=(5,3.5))
+        fig, ax = plt.subplots(figsize=self.plot_halfsize)
         
         # Plot
         if self.clustering is None:
@@ -951,7 +987,7 @@ class blobTester(testDataset):
             )
         
         # Format
-        fig.suptitle(f"2-point correlation, {self.subset_sample_num} samples")
+        fig.suptitle(f"2-point correlation")
         plt.xlabel('pair distance')
         plt.ylabel('2-point correlation')
         plt.xlim(0, edges[-1]+1)
@@ -971,7 +1007,7 @@ class blobTester(testDataset):
         gen_imgs_subset_sh = self.all_gen_imgs_subset[-1][:histogram_num]
 
         # Create figure
-        fig, axs = plt.subplots(1,2, figsize=(4,3))
+        fig, axs = plt.subplots(1,2, figsize=self.plot_halfsize)
 
         # Plot
         plot_pixel_histogram(axs[0], real_imgs_subset_sh, color=(self.real_color,0.5), bins=20)
@@ -993,7 +1029,7 @@ class blobTester(testDataset):
         all_gen_hist_stack = [stack_histograms(subset) for subset in self.all_gen_imgs_subset]
 
         # Create figure
-        fig, ax = plt.subplots(figsize=(4,3))
+        fig, ax = plt.subplots(figsize=self.plot_halfsize)
 
         # Plot
         fill = [None, None, (self.gen_color, self.fill_alphas[-1])]
@@ -1010,7 +1046,7 @@ class blobTester(testDataset):
         # Format
         plt.ylabel('pixel count')
         plt.xlabel('pixel value')
-        fig.suptitle(f"Stacked histogram of pixel values, {self.subset_sample_num} samples")
+        fig.suptitle(f"Stacked histogram of pixel values")
         plt.legend()
         plt.tight_layout()
 
@@ -1024,8 +1060,9 @@ class blobTester(testDataset):
         self.stack()
         if self.enable_count:
             if os.path.exists(f'{self.output_save_path}/counts.npz') and not testing_restart:
-                print('previous counts found, loading counts...')
+                print('previous counts found, loading counts...', end='\t')
                 self.load_counts()
+                print('complete')
             elif self.min_dist is None:
                 self.count_blobs()
                 self.save_counts()
