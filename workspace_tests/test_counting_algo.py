@@ -1,13 +1,17 @@
-import os
-import numpy as np
+"""
+Author: Nathan Teo
+
+This scripts compares the counting algorithm output with the true counts and coordinates    
+"""
 
 # Params
 generation_params = {
         'blob_num': 10,
         'num_distribution': 'poisson',
         'clustering': None,
-        'blob_amplitude': 1/10,
+        'blob_amplitude': 0.1,
         'amplitude_distribtuion': 'delta',
+        'minimum_distance': None,
         'blob_size': 5,
         'image_size': 32,
         'sample_num': 50_000,
@@ -17,12 +21,24 @@ generation_params = {
 
 image_file_format = 'png'
 
+should_plot_samples = False
+
+##########################################################################################
+import os
+import numpy as np
+import sys
+
+project_path = 'C:/Users/Idiot/Desktop/Research/OFYP/cosmo/cosmo_project'
+sys.path.append(project_path)
+from code_model.testers.eval_utils import *
+
 # Initiate params
 blob_num = generation_params['blob_num']
 num_distribution = generation_params['num_distribution']
 clustering = init_param(generation_params, 'clustering')
 blob_amplitude = init_param(generation_params, 'blob_amplitude', 1)
 amplitude_distribution = init_param(generation_params, 'amplitude_distribtuion', 'delta')
+min_dist = init_param(generation_params, 'minimum_distance')
 gen_seed = generation_params['seed']
 blob_size = generation_params['blob_size']
 sample_num = generation_params['sample_num']
@@ -30,13 +46,13 @@ image_size = generation_params['image_size']
 gen_noise = init_param(generation_params, 'noise', 0)
 
 project_path = "C:/Users/Idiot/Desktop/Research/OFYP/cosmo"
-data_file_name = 'bn{}{}-cl{}-is{}-bs{}-ba{}{}-sn{}-sd{}-ns{}'.format(
+
+data_file_name = 'bn{}{}-cl{}-is{}-bs{}-ba{}{}-md{}-sn{}-sd{}-ns{}'.format(
     blob_num, num_distribution[0], 
     '{:.0e}_{:.0e}'.format(*clustering) if clustering is not None else '_',
     image_size, blob_size, 
-    '{:.0e}'.format(blob_amplitude), amplitude_distribution[0], 
-    sample_num,
-    gen_seed, gen_noise
+    '{:.0e}'.format(blob_amplitude), amplitude_distribution[0],
+    min_dist, f'{sample_num:.0e}', gen_seed, gen_noise
 )
 data_folder = f'cosmo_data/{blob_num}_blob'
 save_folder = 'misc_plots/counting_algorithm'
@@ -64,7 +80,7 @@ if __name__=="__main__":
     from cosmo_project.code_model.testers.eval_utils import *
     
     # Example sample
-    if True:
+    if should_plot_samples:
         samples_subset = samples[:4]
         counter = blobFitter(blob_size=blob_size, blob_amplitude=blob_amplitude)
         counter.load_samples(samples_subset)
@@ -119,9 +135,19 @@ if __name__=="__main__":
             
             algo_counts_1 = file['algo_counts_1']
             algo_counts_2 = file['algo_counts_2']
+        elif min_dist is not None:
+            # Real
+            blob_threshold_rel = 0.6
+            
+            _, algo_counts_2, _ = samples_blob_counter_fast(
+                samples, 
+                blob_size=blob_size, min_peak_threshold=blob_amplitude*blob_threshold_rel,
+                method='zero', progress_bar=True
+                )
         else:
             # Count with gaussian decomp
             blob_threshold_rel = 0.7
+            
             _, _, real_peak_vals = samples_blob_counter_fast(
                 samples, 
                 blob_size=blob_size, min_peak_threshold=(1/blob_num)*blob_threshold_rel,
@@ -145,7 +171,7 @@ if __name__=="__main__":
         bins = np.arange(np.min(all_counts)-1.5, np.max(all_counts)+1.5, 1)
 
         fig = plt.figure(figsize=(4,3))
-        fig.suptitle(f'samples: {sample_size}')
+        fig.suptitle(f'Histogram of blob counts')
         plt.hist(true_counts, bins=bins, color='black', histtype='step', label='true', fill=True, facecolor=('black',0.1))
         # plt.hist(algo_counts_1, bins=bins, color=('orange', 0.7), histtype='step', label='algorithm-old')
         plt.hist(algo_counts_2, bins=bins, color=('red', 0.9), linestyle='dashed', histtype='step', label='fit')
