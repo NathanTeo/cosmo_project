@@ -14,7 +14,7 @@ run = "diffusion_6b"
 #########################################################################################
 # Load samples
 model = modelLoader(run)
-model.load_generated_samples()
+model.load_samples()
 
 real_samples = model.real_samples
 model_samples = model.model_samples

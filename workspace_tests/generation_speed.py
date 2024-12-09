@@ -32,7 +32,7 @@ class speedModule(modelLoader):
         
         print('loading models and data...')
         self.load_model('last.ckpt')
-        self.load_generated_samples()
+        self.load_samples()
         print('loading complete')
         
         print('')
