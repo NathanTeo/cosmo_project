@@ -19,7 +19,7 @@ from code_model.testers.plotting_utils import *
 from code_data.utils import *
 
 """RUNS"""
-model_run = 'diffusion_3c'
+model_run = 'diffusion_7e'
 
 ##########################################################
 
@@ -73,10 +73,13 @@ class speedModule(modelLoader):
         
         print('generating samples...')
         stand_time = self.stand_speed(num_of_samples)
+        print(f'complete, {stand_time:.4f}s')
+        
         if 'gan' in self.model_run:
             model_time = self.gan_speed(num_of_samples)
         elif 'diff' in self.model_run:
             model_time = self.diff_speed(num_of_samples)
+        print(f'complete, {model_time:.4f}s')
         
         print(f'standard: {stand_time:.4f}s | model: {model_time:.4f}s')
         print(f'Standard method is {model_time/stand_time:.0f} times faster')
@@ -86,7 +89,7 @@ class speedModule(modelLoader):
         print()
         
         print('generation speed')
-        self.test_speed(10)
+        self.test_speed(3)
         print()
         
 if __name__=="__main__":

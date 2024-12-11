@@ -9,7 +9,7 @@ mean = 10
 sample_size = 5_000
 seed = 32
 
-ks_stat_obs = 0.015
+ks_stat_obs = 0.0307
 
 restart = False
 
