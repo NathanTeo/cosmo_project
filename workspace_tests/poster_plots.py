@@ -4,19 +4,28 @@ Author: Nathan Teo
 This script makes plots for the poster    
 """
 
-run = "diffusion_7e"
+run = "diffusion_3f"
 epoch = 299
 
-real_color = '#DFD7E7'
-model_color = '#F9B268'
+# real_color = '#DFD7E7'
+# model_color = '#F9B268'
+# axis_color = '#DFD7E7'
+# font_file = 'BAHNSCHRIFT.TTF'
+real_color = 'black'
+model_color = 'red'
+axis_color = 'black'
+font_file = None
 
 real_label = 'target'
 model_label = 'model'
 
-what_counting = None # load or fast
-tasks = ['powerspec'] # counthist, amphist, powerspec
+what_counting = 'load' # load or fast
+tasks = ['counthist'] # counthist, amphist, powerspec
+
 
 image_file_format = 'png'
+
+save_label = 'cny'
 
 #########################################################################################
 """Initialize"""
@@ -44,11 +53,11 @@ if not os.path.exists(save_path):
 mpl.rcParams['figure.facecolor'] = 'none'  # Transparent figure background
 mpl.rcParams['axes.facecolor'] = 'none'    # Transparent axes background
 
-mpl.rcParams['axes.edgecolor'] = '#DFD7E7'     # Color of the axes borders
-mpl.rcParams['axes.labelcolor'] = '#DFD7E7'   # Color of the x and y labels
-mpl.rcParams['xtick.color'] = '#DFD7E7'      # Color of the x-ticks
-mpl.rcParams['ytick.color'] = '#DFD7E7'      # Color of the y-ticks
-mpl.rcParams['text.color'] = '#DFD7E7'
+mpl.rcParams['axes.edgecolor'] = axis_color     # Color of the axes borders
+mpl.rcParams['axes.labelcolor'] = axis_color   # Color of the x and y labels
+mpl.rcParams['xtick.color'] = axis_color      # Color of the x-ticks
+mpl.rcParams['ytick.color'] = axis_color      # Color of the y-ticks
+mpl.rcParams['text.color'] = axis_color
 
 # Set default font sizes globally
 mpl.rcParams['axes.labelsize'] = 24  # Font size for axis labels
@@ -58,9 +67,10 @@ mpl.rcParams['ytick.labelsize'] = 20 # Font size for y-tick labels
 mpl.rcParams['legend.fontsize'] = 20  # Font size for legend text
 mpl.rcParams['font.size'] = 20  # Default font size for text in the plot
 
-custom_font_path = "C:/Users/Idiot/Desktop/Research/OFYP/misc/fonts/BAHNSCHRIFT.TTF"
-custom_font = mpl.font_manager.FontProperties(fname=custom_font_path)
-mpl.rcParams['font.family'] = custom_font.get_name()
+if font_file is not None:
+    custom_font_path = f"C:/Users/Idiot/Desktop/Research/OFYP/misc/fonts/{font_file}"
+    custom_font = mpl.font_manager.FontProperties(fname=custom_font_path)
+    mpl.rcParams['font.family'] = custom_font.get_name()
 
 # Loader
 model = modelLoader(run, epoch=epoch, real_color=real_color, model_color=model_color)
@@ -125,13 +135,13 @@ for i in range(5):
     fig = plt.figure(figsize=(10,10))
     plt.imshow(real_samples[i])
     plt.axis('off')
-    plt.savefig(f'{save_path}/real_samples_{i}')
+    plt.savefig(f'{save_path}/real_samples_{i}.{image_file_format}')
     plt.close()
     
     fig = plt.figure(figsize=(10,10))
     plt.imshow(model_samples[i])
     plt.axis('off')
-    plt.savefig(f'{save_path}/model_samples_{i}')
+    plt.savefig(f'{save_path}/model_samples_{i}.{image_file_format}')
     plt.close()
 print('complete')
 
@@ -177,7 +187,7 @@ if 'counthist' in tasks:
     plt.tight_layout()
 
     # Save
-    plt.savefig(f'{save_path}/number-blobs-histogram.{image_file_format}')
+    plt.savefig(f'{save_path}/number-blobs-histogram_{save_label}.{image_file_format}')
     plt.close()
     print('complete')
 
@@ -223,11 +233,10 @@ if 'powerspec' in tasks:
     ax.yaxis.set_major_formatter(mpl.ticker.ScalarFormatter(useMathText=True))
     ax.ticklabel_format(axis='y', style='scientific', scilimits=(-4, -4))
     plt.tight_layout()
-    
     plt.legend()
 
     # Save
-    plt.savefig(f'{save_path}/power-spec.{image_file_format}')
+    plt.savefig(f'{save_path}/power-spec_{save_label}.{image_file_format}')
     plt.close() 
     
     print('complete')
@@ -264,7 +273,7 @@ if 'amphist' in tasks:
     plt.tight_layout()
 
     # Save
-    plt.savefig(f'{save_path}/amplitude-blobs-histogram.{image_file_format}')
+    plt.savefig(f'{save_path}/amplitude-blobs-histogram_{save_label}.{image_file_format}')
     plt.close()
     
     print('complete')
