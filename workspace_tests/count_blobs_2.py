@@ -4,6 +4,13 @@ Author: Nathan Teo
 This script tests the fitting blob counting algorithm 
 """
 
+num_of_imgs = 1
+num_of_blobs = 50
+blob_size = 5
+blob_amplitude = 1/num_of_blobs
+image_size = 128
+
+#################################################################################################
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
@@ -356,12 +363,6 @@ def plot_sample(sample, coord, count):
     plt.title(f'{count} blobs counted')
     plt.show()
     plt.close()
-
-num_of_imgs = 1
-num_of_blobs = 50
-blob_size = 5
-blob_amplitude = 1/num_of_blobs
-image_size = 128
 
 if __name__=="__main__":
     print('test')
