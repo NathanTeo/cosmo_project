@@ -5,10 +5,8 @@ This script contains functions and classes for model evaluation in the modules.p
 """
 
 import numpy as np
-import torch
 from numpy.linalg import norm
 import matplotlib.pyplot as plt
-from skimage.feature import peak_local_max
 from scipy.ndimage import gaussian_filter
 from scipy import spatial
 from scipy.stats import entropy
@@ -17,19 +15,19 @@ from scipy import stats
 from scipy.signal.windows import general_gaussian, tukey
 from scipy.optimize import minimize
 from scipy.spatial.distance import cdist
-from scipy.interpolate import interp1d
 from astroML.correlation import two_point_angular, bootstrap_two_point_angular
 import time
 import concurrent.futures
 from multiprocessing import Manager
 
 """Ungrouped"""
+# Lookup dictionary of list of functions to inverse transformations applied before training
 inv_transform_dict = {
     'log10': lambda x: (10**x)-1
 }
 
 def update_progress_bar(queue, total, pbar):
-    """This function updates the progress bar from the main thread"""
+    """This function updates the progress bar from the main thread, for multicore to work with tqdm"""
     while pbar.n < total:
         queue.get()  # Block until there is progress to update
         pbar.update(1)  # Update the progress bar by 1 unit
@@ -42,25 +40,19 @@ def init_param(config, param, default=None):
         return default
 
 def marginal_sums(img):
-    """Calculate marginal sums along x and y for sample images """
+    """Calculate marginal sums along x and y for sample images"""
     y_sum = [y for y in img.sum(axis=1)]
     x_sum = [x for x in img.sum(axis=0)]
     return y_sum, x_sum
 
 def stack_imgs(imgs):
     """Stack images into single image"""
-    for i, sample in enumerate(imgs):
-        if i == 0:
-            # Add first sample image to stacked image
-            stacked_img = sample
-        else:
-            # Add subsquent samples to stacked image
-            stacked_img = np.add(stacked_img, sample)
-    return stacked_img
+    return np.sum(imgs, axis=0)
 
 def stack_histograms(imgs, bins=np.arange(-0.1,1,0.05), mean=True, progress_bar=True):
     """Find the mean/total of a series of histograms.
     Returns edges for plotting purposes."""
+    # Initialize stack as array with size of the number of bins
     if isinstance(bins, int):
         stack = np.zeros(bins)
     else:
@@ -68,7 +60,7 @@ def stack_histograms(imgs, bins=np.arange(-0.1,1,0.05), mean=True, progress_bar=
         
     for img in tqdm(imgs, disable=(not progress_bar)):
         # Get histogram for single image    
-        n, edges, _ = plt.hist(img.ravel(), bins=bins)
+        n, edges = np.histogram(img.ravel(), bins=bins)
         # Add histogram to stack
         stack = np.add(stack, n)
 
@@ -85,17 +77,19 @@ def normalize_2d(matrix):
 
 def find_total_fluxes(samples):
     """Returns an array of total image flux for an array of image samples"""
+    # Flatten images
     samples = samples.reshape(samples.shape[0], -1)
     return np.sum(samples, axis=1)
     
 def make_gaussian(center, var, image_size):
     """Make a square gaussian kernel"""
+    # Make grid
     x = np.arange(0, image_size, 1, float)
     y = x[:,np.newaxis]
-
+    # Gaussian center
     x0 = center[1]
     y0 = center[0]
-
+    # Make Gaussian
     return np.exp(-0.5 * ((x-x0)**2 + (y-y0)**2) / var)
 
 def create_blobs(centers, image_size, blob_size, blob_amplitude):
@@ -111,7 +105,6 @@ def get_residuals(samples, blob_coords, image_size, blob_size, blob_amplitude):
     # Realize gaussian sample from generated blob center coordinates
     coords_to_gaussian_samples = np.array([create_blobs(centers, image_size, blob_size, blob_amplitude)
                                            for centers in tqdm(blob_coords)])
-    
     # Get residuals
     return coords_to_gaussian_samples - samples
 
@@ -130,9 +123,12 @@ def ecdf(a):
 
 def ks_poisson(rvs, mean):
     """KS test for poisson"""
+    # Get cdf
     x, counts = ecdf(rvs)
     poisson = stats.poisson.cdf(x, mu=mean)
+    # Calculate cdf difference
     diff = np.abs(poisson-counts)
+    # Return max distance
     return np.max(diff)
 
 """Power spectrum"""
@@ -160,7 +156,7 @@ def tukey_window(N, alpha=0.5):
     return np.outer(tukey(N, alpha), tukey(N, alpha))
 
 def apodize(sample, method='tukey'):
-    """Apodize a sample, supports cosine, supergaussian and tukey windows"""
+    """Apodize a sample with either a cosine, supergaussian or tukey window"""
     if method=='cosine':
         return cosine_window(sample.shape[0]) * sample
 
@@ -174,7 +170,7 @@ def apodize(sample, method='tukey'):
         return sample
 
 def fourier_transform_samples(samples, progress_bar=False):
-    """Performs a 2d FFT on the image"""
+    """Performs a 2d FFT on an array of samples"""
     return [np.abs(np.fft.fftshift(np.fft.fft2(apodize(sample)))) 
             for sample in tqdm(samples, disable=not progress_bar)]
 
@@ -191,6 +187,7 @@ def ell_coordinates(image_size_pixel, pixel_size_deg):
 def power_spectrum(Map1, Map2, delta_ell, ell_max, ell2d=None, image_size_angular=1, 
                    taper=True, detrend='constant'):
     """Calcualtes the power spectrum of a 2d map by FFTing, squaring, and azimuthally averaging"""
+    # Initialize params
     image_size_pixel = Map1.shape[0]
     pixel_size_angular = image_size_angular / image_size_pixel
     
@@ -205,13 +202,15 @@ def power_spectrum(Map1, Map2, delta_ell, ell_max, ell2d=None, image_size_angula
     ell_array = np.arange(N_bins)
     CL_array = np.zeros(N_bins)
     
-    # Get the 2d fourier transform of the map
+    # Preprocessing for fft
     if detrend=='constant':
         Map1 = Map1 - np.mean(Map1)
         Map2 = Map2 - np.mean(Map2)
-    if taper:
+    if taper: 
         Map1 = apodize(Map1)
         Map2 = apodize(Map2)
+        
+    # Get the 2d fft of the map
     FMap1 = np.fft.ifft2(np.fft.fftshift(Map1))
     FMap2 = np.fft.ifft2(np.fft.fftshift(Map2))
     PSMap = np.fft.fftshift(np.real(np.conj(FMap1) * FMap2))
@@ -317,20 +316,19 @@ def gaussian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=50
         peak_coord = np.unravel_index(img_decomp.argmax(), img_decomp.shape)
         peak_val = np.max(img_decomp)
 
-        if method=='subtract':
+        # Remove blob
+        if method=='subtract': # Subtract a Gassian
             # Create gaussian with amplitude of maximum
             x, y = np.mgrid[0:img_decomp.shape[0]:1, 0:img_decomp.shape[1]:1]
             pos = np.dstack((x, y))
             gaussian = normalize_2d(stats.multivariate_normal(peak_coord, [[blob_size, 0], [0, blob_size]]).pdf(pos))*peak_val
-
             # Subtract created gaussian from image
             img_decomp = np.subtract(img_decomp, gaussian)
-        elif method=='zero':
+        elif method=='zero': # Mask to zero
+            # Create inner and outer masks
             mask_inner = create_circular_mask(img.shape[0], img.shape[0], peak_coord[::-1], blob_size+1)
             mask_outer = create_circular_mask(img.shape[0], img.shape[0], peak_coord[::-1], blob_size+2)
-            # mask_outer2 = create_circular_mask(img.shape[0], img.shape[0], peak_coord[::-1], blob_size+4)
-            
-            # img_decomp = np.where(mask_outer2, img_decomp*0.8, img_decomp)
+            # Set inner mask to 0 and scale outer mask by 0.15
             img_decomp = np.where(mask_outer, img_decomp-peak_val*0.15, img_decomp)
             img_decomp[mask_inner] = 0
         
@@ -338,8 +336,9 @@ def gaussian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=50
         if peak_val<=min_peak_threshold:
             break
         
-        if check_shape:
-            # Find if residual from subtraction is relatively flat, ignore point if residual is very negative
+        # Check if residual from subtraction is relatively flat, ignore point if residual is very negative
+        if check_shape:  
+            # Create mask  
             mask_radius = int(np.round(blob_size/2))
             temp_canvas = np.pad(img_decomp, (mask_radius,mask_radius), mode='constant', constant_values=(0,0))
             mask = create_circular_mask(
@@ -347,33 +346,37 @@ def gaussian_decomposition(img, blob_size, min_peak_threshold=0.08, max_iters=50
                 np.add(peak_coord[::-1],mask_radius),
                 radius = mask_radius
             )
-            
+            # Mask sample to isolate blob
             masked_canvas = temp_canvas.copy()
             masked_canvas[~mask] = 0
-
+            # Check if residual is flat
             mask_size = np.count_nonzero(mask)
-            
             if masked_canvas.sum()/mask_size<=-0.01:
+                # Remove max point and do not count point as a blob center
                 img_decomp[peak_coord[0], peak_coord[1]] = 0
                 continue
         
+        # Record blob coordianets and maximum value
         peak_coords.append(peak_coord)
         peak_vals.append(peak_val)
         
     return peak_coords, peak_vals
 
 def samples_blob_counter_fast(imgs, blob_size, min_peak_threshold, max_iters=50, filter_sd=None, method='subtract', progress_bar=True):
-    """Return coordinates of blobs and the corresponding peak values for an array of images"""
+    """
+    Return coordinates of blobs and the corresponding peak values for an array of images
+    Uses Gaussian decompostion for counting, assuming all blobs are the same amplitude
+    """
+    # Initialize lists
     blob_coords = []
     blob_nums = []
     peak_vals = []
-    
     for img in tqdm(imgs, disable=(not progress_bar)):
-        # Smooth image to remove noise
+        # Smooth image by Gaussian convolution to remove noise
         if filter_sd is not None:    
             img = gaussian_filter(img, filter_sd, mode='nearest')
         
-        # Find and record blobs
+        # Find and record blobs by Gaussian decomposition
         img_blob_coords, img_peak_vals = gaussian_decomposition(img, blob_size, min_peak_threshold, 
                                                                 max_iters=max_iters, method=method)
         blob_coords.append(img_blob_coords)
@@ -382,14 +385,21 @@ def samples_blob_counter_fast(imgs, blob_size, min_peak_threshold, max_iters=50,
 
     return blob_coords, blob_nums, peak_vals
 
-def count_blobs_from_peaks(imgs_peak_vals, generation_blob_number):
-    """Find the counts for each peak and the total number of peaks for a series of images"""
+def count_blobs_from_peaks(imgs_peak_vals, amplitude_scaling):
+    """
+    Find the counts for each peak and the total number of peaks for a series of images,
+    assuming the blob amplitudes are constant
+    The amplitude scaling input scales the peak value to represent a blob count,
+    aka 1/blob amplitude
+    """
+    # Initialize lists
     imgs_peak_counts = []
     imgs_total_blob_counts = []
-    
     for peak_vals in imgs_peak_vals:
-        peak_count_vals = [int(np.round(vals*generation_blob_number)) for vals in peak_vals]
+        # Round peak values to get approximated blob counts at peak
+        peak_count_vals = [int(np.round(vals*amplitude_scaling)) for vals in peak_vals]
         imgs_peak_counts.append(peak_count_vals)
+        # Record total blob counts for the sample
         imgs_total_blob_counts.append(np.sum(peak_count_vals))
     
     return imgs_peak_counts, imgs_total_blob_counts
@@ -418,10 +428,15 @@ def mse_from_residuals(residuals):
         np.square(residuals), (residuals.shape[0],residuals.shape[1]**2)), axis=1)
 
 def n_slices(n, list_):
+    """
+    Returns the output of a sliding window of size n 
+    3, [1,2,3,4,5] --> [1,2,3], [2,3,4], [3,4,5]
+    """
     for i in range(len(list_) + 1 - n):
         yield list_[i:i+n]
 
 def argSublist(list_, sub_list):
+    """Return indexes where sub_list is found in list_"""
     indexes=[]
     for i, slice_ in enumerate(n_slices(len(sub_list), list_)):
         if (slice_==sub_list).all():
@@ -429,7 +444,11 @@ def argSublist(list_, sub_list):
     return indexes
 
 def find_local_min(y, x, nonnegative=True):
-    """Find first local minima found in a list"""
+    """
+    Find first local minima found in a list with discrete x
+    To be considered a local minima, 
+    the x steps immediately before and after must have (x, y) data available
+    """
     # Sort by x without duplicates, taking minimum of y for duplicates
     sorted_x, idxs = np.unique(x, return_inverse=True)
     sorted_y = np.full(len(sorted_x), None)
@@ -444,20 +463,25 @@ def find_local_min(y, x, nonnegative=True):
         sorted_x = np.insert(sorted_x, 0, -1)
         sorted_y= np.insert(sorted_y, 0, 1e10)
 
-    # Find local minima with differences
+    # Find indexes where there are 3 consecutive x data points
+    # the differences in sorted x must be 1 to be consecutive 
     diff = sorted_x[1:] - sorted_x[:-1]
     indexes = argSublist(diff, np.array([1,1]))
+    
+    # Check if these indexes are local minima
     if len(indexes)!=0:
         for index in indexes:
             if sorted_y[index]<sorted_y[index-1] and sorted_y[index]<sorted_y[index+1]:
                 return sorted_x[index]
-    
+    # Return None if no local minima are found
     return None
 
 def find_dist_to_next_consec(x, val, direction=1):
-    """Find nearest consecutive number not in a list, 
+    """
+    Find nearest consecutive number not in a list, 
     starting from a specific value and going in a specified direction
-    eg. x=[5,7,6,0] val=5, direction=1 => 8"""
+    eg. (x=[5,7,6,0] val=5, direction=1) => 8
+    """
     if val not in x:
       return None
 
@@ -482,15 +506,16 @@ def find_dist_to_next_consec(x, val, direction=1):
     
 
 class blobFitter():
-    """Fits for the number of blobs for each sample given a set of samples
-    Blobs on samples must have the same amplitude"""
+    """
+    Fits for the number of blobs for each sample given a set of samples
+    Blobs on samples must have the same amplitude
+    """
     def __init__(self, blob_size, blob_amplitude, jit=0.5, error_scaling=1e7):
         """Initialize params"""
         self.blob_size = blob_size
         self.blob_amplitude = blob_amplitude
-        self.jit = jit
-        self.error_scaling = error_scaling
-        
+        self.jit = jit # Jitter distance in pixels
+        self.error_scaling = error_scaling # Scaling of error to get sufficiently large steps in optimized parameters
     
     def load_samples(self, samples):
         """Loads samples and initialize sample params"""
@@ -498,17 +523,18 @@ class blobFitter():
         self.image_size = samples[0].shape[0]
         self.sample_size = len(samples)
         
-        self.bounds = (-0.5,self.image_size-0.5)
+        self.bounds = (-0.5,self.image_size-0.5) # Bounds for minimzation
         self.single_blob_l1, self.single_blob_l2 = self._single_blob_error()
  
     def _make_gaussian(self, center, var, image_size):
         """Make a 2D symmetric gaussian"""
+        # Make grid
         x = np.arange(0, image_size, 1, float)
         y = x[:,np.newaxis]
-
+        # Blob center
         x0 = center[1]
         y0 = center[0]
-
+        # Make Gaussian
         return np.exp(-0.5 * ((x-x0)**2 + (y-y0)**2) / var)
 
     def _create_blobs(self, centers):
@@ -521,34 +547,45 @@ class blobFitter():
 
     def plot_fit(self, sample, centers):
         """Plot the best fit and the residual"""
-        fig, axs = plt.subplots(1, 2, figsize=(8, 4))
-
+        # Reshape coordinates
         y, x = zip(*centers)
+        
+        # Find residuals
+        residual = sample-self._create_blobs(centers)
+        
+        # Create figure
+        fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+        # Plot sample with blob center guesses 
         axs[0].imshow(sample)
         axs[0].scatter(x, y, c='r', alpha=0.5)
-
-        residual = sample-self._create_blobs(centers)
+        # Find bounds for residual cmap
         max = np.unravel_index(residual.argmax(), residual.shape)
         min = np.unravel_index(residual.argmin(), residual.shape)
         cmap_bounds = np.max([np.abs(residual.min()), np.abs(residual.max())])
-        
+        # Plot residual
         axs[1].set_title('residual')
         axs[1].imshow(residual, cmap='RdBu', vmin=-cmap_bounds, vmax=cmap_bounds)
         axs[1].scatter(x, y, c='r', alpha=0.5)
         axs[1].scatter(max[1], max[0], c='blue', marker='+')
         axs[1].scatter(min[1], min[0], c='white', marker='+')
-
+        # Format
         fig.suptitle(f'{len(centers)} blobs fit')
         plt.tight_layout()
+        # Show
         plt.show()
         plt.close()
         
     def _jitter(self, coords, jit):
+        """
+        Put array of same coordinates on circle equally spaced apart, 
+        centered at the original coordinate
+        """
         num = len(coords)
         push = circle_points([jit], [num])
         return np.array(coords) + push
 
     def _single_blob_error(self):
+        """Find the L1 and L2 error between a single blob and a blank image"""
         single_blob = self._create_blobs([(int(self.image_size/2),int(self.image_size/2))])
         l1 = single_blob.sum()
         l2 = mse(single_blob, np.zeros((self.image_size, self.image_size)))
@@ -556,10 +593,11 @@ class blobFitter():
 
     def find_guess(self, sample, rel_peak_threshold=0.8, max_iters=500):
         """Find an initial guess using gaussian decomposition"""
+        # Intialize variables
         img_decomp = sample.copy()
         peak_coords = []
         peak_counts = []
-
+        
         # Gaussian decomposition
         for _ in range(int(max_iters)):
             # Find max
@@ -596,32 +634,14 @@ class blobFitter():
             guess = np.array(guess).clip(*self.bounds)
 
         return guess
-        
-    def count_sample(self, sample,
-                method='SLSQP', max_iters=20, err_threshold_rel=0.2,
-                plot_progress=False):
-        # Get guess of coordinates
-        initial_guess = self.find_guess(sample)
-
-        # Count
-        guesses, errs, _ = self.count_recursive(
-            [initial_guess], [], [], sample, method, 
-            curr_iter=0, max_iters=max_iters, err_threshold_rel=err_threshold_rel,
-            plot_progress=plot_progress
-            )
-        counts = [len(guess) for guess in guesses]
-
-        # Index of best fit
-        idx = np.argmin(errs)
-        
-        return guesses[idx], errs, counts
             
     def count_sample_single_step(self, sample, queue=None, # queue must be third param 
                                  method='SLSQP', max_iters=50,  
                                  plot_guess=False, plot_progress=False):
         """
-        Count the number of blobs in a sample by fitting
+        Count the number of blobs in a sample by fitting.
         Keep fitting for counts at increments of 1 until a local error minima is found. 
+        This method is better suited for low number of counts.
         """
 
         # Get guess of coordinates
@@ -817,7 +837,7 @@ class blobFitter():
             
         return guess, errs
     
-    def count(self, err_threshold_rel=0.3, method='SLSQP', mode='multi', plot_progress=False, progress_bar=True):
+    def count(self, method='SLSQP', mode='multi', plot_progress=False, progress_bar=True):
         """
         Count blobs of the loaded samples
         """
@@ -877,6 +897,29 @@ class blobFitter():
     Too volatile for small number of blobs and not fast enough for large number of blobs
     Error threshold stopping criterion is very dependent on the blob count --> needs to be carefully set  
     """
+    def count_sample(self, sample,
+                method='SLSQP', max_iters=20, err_threshold_rel=0.2,
+                plot_progress=False):
+        """
+        Count the number of blobs on a sample by fitting.
+        Better suited for a large number of blobs.
+        """
+        # Get guess of coordinates
+        initial_guess = self.find_guess(sample)
+
+        # Count
+        guesses, errs, _ = self.count_recursive(
+            [initial_guess], [], [], sample, method, 
+            curr_iter=0, max_iters=max_iters, err_threshold_rel=err_threshold_rel,
+            plot_progress=plot_progress
+            )
+        counts = [len(guess) for guess in guesses]
+
+        # Index of best fit
+        idx = np.argmin(errs)
+        
+        return guesses[idx], errs, counts
+    
     def minimize_objective(self,
         guess, sample, size, amplitude,
         method='SLSQP',
@@ -1224,9 +1267,9 @@ class blobFitter():
         if state=='complete':
             return guesses, errs, state        
 
+###############################################################################################
 
 """Depreciated"""
-
 def find_local_peaks(img, min_distance=1, threshold_abs=0):
     """
     Returns coordinates of all local peaks of an image.

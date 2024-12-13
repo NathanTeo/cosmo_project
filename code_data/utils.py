@@ -85,14 +85,14 @@ class blobDataset():
         self.center_generator = centerGenerator(self.blob_num, self.image_size)
         
     def make_gaussian(self, center, var, image_size):
-            """ Make a symmetric 2D gaussian"""
-            x = np.arange(0, image_size, 1, float)
-            y = x[:,np.newaxis]
+        """ Make a symmetric 2D gaussian"""
+        x = np.arange(0, image_size, 1, float)
+        y = x[:,np.newaxis]
 
-            x0 = center[1]
-            y0 = center[0]
+        x0 = center[1]
+        y0 = center[0]
 
-            return np.exp(-0.5 * ((x-x0)**2 + (y-y0)**2) / var)
+        return np.exp(-0.5 * ((x-x0)**2 + (y-y0)**2) / var)
 
     def create_blobs(self, centers, blob_amplitudes=None):
         """Create an image of gaussian blobs given the centers and amplitudes of the blobs"""
@@ -298,6 +298,7 @@ class centerGenerator():
         return centers
     
     def random_with_min_dist(self, n, min_dist, size=(1,2), rng=np.random.default_rng()):
+        """Generate n random coordinates with condition of minimum distance between coordinates"""
         centers = []
         counter = 0
         while True:
@@ -330,7 +331,8 @@ class centerGenerator():
             # Get number of blobs from poisson distribution
             current_center_num = rng.poisson(self.num_centers)
             # Generate center coordinates
-            if current_center_num==0:
+            if current_center_num==0: 
+                # return empty coordinates of the correct shape for 0 blob case
                 centers = np.empty((0,2))
             else:
                 centers = self.random_with_min_dist(current_center_num, min_dist, rng=rng)
@@ -494,10 +496,9 @@ class centerGenerator():
             centers = self.clustered_centers(num_distribution, clustering, rng=rng)
         return centers
 
-
+###############################################################################################
 
 """Depreciated"""
-
 def normalize_2d(matrix): 
     return (matrix-np.min(matrix))/(np.max(matrix)-np.min(matrix)) 
 
@@ -519,6 +520,7 @@ def create_blob_sample(pos, generation_matrix_size, blob_num, blob_size, blob_am
             sample = np.add(sample, sample_next)
     
     if blob_num==0:
+        # Blank image for no blob case
         return np.zeros((generation_matrix_size, generation_matrix_size))
     else:
         return sample

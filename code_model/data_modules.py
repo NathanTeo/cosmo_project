@@ -55,15 +55,19 @@ class BlobDataModule(pl.LightningDataModule):
         # Load data
         samples = np.load(self.data_file)
         
+        # Truncate
         if self.truncate_ratio is not None:
             samples = samples[:int(self.truncate_ratio*len(samples))]
         
+        # Numpy array --> Torch tensor
         self.samples = torch.unsqueeze(torch.tensor(samples), 1).float()
         
+        # Apply transformations
         if self.transforms is not None:
             for transform in self.transforms:
                 self.samples = transform(self.samples)
         
+        # Normalize samples to [0,1]
         self.scale_samples()
         
         # Assign train/val datasets
@@ -136,9 +140,11 @@ class MNISTDataModule(pl.LightningDataModule):
         return DataLoader(self.mnist_test, batch_size=self.batch_size, num_workers=self.num_workers)
 
 """Transforms"""
+# Functions 
 def log10(x):
     return torch.log10(x+1)
 
+# Lookup dictionary for transformations applied before training
 transform_dict = {
     'log10': log10
 }

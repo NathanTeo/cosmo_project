@@ -6,6 +6,11 @@ This script compares the generation speed of
 - the neural network  
 """
 
+model_run = 'diffusion_7e'
+
+#################################################################################################
+
+# Import
 import time as t
 import sys
 import torch
@@ -18,11 +23,7 @@ from code_model.testers.eval_utils import *
 from code_model.testers.plotting_utils import *
 from code_data.utils import *
 
-"""RUNS"""
-model_run = 'diffusion_7e'
-
-##########################################################
-
+# Classes and funcitons
 class speedModule(modelLoader):
     """Class used to test the generation speed of standard methods and models"""
     def __init__(self, model_run):

@@ -4,6 +4,14 @@ Author: Nathan Teo
 This script compares the result of two models
 """
 
+model1_run = 'cwgan_8b'
+model2_run = 'diffusion_3e'
+labels = ['GAN', 'diffusion']
+model_epochs = None # Uses largest epoch if None
+
+###############################################################################################
+
+# Import 
 import time as t
 import sys
 import os
@@ -17,13 +25,7 @@ from code_model.models import model_dict
 from code_model.testers.eval_utils import *
 from code_model.testers.plotting_utils import *
 
-"""RUNS"""
-model1_run = 'cwgan_8b'
-model2_run = 'diffusion_3e'
-labels = ['GAN', 'diffusion']
-model_epochs = None # Uses largest epoch if None
-
-###############################################################################################
+# Classes and functions
 class compareUtils():
     def __init__(self, model1_run, model2_run, labels, model_epochs=None):
         """Initialize"""

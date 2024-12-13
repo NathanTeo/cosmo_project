@@ -7,10 +7,13 @@ This script makes plots for the poster
 run = "diffusion_3f"
 epoch = 299
 
+# Nice poster
 # real_color = '#DFD7E7'
 # model_color = '#F9B268'
 # axis_color = '#DFD7E7'
 # font_file = 'BAHNSCHRIFT.TTF'
+
+# CNYANG
 real_color = 'black'
 model_color = 'red'
 axis_color = 'black'
@@ -28,7 +31,7 @@ image_file_format = 'png'
 save_label = 'cny'
 
 #########################################################################################
-"""Initialize"""
+
 # Import
 import numpy as np
 import matplotlib as mpl
@@ -127,10 +130,15 @@ else:
 # Get image size
 image_size = model_samples[0].shape[0]
 
+
 """Plot"""
 print('plotting...')
+
 'Sample'
+# Progress
 print('task: samples', end='\t\t')
+
+# Plot
 for i in range(5):
     fig = plt.figure(figsize=(10,10))
     plt.imshow(real_samples[i])
@@ -143,11 +151,16 @@ for i in range(5):
     plt.axis('off')
     plt.savefig(f'{save_path}/model_samples_{i}.{image_file_format}')
     plt.close()
+
+# Progress
 print('complete')
+
 
 'Count histogram'
 if 'counthist' in tasks:
+    # Progress
     print('task: count histogram', end='\t')
+    
     # Create figure
     fig = plt.figure(figsize=(7,5))
 
@@ -189,11 +202,16 @@ if 'counthist' in tasks:
     # Save
     plt.savefig(f'{save_path}/number-blobs-histogram_{save_label}.{image_file_format}')
     plt.close()
+    
+    # Progress
     print('complete')
+
 
 'Power spectrum'
 if 'powerspec' in tasks:
+    # Progress
     print("task: power spectrum")
+    
     # Get Cls
     image_size_angular = 1
     delta_ell = 500
@@ -211,13 +229,13 @@ if 'powerspec' in tasks:
     fig, ax = plt.subplots(figsize=(7,5))
     
     # Plot
-    plot_smooth_line(
+    plot_errorbars(
         ax, real_cl, bins, real_err, 
         color=((real_color,1), (real_color,0.5)),
         linewidth=1, elinewidth=4, capsize=8, fmt='o',
         label='target', scale='semilog_x', errorbars=True, line=False
     )
-    plot_smooth_line(
+    plot_errorbars(
         ax, model_cl, bins, model_err, 
         color=((model_color,1), (model_color,1)),
         linewidth=1, elinewidth=2, capsize=4, fmt='.',
@@ -225,7 +243,6 @@ if 'powerspec' in tasks:
     )
     
     # Format
-    # fig.suptitle(f"Power spectrum")
     plt.xlabel(r'$l$')
     plt.ylabel(r'$C_l$')
     plt.xlim(np.min(bins)*.9,np.max(bins)*1.1)
@@ -239,11 +256,15 @@ if 'powerspec' in tasks:
     plt.savefig(f'{save_path}/power-spec_{save_label}.{image_file_format}')
     plt.close() 
     
+    # Progress
     print('complete')
+
 
 'Amp distribution'
 if 'amphist' in tasks:
+    # Progress
     print("task: amplitude histogram", end='\t')
+    
     # Create figure
     fig = plt.figure(figsize=(7,5))
     
@@ -268,7 +289,6 @@ if 'amphist' in tasks:
     ax.ticklabel_format(axis='y', style='scientific', scilimits=(2, 2))
     plt.ylabel('blob count')
     plt.xlabel('blob amplitude')
-    # plt.suptitle(f"Histogram of blob amplitude")
     plt.legend()
     plt.tight_layout()
 
@@ -276,6 +296,8 @@ if 'amphist' in tasks:
     plt.savefig(f'{save_path}/amplitude-blobs-histogram_{save_label}.{image_file_format}')
     plt.close()
     
+    # Progress
     print('complete')
 
+# Progress
 print('complete')

@@ -4,23 +4,24 @@ Author: Nathan Teo
 This script plots the residuals of the real and generated samples of a chosen run
 """
 
+run = 'cwgan_7c'
+
+#############################################################################################
+
+# Import
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import os
 import sys
 
-"""RUN"""
-run = 'cwgan_7c'
-
-
-#################################################################################
 project_path = 'C:/Users/Idiot/Desktop/Research/OFYP/cosmo/cosmo_project'
 sys.path.append(project_path)
 from code_model.models import model_dict
 from code_model.testers.eval_utils import *
 from code_model.testers.plotting_utils import *
 
+# Classes and functions
 class dataLoader():
     def __init__(self, run):
         """Initialize"""
