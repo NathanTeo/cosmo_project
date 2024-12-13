@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=generate_samples
-#SBATCH --mem=32G
+#SBATCH --mem=64G
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=8:0:0
+#SBATCH --time=12:0:0
 #SBATCH --mail-user=<nath0020@e.ntu.edu.sg>
 #SBATCH --mail-type=ALL
 #SBATCH --gres=gpu:a100:1

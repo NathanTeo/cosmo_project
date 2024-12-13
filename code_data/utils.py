@@ -79,7 +79,7 @@ class blobDataset():
         '''
         # Seed rng
         seed_rng = np.random.default_rng(seed=seed)
-        self.seeds = seed_rng.choice(int(self.sample_num*5), size=self.sample_num, replace=False)
+        self.seeds = seed_rng.choice(int(self.sample_num**2), size=self.sample_num, replace=False)
   
         # Initiate center generator
         self.center_generator = centerGenerator(self.blob_num, self.image_size)

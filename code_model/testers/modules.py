@@ -102,7 +102,7 @@ class testDataset():
         
         # Need to change if different number of models are plotted, find a way to make this automatic/input?
         self.fill_alphas = [*[0 for _ in range(self.num_models-1)], 0.2]
-        self.line_alphas = [*[0.2*(i+1) for i in range(self.num_models-1)], 0.8] # number of models loaded should be less than 5
+        self.line_alphas = [*[min(0.2*(i+1),0.6) for i in range(self.num_models-1)], 0.8] # number of models loaded should be less than 5
         self.line_widths = [*[1 for _ in range(self.num_models-1)], 1.2]
         self.line_styles = [*['-' for _ in range(self.num_models-1)], '--']
         self.select_last_epoch = [*[False for _ in range(self.num_models-1)], True]
