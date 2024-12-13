@@ -4,8 +4,10 @@ Checking how well generative model replicate statistics of simple datasets. In t
 We test on datasets that contain
 1. Exactly 10 randomly placed Gaussian blobs of the same size and amplitude at a 32 by 32 resolution
 2. Poisson 10 randomly placed Gaussian blobs of the same size and amplitude at a 32 by 32 resolution
-3. Poisson 500 randomly placed Gaussian blobs of the same size and amplitude at a 64 by 64 resolution
-4. Poisson 500 clustered Gaussian blobs of the same size and amplitude at a 64 by 64 resolution
+3. Poisson 1000 randomly placed Gaussian blobs of the same size and amplitude at a 128 by 128 resolution
+4. Poisson 1000 clustered Gaussian blobs of the same size and amplitude at a 128 by 128 resolution
+5. Poisson 10 non-overlapping blobs of the same size, with amplitudes sampled from a power law distribution, at a 32 by 32 resolution
+6. Poisson 1000 clustered blobs of the same size, with amplitudes sampled from a power law distribution, at a 128 by 128 resolution
 
 This repository contains code for training and testing both GANs and diffusion models.
 
@@ -17,7 +19,7 @@ Code used to create the real datasets for model training.
 3. utils:
 QOL scripts for moving or clearing files or job submition
 4. workspace_tests:
-Contains miscellaneous scripts for plotting and testing outside the scope of individual model testing handled by the code_model scripts. Includes tests for comparing two models, checking the power spectrum etc.
+Contains miscellaneous scripts for plotting and testing outside the scope of individual model testing handled by the code_model scripts. Includes tests for comparing two models, checking the power spectrum, making poster plots etc.
 
 ## Requirements
 Install python. Create a virtual env (venv comes preinstalled in later versions of python) and pip install the requirements_cpu.txt or requirements_gpu.txt. 
