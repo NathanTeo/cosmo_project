@@ -73,17 +73,18 @@ class modelLoader():
         else:
             sample_file = filenames[-1]
         self.model_samples = np.load(f'{self.model_output_path}/{sample_file}', allow_pickle=True)
-        print(sample_file)
+        return self.model_samples
         
-    def load_real_samples(self):
+    def load_real_samples(self, dataset_size=None):
         # Load real samples
         file = os.listdir(f'{self.real_data_path}')[0]
-        self.real_samples = np.load(f'{self.real_data_path}/{file}')[:len(self.model_samples)]
+        self.real_samples = np.load(f'{self.real_data_path}/{file}')[:dataset_size]
         self.subset_sample_num = len(self.real_samples)
+        return self.real_samples
         
     def load_samples(self):
         self.load_generated_samples()
-        self.load_real_samples()
+        self.load_real_samples(len(self.model_samples))
         
     def load_counts(self):
         """Load counts"""
