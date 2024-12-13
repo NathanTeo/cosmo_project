@@ -248,7 +248,7 @@ def power_spectrum_stack(samples,
     return mean, errs, bins
 
 """2-point correlation"""
-def calculate_two_point(coords, image_size, angular_size=1, bins=10, bootstrap=True, logscale=True):
+def calculate_two_point(coords, image_size, angular_size=1, bins=10, bootstrap=False, logscale=True):
     """Calculate the two point correaltion with astroML"""
     # Get edges of bins
     if logscale:
@@ -266,7 +266,7 @@ def calculate_two_point(coords, image_size, angular_size=1, bins=10, bootstrap=T
         corrs = two_point_angular(*zip(*coords_scaled), edges)
         return corrs, None, edges/angular_size*image_size
     
-def two_point_stack(samples, image_size, bins=10, bootstrap=True, progress_bar=False, logscale=True):
+def two_point_stack(samples, image_size, bins=10, bootstrap=False, progress_bar=False, logscale=True):
     """Calculate the mean two point correlation for a set of samples with astroML"""
     # Initialize arrays
     all_corrs = []

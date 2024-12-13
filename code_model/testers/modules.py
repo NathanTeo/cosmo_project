@@ -56,7 +56,7 @@ class testDataset():
         # Use model_epochs for num_models if model_epochs is given
         if self.model_epochs is not None:
             if self.num_models!=len(self.model_epochs):
-                print(f'note: number of models set from {self.num_models} to {len(self.model_epochs)} to follow model epoch input')
+                print(f'note: number of models changed from {self.num_models} to {len(self.model_epochs)} to follow model epoch input')
             self.num_models = len(self.model_epochs)
         
         """Paths"""
@@ -116,7 +116,7 @@ class testDataset():
         
     def load_data(self, DataModule):
         """Load real data"""
-        self.real_imgs = np.load(f'{self.data_path}/{self.data_file_name}')[:self.subset_sample_num]
+        self.real_imgs = np.load(f'{self.data_path}/{self.data_file_name}')
         self.data = DataModule(
             data_file=f'{self.data_path}/{self.data_file_name}',
             batch_size=self.batch_size, num_workers=self.num_workers,
@@ -262,6 +262,7 @@ class blobTester(testDataset):
         
         # Dictionary for logging metrics
         self.log_dict = {
+            'epoch': [],
             'stat': [],
             'metric': [],
             'result': []
@@ -269,9 +270,10 @@ class blobTester(testDataset):
         
     def log_in_dict(self, entry):
         """Log desired metrics in the initialized dictionary"""
-        self.log_dict['stat'].append(entry[0])
-        self.log_dict['metric'].append(entry[1])
-        self.log_dict['result'].append(entry[2])
+        self.log_dict['epoch'].append(entry[0])
+        self.log_dict['stat'].append(entry[1])
+        self.log_dict['metric'].append(entry[2])
+        self.log_dict['result'].append(entry[3])
     
     def images(self):
         """Plot generated images - grid of images, marginal sums, blob coordinates"""
@@ -284,7 +286,7 @@ class blobTester(testDataset):
                     
             for n in tqdm(range(self.num_plots), desc='plotting'):
                 # Get images
-                real_imgs_subset = self.real_imgs[n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)]
+                real_imgs_subset = self.real_imgs_subset[n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)]
                 gen_imgs_subset = gen_imgs[n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)] # Only use last model for this section
                 
                 'Images'
@@ -426,7 +428,7 @@ class blobTester(testDataset):
         
         # Log js
         js = JSD(real_hist, gen_hist)
-        self.log_in_dict(['stack img hist', 'JS div', js])
+        self.log_in_dict([self.model_epochs[-1],'stack img hist', 'JS div', js])
 
     def count_blobs_fast(self):
         """Count blobs only using gaussian decomp"""
@@ -599,10 +601,11 @@ class blobTester(testDataset):
         'Log stats'
         # JS div
         js = JSD(real_hist, gen_hist)
-        self.log_in_dict(['blob amplitude', 'JS div', js])
+        self.log_in_dict([self.model_epochs[-1], 'blob amplitude', 'JS div', js])
         # KS test
-        ks = stats.kstest(all_gen_amplitudes_concat[-1], real_amplitudes_concat)
-        self.log_in_dict(['blob amplitude', 'KS test', ks])
+        for gen_amplitude, epoch in zip(all_gen_amplitudes_concat, self.model_epochs):
+            ks = stats.kstest(gen_amplitude, real_amplitudes_concat)
+            self.log_in_dict([epoch, 'blob amplitude', 'KS test', ks])
           
      
     def blob_num_stats(self):
@@ -670,20 +673,20 @@ class blobTester(testDataset):
         plt.close()
         
         'Log stats'
-        gen_last_counts = self.all_gen_blob_counts[-1] 
         # JS div
         js = JSD(real_hist, gen_hist)
-        self.log_in_dict(['blob count', 'JS div', js])
-        # KS test
-        if self.num_distr=='poisson':
-            ks_stat = ks_poisson(gen_last_counts, self.blob_num)
-            self.log_in_dict(['blob count', 'KS test', ks_stat])
-        # Accuracy
-        elif self.num_distr=='delta':
-            gen_r = np.where(gen_last_counts==self.blob_num, 1, 0).sum()/len(gen_last_counts)
-            real_r = np.where(self.real_blob_counts==self.blob_num, 1, 0).sum()/len(self.real_blob_counts)
-            self.log_in_dict(['blob count', 'accuracy-generated', gen_r])
-            self.log_in_dict(['blob count', 'accuracy-target', real_r])
+        self.log_in_dict([self.model_epochs[-1], 'blob count', 'JS div', js])
+        for gen_counts, epoch in zip(self.all_gen_blob_counts, self.model_epochs):
+            # KS test
+            if self.num_distr=='poisson':
+                ks_stat = ks_poisson(gen_counts, self.blob_num)
+                self.log_in_dict([epoch, 'blob count', 'KS test', ks_stat])
+            # Accuracy
+            elif self.num_distr=='delta':
+                gen_r = np.where(gen_counts==self.blob_num, 1, 0).sum()/len(gen_counts)
+                real_r = np.where(self.real_blob_counts==self.blob_num, 1, 0).sum()/len(self.real_blob_counts)
+                self.log_in_dict([epoch, 'blob count', 'accuracy-generated', gen_r])
+                self.log_in_dict([None, 'blob count', 'accuracy-target', real_r])
         
         'Extreme number of blobs'
         # Create figure
@@ -890,10 +893,11 @@ class blobTester(testDataset):
         'Log stats'
         # JS div
         js = JSD(real_hist, gen_hist)
-        self.log_in_dict(['total flux', 'JS div', js])
+        self.log_in_dict([self.model_epochs[-1], 'total flux', 'JS div', js])
         # KS test
-        ks = stats.kstest(all_gen_img_fluxes[-1], real_img_fluxes)
-        self.log_in_dict(['total flux', 'KS test', ks])
+        for gen_fluxes, epoch in zip(all_gen_img_fluxes, self.model_epochs):
+            ks = stats.kstest(gen_fluxes, find_total_fluxes(self.real_imgs))
+            self.log_in_dict([epoch, 'total flux', 'KS test', ks])
         
         'Extreme flux'
         # Create figure
@@ -947,13 +951,15 @@ class blobTester(testDataset):
     def two_point_correlation(self):
         """2-point correlation analysis"""
         print('calculating 2 point correlation...')
+        max_dist = int(self.image_size *2/3)
+        
         real_corrs, real_errs, edges = two_point_stack(
-            self.real_blob_coords, self.image_size, bins=20, progress_bar=True,
+            self.real_blob_coords, max_dist, bins=15, progress_bar=True,
             logscale=True if self.clustering is not None else False
             )
         all_gen_corrs, all_gen_errs, _ = map(
             list, zip(*[two_point_stack(
-                blob_coords, self.image_size, bins=20, progress_bar=True,
+                blob_coords, max_dist, bins=15, progress_bar=True,
                 logscale=True if self.clustering is not None else False
                 ) for blob_coords in self.all_gen_blob_coords])
         )
@@ -990,7 +996,7 @@ class blobTester(testDataset):
         fig.suptitle(f"2-point correlation")
         plt.xlabel('pair distance')
         plt.ylabel('2-point correlation')
-        plt.xlim(0, edges[-1]+1)
+        plt.xlim(0, edges[-1]+1) # custom value 
         plt.tight_layout()
         
         plt.legend()
@@ -1277,7 +1283,7 @@ class pointTester(testDataset):
         """Plot generated images - grid of images, marginal sums, blob coordinates"""
         for n in tqdm(range(self.num_plots), desc='Plotting'):
             # Get images
-            real_imgs_subset = self.real_imgs[n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)]
+            real_imgs_subset = self.real_imgs_subset[n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)]
             gen_imgs_subset = self.all_gen_imgs[-1][n*(self.grid_row_size**2):(n+1)*(self.grid_row_size**2)] # Only use last model for this section
             
             # Plotting grid of images
