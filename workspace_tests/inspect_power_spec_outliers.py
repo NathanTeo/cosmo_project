@@ -1,3 +1,13 @@
+"""
+Author: Nathan Teo
+
+This script looks at power spectrum outlier samples
+"""
+
+run = "diffusion_6b"
+
+##############################################################################################
+# Import
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
@@ -9,9 +19,6 @@ from code_model.testers.eval_utils import *
 from code_model.testers.plotting_utils import *
 from code_data.utils import *
 
-run = "diffusion_6b"
-
-#########################################################################################
 # Load samples
 model = modelLoader(run)
 model.load_samples()

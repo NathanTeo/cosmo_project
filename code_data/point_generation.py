@@ -1,9 +1,9 @@
 """
 Author: Nathan Teo
 
-NO LONGER USED
+NO LONGER USED, OLD CODE
 
-This script generates and saves real samples for the GAN.
+This script generates and saves real samples.
 The samples are saved in a single .npy file along with a single sample plot.
 """
 

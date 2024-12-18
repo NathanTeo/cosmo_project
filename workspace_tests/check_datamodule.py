@@ -7,6 +7,7 @@ This script checks if the dataModule prepares the data correctly
 model_run = 'diffusion_7e'
 
 #############################################################################################
+
 # Import
 import sys
 import os
@@ -40,14 +41,13 @@ if len(filenames)>1:
 else:
         data_file_name = filenames[0]
 
+# Load data
 data = BlobDataModule(
         data_file=f'{data_path}/{data_file_name}',
         batch_size=batch_size, num_workers=num_workers,
         transforms=data_transforms
         )
-
 data.setup()
-
 samples = data.samples
 
 print(f'dataset size: {data.num_samples}')

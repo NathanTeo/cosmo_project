@@ -334,31 +334,6 @@ class blobTester(testDataset):
                 # Save plot
                 plt.savefig(f'{save_path}/marg-sums_{n}.{self.image_file_format}')
                 plt.close()
-            
-                'Counts' # Not very useful for large number of blobs
-                '''# Fitting blobs
-                counter = blobFitter(blob_size=self.blob_size, blob_amplitude=self.blob_amplitude)
-                
-                counter.load_samples(real_imgs_subset)
-                real_blob_coords, real_blob_counts = counter.count(err_threshold_rel=1, mode='multi', progress_bar=True, plot_progress=False)
-
-                counter.load_samples(gen_imgs_subset)
-                gen_blob_coords, gen_img_blob_counts = counter.count(err_threshold_rel=1, mode='multi', progress_bar=True, plot_progress=False)
-
-                # Plotting fit
-                fig = plt.figure(figsize=(6,3))
-                subfig = fig.subfigures(1, 2, wspace=0.2)
-                
-                plot_peak_grid(subfig[0], real_imgs_subset, real_blob_coords, self.grid_row_size, 
-                                title='target imgaes', subplot_titles=real_blob_counts)
-                plot_peak_grid(subfig[1], gen_imgs_subset, gen_blob_coords, self.grid_row_size, 
-                                title='generated imgaes', subplot_titles=gen_img_blob_counts)
-                
-                fig.text(.5, .03, 'number of blobs labelled above image', ha='center')
-                
-                # Save plot
-                plt.savefig(f'{save_path}/counts-imgs_{n}.{self.image_file_format}')
-                plt.close()'''
                 
                 'FFT'
                 # Fourier transform images
@@ -796,7 +771,7 @@ class blobTester(testDataset):
         fig, ax = plt.subplots(figsize=self.plot_halfsize)
         
         # Plot
-        plot_smooth_line(
+        plot_errorbars(
             ax, real_cl, bins, real_err, 
             color=((self.real_color,1), (self.real_color,0.5)),
             linewidth=1.2, elinewidth=2, capsize=4, fmt='o',
@@ -804,7 +779,7 @@ class blobTester(testDataset):
         )
          
         for i, (cl, err) in enumerate(zip(all_gen_cl, all_gen_err)):
-            plot_smooth_line(
+            plot_errorbars(
                 ax, cl, bins, err, 
                 color=((self.gen_color,0.5), (self.gen_color,0.5)),
                 linewidth=self.line_widths[i],
@@ -973,7 +948,7 @@ class blobTester(testDataset):
             lin = np.linspace(-10, edges[-1]+10, n)
             plt.plot(lin, [0]*n, color=('black', 0.3), linestyle='dashed')
         
-        plot_smooth_line(
+        plot_errorbars(
             ax, real_corrs, midpoints_of_bins(edges), real_errs, 
             color=((self.real_color,1), (self.real_color,0.5)),
             linewidth=1.2, elinewidth=1.5, capsize=4, fmt='o',
@@ -983,7 +958,7 @@ class blobTester(testDataset):
         )
          
         for i, (corrs, errs) in enumerate(zip(all_gen_corrs, all_gen_errs)):
-            plot_smooth_line(
+            plot_errorbars(
                 ax, corrs, midpoints_of_bins(edges), errs, 
                 color=((self.gen_color,self.line_alphas[i]), (self.gen_color,0.5)), 
                 linewidth=self.line_widths[i],
@@ -1079,7 +1054,7 @@ class blobTester(testDataset):
             self.two_point_correlation()
         self.power_spec()
         self.flux_stats()
-        # self.pixel_stats()
+        self.pixel_stats()
         save_log_dict(f'{self.plot_save_path}/metrics', self.log_dict)
         
 class ganLogsPlotter(testDataset):
@@ -1267,6 +1242,8 @@ class diffLogsPlotter(testDataset):
             return
         else:
             self.loss()
+
+###############################################################################################
 
 """Depreciated"""
 class pointTester(testDataset):

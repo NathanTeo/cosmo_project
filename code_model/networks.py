@@ -1387,10 +1387,11 @@ class UnetConvNextBlock(nn.Module):
         super().__init__()
         network_params = training_params['network_params']
 
+        # Initialize params
         try:
             dim = network_params['model_dim']
             time_dim = network_params['time_dim']
-        except KeyError:
+        except KeyError: # Set model dim and time dim to image size if not given
             dim = training_params['image_size']
             time_dim = dim
         self.channels = network_params['image_channels']
@@ -1399,25 +1400,29 @@ class UnetConvNextBlock(nn.Module):
          
         self.residual = residual
         self.output_mean_scale = output_mean_scale
-
+        
+        # List of input and output dimensions for each layer in the network
         dims = [self.channels, *map(lambda m: dim * m, dim_mults)]
         in_out = list(zip(dims[:-1], dims[1:]))
 
+        # Embed time
         if with_time_emb:
             self.time_mlp = nn.Sequential(
                 layers.SinusoidalPosEmb(time_dim),
                 nn.Linear(time_dim, time_dim * 4),
                 nn.GELU(),
-                nn.Linear(time_dim * 4, time_dim) # need to check if this should be all time_dim
+                nn.Linear(time_dim * 4, time_dim)
             )
         else:
             time_dim = None
             self.time_mlp = None
 
+        # Initialize unet layers
         self.downs = nn.ModuleList([])
         self.ups = nn.ModuleList([])
         num_resolutions = len(in_out)
 
+        # Downsampling layers
         for ind, (dim_in, dim_out) in enumerate(in_out):
             is_last = ind >= (num_resolutions - 1)
 
@@ -1428,11 +1433,13 @@ class UnetConvNextBlock(nn.Module):
                 layers.Downsample(dim_out) if not is_last else nn.Identity()
             ]))
 
+        # Bottleneck layers
         mid_dim = dims[-1]
         self.mid_block1 = layers.ConvNextBlock(mid_dim, mid_dim, time_emb_dim = time_dim)
         self.mid_attn = layers.Residual(layers.PreNorm(mid_dim, layers.LinearAttention(mid_dim)))
         self.mid_block2 = layers.ConvNextBlock(mid_dim, mid_dim, time_emb_dim = time_dim)
 
+        # Upsampling layers
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
             is_last = ind >= (num_resolutions - 1)
 
@@ -1451,6 +1458,7 @@ class UnetConvNextBlock(nn.Module):
         )
 
     def forward(self, x, time=None):
+        # Intialize x and t
         orig_x = x
         t = None
         if time is not None and layers.exists(self.time_mlp):
@@ -1458,18 +1466,21 @@ class UnetConvNextBlock(nn.Module):
         
         original_mean = torch.mean(x, [1, 2, 3], keepdim=True)
         h = []
-
+        
+        # Downsampling
         for convnext, convnext2, attn, downsample in self.downs:
             x = convnext(x, t)
             x = convnext2(x, t)
             x = attn(x)
             h.append(x)
             x = downsample(x)
-
+        
+        # Bottleneck
         x = self.mid_block1(x, t)
         x = self.mid_attn(x)
         x = self.mid_block2(x, t)
 
+        # Upsampling
         for convnext, convnext2, attn, upsample in self.ups:
             x = torch.cat((x, h.pop()), dim=1)
             x = convnext(x, t)

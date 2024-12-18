@@ -29,6 +29,7 @@ save_path = f'{project_path}/misc_plots/ks_poisson_sim/mean-{mean}_samples-{samp
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 
+# Functions
 def ecdf(a):
     """Return bins and ecdf"""
     x, counts = np.unique(a, return_counts=True)
@@ -82,6 +83,7 @@ if 'simulation.npy' not in os.listdir(save_path) or restart:
     plt.close()
     
 else:
+    # Load simulation results
     print('loading simulations...', end='\t')
     ks_stats = np.load(f'{save_path}/simulation.npy', allow_pickle=True)
     print('complete')
@@ -112,6 +114,7 @@ _, max_ylim = plt.ylim()
 plt.text(crit_stat*1.05, max_ylim*0.4, 
          f'critical statistic\n{crit_stat:.4f}', color='red')
 
+# Format
 plt.title('Distribution of simulated KS statistic')
 ax = plt.gca()
 ax.yaxis.set_major_formatter(mpl.ticker.ScalarFormatter(useMathText=True))
@@ -120,17 +123,26 @@ plt.xlabel('KS statistic')
 plt.ylabel('count')
 plt.tight_layout()
 plt.legend()
+
+# Save
 plt.savefig(f'{save_path}/stat_histogram')
 plt.close()
 
+# Plot position of observed KS stat
 if ks_stat_obs is not None:
+    # Get p-value
     p_val = np.where(ks_stats>=ks_stat_obs, 1, 0).mean()
     
+    # Plot
     plt.hist(ks_stats, histtype='step', bins=20)
     plt.axvline(ks_stat_obs, color=('r',0.5), linestyle='dashed', linewidth=1)
+    
+    # Format
     plt.title(f'observed KS statisic: {ks_stat_obs} | p-value: {p_val}')
     plt.xlabel('KS statistic')
     plt.ylabel('count')
+    
+    # Save
     plt.savefig(f'{save_path}/stat_{str(ks_stat_obs).replace(".", "-")}')
     plt.close()
     
